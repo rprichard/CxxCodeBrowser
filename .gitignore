@@ -1,0 +1,5 @@
+build
+*.o
+*.s
+a.out
+*.pro.user
