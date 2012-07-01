@@ -6,3 +6,6 @@ TEMPLATE = app
 SOURCES += test.cc
 
 include(../clang.pri)
+
+target.path = /
+INSTALLS += target

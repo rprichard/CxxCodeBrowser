@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <iostream>
 #include "llvm/Support/Host.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -84,6 +85,19 @@ void MyPPCallbacks::FileChanged(clang::SourceLocation loc,
         std::cerr << "enter " << pSM->getBufferName(loc)
                   << "(" << pSM->getFileID(loc).getHashValue() << ")"
                   << std::endl;
+
+        const clang::FileEntry *pFE = pSM->getFileEntryForID(pSM->getFileID(loc));
+        if (pFE) {
+            llvm::MemoryBuffer *mem = pSM->getFileManager().getBufferForFile(pFE);
+            assert(mem);
+            llvm::StringRef str = mem->getBuffer();
+
+            indent();
+            std::string piece(str.data(), 10);
+            std::cerr << piece << std::endl;
+        }
+        indent();
+
         ++includeLevel;
     } else if (reason == clang::PPCallbacks::ExitFile) {
         --includeLevel;
@@ -137,6 +151,7 @@ int main()
     ci.setASTConsumer(astConsumer);
 
     pSM = &ci.getSourceManager();
+
 
     ci.getPreprocessor().addPPCallbacks(new MyPPCallbacks());
 
