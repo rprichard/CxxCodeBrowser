@@ -1,9 +1,30 @@
-#include <unistd.h>
 #include <dlfcn.h>
 #include <stdarg.h>
-#include <stdlib.h>
+#include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/file.h>
+#include <unistd.h>
+
+/* Write the string to the FILE.  Spaces and newlines are quoted.  Backslashes
+ * and quotes are escaped. */
+static void writeString(FILE *fp, const char *text)
+{
+    bool needsQuotes =
+        (strchr(text, ' ') != NULL ||
+         strchr(text, '\n') != NULL);
+    if (needsQuotes)
+        fputc('\"', fp);
+    for (int i = 0; text[i] != '\0'; ++i) {
+        char ch = text[i];
+        if (ch == '\\' || ch == '\"')
+            fputc('\\', fp);
+        fputc(ch, fp);
+    }
+    if (needsQuotes)
+        fputc('\"', fp);
+}
 
 static void logExecution(const char *filename, char *const argv[])
 {
@@ -11,13 +32,22 @@ static void logExecution(const char *filename, char *const argv[])
     if (logFile != NULL && logFile[0] != '\0') {
         FILE *fp = fopen(logFile, "a");
         flock(fileno(fp), LOCK_EX);
-        int count = 0;
-        for (int i = 0; argv[i] != NULL; ++i)
-            count = i + 1;
-        fprintf(fp, "%d\n", count + 1);
-        fprintf(fp, "%s\n", filename);
-        for (int i = 0; argv[i] != NULL; ++i)
-            fprintf(fp, "%s\n", argv[i]);
+        {
+            char path[8192];  /* TODO: replace fixed-size buffer */
+            char *result = getcwd(path, sizeof(path));
+            writeString(fp, result);
+            fputc('\n', fp);
+        }
+        {
+            writeString(fp, filename);
+            fputc('\n', fp);
+            for (int i = 0; argv[i] != NULL; ++i) {
+                if (i > 0)
+                    fputc(' ', fp);
+                writeString(fp, argv[i]);
+            }
+            fputc('\n', fp);
+        }
         flock(fileno(fp), LOCK_UN);
         fclose(fp);
     }
