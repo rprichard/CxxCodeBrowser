@@ -1,7 +1,8 @@
 #!/usr/bin/env python
+import json
 import os
-import subprocess
 import re
+import subprocess
 
 DRIVERS = [
     "cc", "c++",
@@ -92,49 +93,72 @@ def extractSourceFile(command):
     inputFile = None
     outputFile = None
 
-    outputArgs = []
+    outputIncludes = []
+    outputDefines = []
+    outputExtraArgs = []
 
     while len(args) > 0:
 
-        if args[0][0] == "-" and args[0][1] in "oDI" and len(args[0]) == 2:
-            assert len(args) >= 2
-            args[0] = args[0] + args[1]
-            args.pop(1)
+        arg = args.pop(0)
 
-        if filterPattern.match(args[0]):
-            args.pop(0)
-        elif args[0][0] == "-":
-            if args[0][1] == "o":
+        if arg[0] == "-" and arg[1] in "oDI" and len(arg) == 2:
+            assert len(args) >= 1
+            arg += args.pop(0)
+
+        if filterPattern.match(arg):
+            pass
+        elif arg[0] == "-":
+            if arg[1] == "o":
                 assert outputFile is None
-                outputFile = args[0][2:]
-                args.pop(0)
-            elif args[0][1] == "I":
-                outputArgs.append("-I" +
-                                  os.path.realpath(os.path.join(command.cwd,
-                                                                args[0][2:])))
-                args.pop(0)
+                outputFile = arg[2:]
+            elif arg[1] == "I":
+                outputIncludes.append(
+                    os.path.realpath(
+                        os.path.join(command.cwd,
+                                     arg[2:])))
+            elif arg[1] == "D":
+                outputDefines.append(arg[2:])
             else:
-                outputArgs.append(args.pop(0))
-        elif endsWithOneOf(args[0], sourceExtensions):
+                outputExtraArgs.append(arg)
+        elif endsWithOneOf(arg, sourceExtensions):
             assert inputFile is None
-            inputFile = args.pop(0)
+            inputFile = arg
         else:
-            print("Unknown argument: " + args.pop(0))
+            print("Unknown argument: " + arg)
 
     if inputFile is None:
         return None
 
-    return SourceFile(os.path.join(command.cwd, inputFile), outputArgs)
+    output = """    {"file": """ + json.dumps(
+        os.path.join(command.cwd, inputFile))
+
+    if len(outputIncludes) > 0:
+        output += """\n        ,"includes": """ + json.dumps(outputIncludes)
+    if len(outputDefines) > 0:
+        output += """\n        ,"defines": """ + json.dumps(outputDefines)
+    if len(outputExtraArgs) > 0:
+        output += """\n        ,"extraArgs": """ + json.dumps(outputExtraArgs)
+    output += "}"
+
+    return output
 
 
 def main():
+    firstFile = True
     commands = readFile("btrace.log")
     f = open("btrace.sources", "w")
+    f.write("[\n")
     for x in commands:
         sourceFile = extractSourceFile(x)
         if sourceFile is not None:
-            # TODO: escaping
-            f.write(" ".join([sourceFile.path] + sourceFile.args) + "\n")
+            if not firstFile:
+                f.write(",\n")
+            f.write("    ")
+            f.write(sourceFile)
+            firstFile = False
+    if not firstFile:
+        f.write("\n")
+    f.write("]")
     f.close()
 
 
