@@ -3,12 +3,33 @@ QT += core gui
 TARGET = navigator
 TEMPLATE = app
 
-SOURCES += main.cpp \
-           mainwindow.cpp
+SOURCES += \
+    Program.cc \
+    Source.cc \
+    SourcesJsonReader.cc \
+    NavTableWindow.cc \
+    TableSupplierSourceList.cc \
+    main.cc \
+    NavMainWindow.cc
 
-HEADERS += mainwindow.h
+HEADERS += \
+    Program.h \
+    Source.h \
+    SourcesJsonReader.h \
+    Misc.h \
+    NavTableWindow.h \
+    TableSupplier.h \
+    TableSupplierSourceList.h \
+    NavMainWindow.h
 
-FORMS += mainwindow.ui
+FORMS += \
+    NavTableWindow.ui \
+    NavMainWindow.ui
 
 target.path = /
 INSTALLS += target
+
+include(../clang.pri)
+
+CONFIG += link_pkgconfig
+PKGCONFIG += jsoncpp
