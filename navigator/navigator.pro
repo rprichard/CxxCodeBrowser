@@ -33,3 +33,5 @@ include(../clang.pri)
 
 CONFIG += link_pkgconfig
 PKGCONFIG += jsoncpp
+
+QMAKE_CXXFLAGS = -Wall -Wno-unused-parameter

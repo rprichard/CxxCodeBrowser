@@ -5,6 +5,7 @@
 #include "SourcesJsonReader.h"
 #include <QFile>
 #include <QFont>
+#include <QString>
 
 NavMainWindow *theMainWindow;
 
@@ -32,9 +33,9 @@ NavMainWindow::~NavMainWindow()
     delete ui;
 }
 
-void NavMainWindow::showFile(const std::string &path)
+void NavMainWindow::showFile(const QString &path)
 {
-    QFile f(QString::fromStdString(path));
+    QFile f(path);
     f.open(QIODevice::ReadOnly);
     ui->textEdit->setText(f.readAll());
     f.close();

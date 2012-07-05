@@ -8,9 +8,9 @@ namespace Nav {
 class TableSupplierSourceList : public Nav::TableSupplier
 {
 public:
-    virtual std::vector<std::string> getColumnLabels();
-    virtual std::vector<std::vector<std::string> > getData();
-    virtual void select(const std::string &entry);
+    virtual QStringList getColumnLabels();
+    virtual QList<QList<QString> > getData();
+    virtual void select(const QString &entry);
 };
 
 } // namespace Nav

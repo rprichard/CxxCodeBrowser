@@ -1,18 +1,18 @@
 #ifndef NAV_SOURCE_H
 #define NAV_SOURCE_H
 
-#include <string>
-#include <vector>
+#include <QString>
+#include <QStringList>
 
 namespace Nav {
 
 class Source
 {
 public:
-    std::string path;
-    std::vector<std::string> includes;
-    std::vector<std::string> defines;
-    std::vector<std::string> extraArgs;
+    QString path;
+    QStringList includes;
+    QStringList defines;
+    QStringList extraArgs;
 };
 
 } // namespace Nav

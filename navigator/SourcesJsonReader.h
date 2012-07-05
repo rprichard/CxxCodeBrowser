@@ -2,13 +2,13 @@
 #define NAV_SOURCESJSONREADER_H
 
 #include <json/value.h>
+#include <QString>
 
 namespace Nav {
 
 class Program;
 
-Program *readSourcesJson(const Json::Value &json);
-Program *readSourcesJson(const char *filename);
+Program *readSourcesJson(const QString &filename);
 
 } // namespace Nav
 

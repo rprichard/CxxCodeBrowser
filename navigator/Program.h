@@ -1,7 +1,7 @@
 #ifndef NAV_PROGRAM_H
 #define NAV_PROGRAM_H
 
-#include <vector>
+#include <QList>
 
 namespace Nav {
 
@@ -15,7 +15,7 @@ class Program
 public:
     Program();
     ~Program();
-    std::vector<Source*> sources;
+    QList<Source*> sources;
 };
 
 } // namespace Nav

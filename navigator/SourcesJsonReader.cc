@@ -8,25 +8,25 @@
 
 namespace Nav {
 
-static std::vector<std::string> readJsonStringList(const Json::Value &json)
+static QStringList readJsonStringList(const Json::Value &json)
 {
-    std::vector<std::string> result;
+    QStringList result;
     for (Json::ValueIterator it = json.begin(), itEnd = json.end();
             it != itEnd; ++it) {
         Json::Value &element = *it;
-        result.push_back(element.asString());
+        result << QString::fromStdString(element.asString());
     }
     return result;
 }
 
-Program *readSourcesJson(const Json::Value &json)
+static Program *readSourcesJson(const Json::Value &json)
 {
     Program *program = new Program;
     for (Json::ValueIterator it = json.begin(), itEnd = json.end();
             it != itEnd; ++it) {
         Json::Value &sourceJson = *it;
         Source *source = new Source;
-        source->path = sourceJson["file"].asString();
+        source->path = QString::fromStdString(sourceJson["file"].asString());
         source->defines = readJsonStringList(sourceJson["defines"]);
         source->includes = readJsonStringList(sourceJson["includes"]);
         source->extraArgs = readJsonStringList(sourceJson["extraArgs"]);
@@ -35,9 +35,9 @@ Program *readSourcesJson(const Json::Value &json)
     return program;
 }
 
-Program *readSourcesJson(const char *filename)
+Program *readSourcesJson(const QString &filename)
 {
-    std::ifstream f(filename);
+    std::ifstream f(filename.toStdString().c_str());
     Json::Reader r;
     Json::Value rootJson;
     r.parse(f, rootJson);

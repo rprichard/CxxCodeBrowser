@@ -18,7 +18,7 @@ class NavMainWindow : public QMainWindow
 public:
     explicit NavMainWindow(QWidget *parent = 0);
     ~NavMainWindow();
-    void showFile(const std::string &path);
+    void showFile(const QString &path);
     
 private:
     Ui::MainWindow *ui;

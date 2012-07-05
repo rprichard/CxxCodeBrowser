@@ -6,28 +6,25 @@
 
 namespace Nav {
 
-std::vector<std::string> TableSupplierSourceList::getColumnLabels()
+QStringList TableSupplierSourceList::getColumnLabels()
 {
-    std::vector<std::string> result;
-    result.push_back("Source Path");
+    QStringList result;
+    result << "Source Path";
     return result;
 }
 
-std::vector<std::vector<std::string> > TableSupplierSourceList::getData()
+QList<QList<QString> > TableSupplierSourceList::getData()
 {
-    std::vector<std::vector<std::string> > result;
-    for (std::vector<Source*>::iterator it = theProgram->sources.begin();
-            it != theProgram->sources.end();
-            ++it) {
-        std::vector<std::string> row;
-        Source *source = *it;
-        row.push_back(source->path);
-        result.push_back(row);
+    QList<QList<QString> > result;
+    foreach (Source *source, theProgram->sources) {
+        QStringList row;
+        row << source->path;
+        result << row;
     }
     return result;
 }
 
-void TableSupplierSourceList::select(const std::string &entry)
+void TableSupplierSourceList::select(const QString &entry)
 {
     theMainWindow->showFile(entry);
 }
