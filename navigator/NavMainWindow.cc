@@ -4,6 +4,7 @@
 #include "Source.h"
 #include "SourcesJsonReader.h"
 #include <QFile>
+#include <QFont>
 
 NavMainWindow *theMainWindow;
 
@@ -12,6 +13,18 @@ NavMainWindow::NavMainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    // Configure the textEdit widget to use a small monospace font.  If we
+    // don't force integer metrics, then the font may have a fractional
+    // width, which prevents us from configuring appropriate tab stops.
+    QFont font;
+    font.setFamily("Monospace");
+    font.setPointSize(8);
+    font.setStyleStrategy(QFont::ForceIntegerMetrics);
+    ui->textEdit->setFont(font);
+    QFontMetrics fontMetrics(ui->textEdit->font());
+    int fontWidth = fontMetrics.width(' ');
+    ui->textEdit->setTabStopWidth(fontWidth * 8);
 }
 
 NavMainWindow::~NavMainWindow()
