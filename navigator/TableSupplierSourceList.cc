@@ -16,7 +16,7 @@ QStringList TableSupplierSourceList::getColumnLabels()
 QList<QList<QString> > TableSupplierSourceList::getData()
 {
     QList<QList<QString> > result;
-    foreach (CSource *source, theProject->sources) {
+    foreach (CSource *source, theProject->csources) {
         QStringList row;
         row << source->path;
         result << row;

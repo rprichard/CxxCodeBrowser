@@ -1,18 +1,20 @@
 #include "Project.h"
 #include "CSource.h"
+#include "FileManager.h"
 #include "Misc.h"
 
 namespace Nav {
 
 Project *theProject;
 
-Project::Project()
+Project::Project() : fileManager(new FileManager)
 {
 }
 
 Project::~Project()
 {
-    Nav::deleteAll(sources);
+    Nav::deleteAll(csources);
+    delete fileManager;
 }
 
 } // namespace Nav

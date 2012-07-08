@@ -7,6 +7,7 @@ namespace Nav {
 
 class Project;
 class CSource;
+class FileManager;
 
 extern Project *theProject;
 
@@ -15,7 +16,8 @@ class Project
 public:
     Project();
     ~Project();
-    QList<CSource*> sources;
+    QList<CSource*> csources;
+    FileManager *fileManager;
 };
 
 } // namespace Nav

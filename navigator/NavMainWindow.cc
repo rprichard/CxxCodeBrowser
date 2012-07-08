@@ -1,6 +1,8 @@
 #include "NavMainWindow.h"
 #include "ui_NavMainWindow.h"
 #include "Project.h"
+#include "File.h"
+#include "FileManager.h"
 #include "CSource.h"
 #include "SourcesJsonReader.h"
 #include "NavTableWindow.h"
@@ -55,11 +57,9 @@ NavMainWindow::~NavMainWindow()
 
 void NavMainWindow::showFile(const QString &path)
 {
-    QFile f(path);
-    f.open(QIODevice::ReadOnly);
-    ui->sourceWidget->clear();
-    ui->sourceWidget->insertPlainText(f.readAll());
-    f.close();
+    Nav::File *file = Nav::theProject->fileManager->file(path);
+    if (file != NULL)
+        ui->sourceWidget->setPlainText(file->content);
 }
 
 void NavMainWindow::actionViewSource()

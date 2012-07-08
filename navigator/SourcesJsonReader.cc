@@ -30,7 +30,7 @@ static Project *readSourcesJson(const Json::Value &json)
         source->defines = readJsonStringList(sourceJson["defines"]);
         source->includes = readJsonStringList(sourceJson["includes"]);
         source->extraArgs = readJsonStringList(sourceJson["extraArgs"]);
-        program->sources.push_back(source);
+        program->csources << source;
     }
     return program;
 }

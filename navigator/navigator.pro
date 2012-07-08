@@ -13,7 +13,9 @@ SOURCES += \
     Misc.cc \
     NavSourceWidget.cc \
     Project.cc \
-    CSource.cc
+    CSource.cc \
+    FileManager.cc \
+    File.cc
 
 HEADERS += \
     SourcesJsonReader.h \
@@ -25,7 +27,9 @@ HEADERS += \
     NavCommandWidget.h \
     NavSourceWidget.h \
     Project.h \
-    CSource.h
+    CSource.h \
+    FileManager.h \
+    File.h
 
 FORMS += \
     NavTableWindow.ui \
