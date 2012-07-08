@@ -1,6 +1,9 @@
 #include "TableSupplierRefList.h"
 #include "Symbol.h"
 #include "File.h"
+#include "NavMainWindow.h"
+#include <stdint.h>
+#include <QVariant>
 
 namespace Nav {
 
@@ -22,21 +25,27 @@ QStringList TableSupplierRefList::getColumnLabels()
     return result;
 }
 
-QList<QList<QString> > TableSupplierRefList::getData()
+QList<QList<QVariant> > TableSupplierRefList::getData()
 {
-    QList<QList<QString> > result;
+    QList<QList<QVariant> > result;
     foreach (const Ref &ref, symbol->refs) {
-        QList<QString> row;
-        row << ref.file->path;
-        row << QString::number(ref.line);
-        row << ref.kind;
+        QList<QVariant> row;
+        row << QVariant(reinterpret_cast<unsigned long long>(&ref));
+        row << QVariant(ref.file->path);
+        row << QVariant(ref.line);
+        row << QVariant(ref.kind);
         result << row;
     }
     return result;
 }
 
-void TableSupplierRefList::select(const QString &entry)
+void TableSupplierRefList::select(const QList<QVariant> &entry)
 {
+    // TODO: We need to do something better than casting Ref* to and from
+    // long long.
+    Ref *ref = reinterpret_cast<Ref*>(entry[0].toULongLong());
+    theMainWindow->showFile(ref->file->path);
+    theMainWindow->selectText(ref->line, ref->column, ref->symbol->name.size());
 }
 
 } // namespace Nav

@@ -10,8 +10,8 @@ class TableSupplierSourceList : public TableSupplier
 public:
     virtual QString getTitle();
     virtual QStringList getColumnLabels();
-    virtual QList<QList<QString> > getData();
-    virtual void select(const QString &entry);
+    virtual QList<QList<QVariant> > getData();
+    virtual void select(const QList<QVariant> &entry);
 };
 
 } // namespace Nav

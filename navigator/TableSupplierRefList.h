@@ -16,8 +16,8 @@ public:
     TableSupplierRefList(Symbol *symbol);
     virtual QString getTitle();
     virtual QStringList getColumnLabels();
-    virtual QList<QList<QString> > getData();
-    virtual void select(const QString &entry);
+    virtual QList<QList<QVariant> > getData();
+    virtual void select(const QList<QVariant> &entry);
 
 private:
     Symbol *symbol;

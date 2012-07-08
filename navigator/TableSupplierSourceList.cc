@@ -3,6 +3,7 @@
 #include "CSource.h"
 #include <iostream>
 #include "NavMainWindow.h"
+#include <QVariant>
 
 namespace Nav {
 
@@ -18,20 +19,21 @@ QStringList TableSupplierSourceList::getColumnLabels()
     return result;
 }
 
-QList<QList<QString> > TableSupplierSourceList::getData()
+QList<QList<QVariant> > TableSupplierSourceList::getData()
 {
-    QList<QList<QString> > result;
+    QList<QList<QVariant> > result;
     foreach (CSource *source, theProject->csources) {
-        QStringList row;
-        row << source->path;
+        QList<QVariant> row;
+        row << QVariant("");
+        row << QVariant(source->path);
         result << row;
     }
     return result;
 }
 
-void TableSupplierSourceList::select(const QString &entry)
+void TableSupplierSourceList::select(const QList<QVariant> &entry)
 {
-    theMainWindow->showFile(entry);
+    theMainWindow->showFile(entry[1].toString());
 }
 
 } // namespace Nav
