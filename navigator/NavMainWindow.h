@@ -20,6 +20,10 @@ public:
     ~NavMainWindow();
     void showFile(const QString &path);
     
+private slots:
+    void actionViewSource();
+    void actionCommand(const QString &command);
+
 private:
     Ui::MainWindow *ui;
 };

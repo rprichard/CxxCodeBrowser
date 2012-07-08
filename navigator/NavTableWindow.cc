@@ -1,9 +1,11 @@
 #include "NavTableWindow.h"
 #include "ui_NavTableWindow.h"
 #include "TableSupplier.h"
+#include <QKeySequence>
+#include <QShortcut>
+#include <QStandardItemModel>
 #include <QStringList>
 #include <QTreeWidgetItem>
-#include <QStandardItemModel>
 #include <cstdlib>
 
 NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
@@ -13,9 +15,12 @@ NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
 {
     ui->setupUi(this);
 
+    // Register Ctrl+Q.
+    QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
+    connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
+
     QStringList columnLabels = supplier->getColumnLabels();
     ui->treeWidget->setHeaderLabels(columnLabels);
-
     QList<QList<QString> > data = supplier->getData();
     foreach (const QList<QString> &row, data) {
         ui->treeWidget->addTopLevelItem(new QTreeWidgetItem(row));

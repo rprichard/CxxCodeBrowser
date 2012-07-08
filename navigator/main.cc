@@ -1,9 +1,9 @@
 #include <QtGui/QApplication>
 #include "NavMainWindow.h"
 #include "NavTableWindow.h"
+#include "TableSupplierSourceList.h"
 #include "Program.h"
 #include "SourcesJsonReader.h"
-#include "TableSupplierSourceList.h"
 
 int main(int argc, char *argv[])
 {
@@ -13,11 +13,6 @@ int main(int argc, char *argv[])
 
     theMainWindow = new NavMainWindow();
     theMainWindow->show();
-
-    Nav::TableSupplierSourceList *supplier = new Nav::TableSupplierSourceList();
-    NavTableWindow *tw = new NavTableWindow(supplier);
-
-    tw->show();
 
     return a.exec();
 }

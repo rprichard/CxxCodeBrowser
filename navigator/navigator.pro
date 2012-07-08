@@ -10,7 +10,10 @@ SOURCES += \
     NavTableWindow.cc \
     TableSupplierSourceList.cc \
     main.cc \
-    NavMainWindow.cc
+    NavMainWindow.cc \
+    NavCommandWidget.cc \
+    Misc.cc \
+    NavSourceWidget.cc
 
 HEADERS += \
     Program.h \
@@ -20,7 +23,9 @@ HEADERS += \
     NavTableWindow.h \
     TableSupplier.h \
     TableSupplierSourceList.h \
-    NavMainWindow.h
+    NavMainWindow.h \
+    NavCommandWidget.h \
+    NavSourceWidget.h
 
 FORMS += \
     NavTableWindow.ui \

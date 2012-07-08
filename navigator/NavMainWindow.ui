@@ -6,32 +6,60 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>448</width>
-    <height>341</height>
+    <width>700</width>
+    <height>950</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <layout class="QGridLayout" name="gridLayout">
+   <layout class="QVBoxLayout" name="verticalLayout">
     <property name="margin">
-     <number>2</number>
+     <number>3</number>
     </property>
-    <item row="0" column="0">
-     <widget class="QTextEdit" name="textEdit">
-      <property name="font">
-       <font>
-        <family>Monospace</family>
-        <pointsize>8</pointsize>
-       </font>
+    <item>
+     <widget class="QSplitter" name="splitter">
+      <property name="orientation">
+       <enum>Qt::Vertical</enum>
       </property>
-      <property name="lineWrapMode">
-       <enum>QTextEdit::NoWrap</enum>
+      <property name="handleWidth">
+       <number>20</number>
       </property>
-      <property name="readOnly">
-       <bool>true</bool>
+      <property name="childrenCollapsible">
+       <bool>false</bool>
       </property>
+      <widget class="NavSourceWidget" name="sourceWidget">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>1</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="focusPolicy">
+        <enum>Qt::NoFocus</enum>
+       </property>
+       <property name="acceptDrops">
+        <bool>false</bool>
+       </property>
+       <property name="undoRedoEnabled">
+        <bool>false</bool>
+       </property>
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
+      <widget class="NavCommandWidget" name="commandWidget">
+       <property name="acceptDrops">
+        <bool>false</bool>
+       </property>
+       <property name="undoRedoEnabled">
+        <bool>false</bool>
+       </property>
+       <property name="lineWrapMode">
+        <enum>QPlainTextEdit::NoWrap</enum>
+       </property>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -41,14 +69,38 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>448</width>
+     <width>700</width>
      <height>25</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menu_View">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <addaction name="action_Source_List"/>
+   </widget>
+   <addaction name="menu_View"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
+  <action name="action_Source_List">
+   <property name="text">
+    <string>&amp;Source List...</string>
+   </property>
+  </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <customwidgets>
+  <customwidget>
+   <class>NavCommandWidget</class>
+   <extends>QPlainTextEdit</extends>
+   <header>NavCommandWidget.h</header>
+  </customwidget>
+  <customwidget>
+   <class>NavSourceWidget</class>
+   <extends>QPlainTextEdit</extends>
+   <header>NavSourceWidget.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
