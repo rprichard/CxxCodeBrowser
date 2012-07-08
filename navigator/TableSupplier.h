@@ -10,6 +10,7 @@ namespace Nav {
 class TableSupplier
 {
 public:
+    virtual QString getTitle() = 0;
     virtual QStringList getColumnLabels() = 0;
     virtual QList<QList<QString> > getData() = 0;
     virtual void select(const QString &entry) {}

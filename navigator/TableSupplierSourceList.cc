@@ -6,6 +6,11 @@
 
 namespace Nav {
 
+QString TableSupplierSourceList::getTitle()
+{
+    return "C/C++ Translation Units";
+}
+
 QStringList TableSupplierSourceList::getColumnLabels()
 {
     QStringList result;

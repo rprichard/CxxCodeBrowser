@@ -1,12 +1,15 @@
 #include "NavMainWindow.h"
 #include "ui_NavMainWindow.h"
 #include "Project.h"
+#include "Symbol.h"
+#include "SymbolTable.h"
 #include "File.h"
 #include "FileManager.h"
 #include "CSource.h"
 #include "SourcesJsonReader.h"
 #include "NavTableWindow.h"
 #include "TableSupplierSourceList.h"
+#include "TableSupplierRefList.h"
 #include <QDebug>
 #include <QFile>
 #include <QFont>
@@ -75,5 +78,20 @@ void NavMainWindow::actionCommand(const QString &commandIn)
 
     if (command == "sources") {
         actionViewSource();
+    } else if (command.startsWith("xref ")) {
+        QString symbolName = command.mid(strlen("xref "));
+        Nav::Symbol *symbol = Nav::theProject->symbolTable->symbol(symbolName);
+        if (symbol == NULL) {
+            ui->commandWidget->writeLine(QString("Symbol not found: ") + symbolName);
+        } else {
+            Nav::TableSupplierRefList *supplier = new Nav::TableSupplierRefList(symbol);
+            NavTableWindow *tw = new NavTableWindow(supplier);
+            tw->show();
+        }
     }
+}
+
+void NavMainWindow::closeEvent(QCloseEvent *event)
+{
+    QApplication::quit();
 }

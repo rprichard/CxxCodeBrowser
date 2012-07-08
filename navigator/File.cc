@@ -10,6 +10,7 @@ File *File::readFile(const QString &path)
     if (!qfile.open(QFile::ReadOnly))
         return NULL;
     File *file = new File;
+    file->path = path;
     file->content = qfile.readAll();
     qfile.close();
     return file;

@@ -8,6 +8,7 @@ namespace Nav {
 class Project;
 class CSource;
 class FileManager;
+class SymbolTable;
 
 extern Project *theProject;
 
@@ -18,6 +19,7 @@ public:
     ~Project();
     QList<CSource*> csources;
     FileManager *fileManager;
+    SymbolTable *symbolTable;
 };
 
 } // namespace Nav

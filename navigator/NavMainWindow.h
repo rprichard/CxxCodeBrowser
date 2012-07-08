@@ -24,6 +24,9 @@ private slots:
     void actionViewSource();
     void actionCommand(const QString &command);
 
+protected:
+    void closeEvent(QCloseEvent *event);
+
 private:
     Ui::MainWindow *ui;
 };

@@ -1,6 +1,7 @@
 #include "NavTableWindow.h"
 #include "ui_NavTableWindow.h"
 #include "TableSupplier.h"
+#include <QDebug>
 #include <QKeySequence>
 #include <QShortcut>
 #include <QStandardItemModel>
@@ -15,6 +16,8 @@ NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
 {
     ui->setupUi(this);
 
+    setWindowTitle(supplier->getTitle());
+
     // Register Ctrl+Q.
     QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
     connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
@@ -23,8 +26,21 @@ NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
     ui->treeWidget->setHeaderLabels(columnLabels);
     QList<QList<QString> > data = supplier->getData();
     foreach (const QList<QString> &row, data) {
-        ui->treeWidget->addTopLevelItem(new QTreeWidgetItem(row));
+        QTreeWidgetItem *item = new QTreeWidgetItem(row);
+        if (row.size() >= 2)
+            item->setTextAlignment(1, Qt::AlignRight);
+        ui->treeWidget->addTopLevelItem(item);
     }
+
+    for (int i = 0; i < columnLabels.size(); ++i) {
+        ui->treeWidget->resizeColumnToContents(i);
+        ui->treeWidget->setColumnWidth(
+                    i, ui->treeWidget->columnWidth(i) + 10);
+    }
+
+    ui->treeWidget->setSortingEnabled(true);
+    int preferredSize = ui->treeWidget->fontMetrics().height() * data.size();
+    resize(width(), height() + preferredSize);
 }
 
 NavTableWindow::~NavTableWindow()

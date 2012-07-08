@@ -10,6 +10,7 @@ class File
 {
 public:
     static File *readFile(const QString &path);
+    QString path;
     QString content;
 
 private:

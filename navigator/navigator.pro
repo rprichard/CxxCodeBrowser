@@ -15,7 +15,12 @@ SOURCES += \
     Project.cc \
     CSource.cc \
     FileManager.cc \
-    File.cc
+    File.cc \
+    SymbolTable.cc \
+    Symbol.cc \
+    Ref.cc \
+    SourceIndexer.cc \
+    TableSupplierRefList.cc
 
 HEADERS += \
     SourcesJsonReader.h \
@@ -29,7 +34,12 @@ HEADERS += \
     Project.h \
     CSource.h \
     FileManager.h \
-    File.h
+    File.h \
+    SymbolTable.h \
+    Symbol.h \
+    Ref.h \
+    SourceIndexer.h \
+    TableSupplierRefList.h
 
 FORMS += \
     NavTableWindow.ui \
@@ -43,4 +53,4 @@ include(../clang.pri)
 CONFIG += link_pkgconfig
 PKGCONFIG += jsoncpp
 
-QMAKE_CXXFLAGS = -Wall -Wno-unused-parameter
+QMAKE_CXXFLAGS += -Wall -Wno-unused-parameter
