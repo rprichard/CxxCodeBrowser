@@ -69,7 +69,11 @@ void NavMainWindow::actionViewSource()
     tw->show();
 }
 
-void NavMainWindow::actionCommand(const QString &command)
+void NavMainWindow::actionCommand(const QString &commandIn)
 {
-    ui->commandWidget->writeLine(QString("You typed [") + command + "]");
+    QString command = commandIn.trimmed();
+
+    if (command == "sources") {
+        actionViewSource();
+    }
 }
