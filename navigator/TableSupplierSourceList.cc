@@ -1,6 +1,6 @@
 #include "TableSupplierSourceList.h"
-#include "Program.h"
-#include "Source.h"
+#include "Project.h"
+#include "CSource.h"
 #include <iostream>
 #include "NavMainWindow.h"
 
@@ -16,7 +16,7 @@ QStringList TableSupplierSourceList::getColumnLabels()
 QList<QList<QString> > TableSupplierSourceList::getData()
 {
     QList<QList<QString> > result;
-    foreach (Source *source, theProgram->sources) {
+    foreach (CSource *source, theProject->sources) {
         QStringList row;
         row << source->path;
         result << row;

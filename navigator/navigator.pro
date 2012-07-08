@@ -4,8 +4,6 @@ TARGET = navigator
 TEMPLATE = app
 
 SOURCES += \
-    Program.cc \
-    Source.cc \
     SourcesJsonReader.cc \
     NavTableWindow.cc \
     TableSupplierSourceList.cc \
@@ -13,11 +11,11 @@ SOURCES += \
     NavMainWindow.cc \
     NavCommandWidget.cc \
     Misc.cc \
-    NavSourceWidget.cc
+    NavSourceWidget.cc \
+    Project.cc \
+    CSource.cc
 
 HEADERS += \
-    Program.h \
-    Source.h \
     SourcesJsonReader.h \
     Misc.h \
     NavTableWindow.h \
@@ -25,7 +23,9 @@ HEADERS += \
     TableSupplierSourceList.h \
     NavMainWindow.h \
     NavCommandWidget.h \
-    NavSourceWidget.h
+    NavSourceWidget.h \
+    Project.h \
+    CSource.h
 
 FORMS += \
     NavTableWindow.ui \

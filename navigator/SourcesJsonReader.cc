@@ -1,6 +1,6 @@
 #include "SourcesJsonReader.h"
-#include "Program.h"
-#include "Source.h"
+#include "Project.h"
+#include "CSource.h"
 #include <json/reader.h>
 #include <string>
 #include <fstream>
@@ -19,13 +19,13 @@ static QStringList readJsonStringList(const Json::Value &json)
     return result;
 }
 
-static Program *readSourcesJson(const Json::Value &json)
+static Project *readSourcesJson(const Json::Value &json)
 {
-    Program *program = new Program;
+    Project *program = new Project;
     for (Json::ValueIterator it = json.begin(), itEnd = json.end();
             it != itEnd; ++it) {
         Json::Value &sourceJson = *it;
-        Source *source = new Source;
+        CSource *source = new CSource;
         source->path = QString::fromStdString(sourceJson["file"].asString());
         source->defines = readJsonStringList(sourceJson["defines"]);
         source->includes = readJsonStringList(sourceJson["includes"]);
@@ -35,7 +35,7 @@ static Program *readSourcesJson(const Json::Value &json)
     return program;
 }
 
-Program *readSourcesJson(const QString &filename)
+Project *readSourcesJson(const QString &filename)
 {
     std::ifstream f(filename.toStdString().c_str());
     Json::Reader r;

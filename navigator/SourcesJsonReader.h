@@ -6,9 +6,9 @@
 
 namespace Nav {
 
-class Program;
+class Project;
 
-Program *readSourcesJson(const QString &filename);
+Project *readSourcesJson(const QString &filename);
 
 } // namespace Nav
 
