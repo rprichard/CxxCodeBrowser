@@ -1,0 +1,65 @@
+Main window improvements:
+
+ * Show the name of the current file.
+
+ * History (Alt-Left / Alt-Right).
+
+ * Allow clicking on symbols.  The user clicks a character.  What happens?
+   Two obvious approaches:
+    - Look for a Ref containing the clicked-on character.  Go to that Ref's
+      single definition.
+       - Problem: there can be multiple Refs on a single character.
+       - Problem: what about multiple definitions?
+    - Look left and right to find a containing identifier, then search for any
+      kind of symbol.
+       - Problem: Consider C++ namespaces.  What if the user clicks on the Bar
+         in "Foo::Bar".  Does the navigator need to understand how :: affects
+         C++ identifiers and lookup "Foo::Bar" or does it look for "Bar"?
+   I think the first approach is the right one.
+
+New commands:
+
+ * Go to file.
+
+ * Go to symbol.
+
+ * Browse all included files.
+
+Indexing / modeling:
+
+ * Figure out how the SourceLocation type works.  I noticed some filenames
+   that were blank, and I noticed that "G" had no Usage reg in the test
+   case:
+      #define G(x) x * 2
+      #define F(x) G(x)
+      int main() {
+         return F(1);
+      }
+   I suspect that preprocessor expansion is affecting things somehow.  I
+   need to understand how the "spelling location" vs other location types
+   works.
+
+ * Deal with the <built-in> file.  Maybe it'd be cool if you could browse
+   to that file somehow?  (Similarly, should the includes and extraargs
+   be displayed for the translation units?)
+
+ * Record the include graph.  What if file A.c includes X.h several times?
+   More typically, A.c and B.c will both include X.h.  What's the best
+   way to show the graph?  There's already a generalized table widget.
+   Should there be a generalized tree widget?
+
+ * Actually parse the C/C++ AST and index more kinds of symbols.  Symbol
+   namespaces are going to become interesting, I think:
+    - preprocessor macros
+    - class/struct/union/enum names
+    - enumerators
+    - C++ namespaces
+
+ * Indexing is slow.  It could be parallelized, but it probably can't be sped
+   up enough, so it will probably be necessary to have a separate "index" step
+   that constructs a reusable index file.
+
+ * For a Ref, save a starting and ending column rather than just a start
+   column?  (e.g.: Suppose I have a "foobar" field that's referenced inside
+   an expansion of the FOO macro.  The GUI will want to know what to
+   highlight, which is probably just FOO.)
