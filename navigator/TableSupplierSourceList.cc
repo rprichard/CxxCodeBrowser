@@ -12,28 +12,40 @@ QString TableSupplierSourceList::getTitle()
     return "C/C++ Translation Units";
 }
 
-QStringList TableSupplierSourceList::getColumnLabels()
+QAbstractItemModel *TableSupplierSourceList::model()
 {
-    QStringList result;
-    result << "Source Path";
-    return result;
+    return this;
 }
 
-QList<QList<QVariant> > TableSupplierSourceList::getData()
+void TableSupplierSourceList::select(const QModelIndex &index)
 {
-    QList<QList<QVariant> > result;
-    foreach (CSource *source, theProject->csources) {
-        QList<QVariant> row;
-        row << QVariant("");
-        row << QVariant(source->path);
-        result << row;
+    theMainWindow->showFile(theProject->csources[index.row()]->path);
+}
+
+int TableSupplierSourceList::rowCount(const QModelIndex &parent) const
+{
+    return parent.isValid() ? 0 : theProject->csources.size();
+}
+
+int TableSupplierSourceList::columnCount(const QModelIndex &parent) const
+{
+    return 1;
+}
+
+QVariant TableSupplierSourceList::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (role == Qt::DisplayRole && section == 0) {
+        return QVariant("Source Path");
     }
-    return result;
+    return QVariant();
 }
 
-void TableSupplierSourceList::select(const QList<QVariant> &entry)
+QVariant TableSupplierSourceList::data(const QModelIndex &index, int role) const
 {
-    theMainWindow->showFile(entry[1].toString());
+    if (role == Qt::DisplayRole) {
+        return QVariant(theProject->csources[index.row()]->path);
+    }
+    return QVariant();
 }
 
 } // namespace Nav

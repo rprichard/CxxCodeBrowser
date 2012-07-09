@@ -19,18 +19,13 @@
      <number>2</number>
     </property>
     <item>
-     <widget class="QTreeWidget" name="treeWidget">
+     <widget class="QTreeView" name="treeView">
       <property name="font">
        <font>
         <family>Monospace</family>
         <pointsize>8</pointsize>
        </font>
       </property>
-      <column>
-       <property name="text">
-        <string notr="true">1</string>
-       </property>
-      </column>
      </widget>
     </item>
    </layout>

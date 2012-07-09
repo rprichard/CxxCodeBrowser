@@ -7,7 +7,9 @@
 
 namespace Nav {
 
-TableSupplierRefList::TableSupplierRefList(Symbol *symbol) : symbol(symbol)
+TableSupplierRefList::TableSupplierRefList(Symbol *symbol) :
+    symbol(symbol),
+    refList(symbol->refs.values())
 {
 }
 
@@ -16,36 +18,51 @@ QString TableSupplierRefList::getTitle()
     return "References to " + symbol->name;
 }
 
-QStringList TableSupplierRefList::getColumnLabels()
+QAbstractItemModel *TableSupplierRefList::model()
 {
-    QStringList result;
-    result << "File";
-    result << "Line";
-    result << "Type";
-    return result;
+    return this;
 }
 
-QList<QList<QVariant> > TableSupplierRefList::getData()
+void TableSupplierRefList::select(const QModelIndex &index)
 {
-    QList<QList<QVariant> > result;
-    foreach (const Ref &ref, symbol->refs) {
-        QList<QVariant> row;
-        row << QVariant(reinterpret_cast<unsigned long long>(&ref));
-        row << QVariant(ref.file->path);
-        row << QVariant(ref.line);
-        row << QVariant(ref.kind);
-        result << row;
+    const Ref &ref = refList[index.row()];
+    theMainWindow->showFile(ref.file->path);
+    theMainWindow->selectText(ref.line, ref.column, ref.symbol->name.size());
+}
+
+int TableSupplierRefList::rowCount(const QModelIndex &parent) const
+{
+    return parent.isValid() ? 0 : refList.size();
+}
+
+int TableSupplierRefList::columnCount(const QModelIndex &parent) const
+{
+    return 3;
+}
+
+QVariant TableSupplierRefList::headerData(int section, Qt::Orientation orientation, int role) const
+{
+    if (role == Qt::DisplayRole) {
+        switch (section) {
+        case 0: return QVariant("File");
+        case 1: return QVariant("Line");
+        case 2: return QVariant("Type");
+        }
     }
-    return result;
+    return QVariant();
 }
 
-void TableSupplierRefList::select(const QList<QVariant> &entry)
+QVariant TableSupplierRefList::data(const QModelIndex &index, int role) const
 {
-    // TODO: We need to do something better than casting Ref* to and from
-    // long long.
-    Ref *ref = reinterpret_cast<Ref*>(entry[0].toULongLong());
-    theMainWindow->showFile(ref->file->path);
-    theMainWindow->selectText(ref->line, ref->column, ref->symbol->name.size());
+    if (role == Qt::DisplayRole) {
+        const Ref &ref = refList[index.row()];
+        switch (index.column()) {
+        case 0: return QVariant(ref.file->path);
+        case 1: return QVariant(ref.line);
+        case 2: return QVariant(ref.kind);
+        }
+    }
+    return QVariant();
 }
 
 } // namespace Nav

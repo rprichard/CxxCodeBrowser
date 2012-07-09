@@ -22,31 +22,31 @@ NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
     QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
     connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
 
-    QStringList columnLabels = supplier->getColumnLabels();
-    ui->treeWidget->setHeaderLabels(columnLabels);
-    QList<QList<QVariant> > data = supplier->getData();
-    foreach (const QList<QVariant> &row, data) {
-        QTreeWidgetItem *item = new QTreeWidgetItem();
-        item->setData(0, Qt::UserRole, row[0]);
-        for (int col = 1; col < row.size(); ++col) {
-            item->setData(col - 1, Qt::DisplayRole, row[col]);
-        }
-        ui->treeWidget->addTopLevelItem(item);
+    ui->treeView->setModel(supplier->model());
+    connect(ui->treeView->selectionModel(),
+            SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
+            this,
+            SLOT(selectionChanged()));
+
+    // Fixup the column widths.
+    for (int i = 0; i < supplier->model()->columnCount(); ++i) {
+        ui->treeView->resizeColumnToContents(i);
+        ui->treeView->setColumnWidth(
+                    i, ui->treeView->columnWidth(i) + 10);
     }
 
-    for (int i = 0; i < columnLabels.size(); ++i) {
-        ui->treeWidget->resizeColumnToContents(i);
-        ui->treeWidget->setColumnWidth(
-                    i, ui->treeWidget->columnWidth(i) + 10);
-        ui->treeWidget->sortByColumn(i, Qt::AscendingOrder);
+    // Sort the tree view arbitrarily.
+    for (int i = 0; i < supplier->model()->columnCount(); ++i) {
+        ui->treeView->sortByColumn(i, Qt::AscendingOrder);
     }
-    ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
+    ui->treeView->sortByColumn(0, Qt::AscendingOrder);
+    ui->treeView->setSortingEnabled(true);
 
     // TODO: This code uses the font height as an approximation for the tree
     // widget row height.  That's not quite right, but it seems to work OK.
     // Do something better?
-    ui->treeWidget->setSortingEnabled(true);
-    int preferredSize = ui->treeWidget->fontMetrics().height() * data.size();
+    // TODO: The rowCount() code won't work for trees.
+    int preferredSize = ui->treeView->fontMetrics().height() * ui->treeView->model()->rowCount();
     resize(width(), height() + preferredSize);
 }
 
@@ -55,25 +55,15 @@ NavTableWindow::~NavTableWindow()
     delete ui;
 }
 
-static QList<QVariant> treeItemData(QTreeWidgetItem *item)
+void NavTableWindow::selectionChanged()
 {
-    QList<QVariant> data;
-    data << item->data(0, Qt::UserRole);
-    for (int i = 0; i < item->columnCount(); ++i) {
-        data << item->data(i, Qt::DisplayRole);
-    }
-    return data;
-}
-
-void NavTableWindow::on_treeWidget_itemActivated(QTreeWidgetItem *item, int column)
-{
-    supplier->activate(treeItemData(item));
-}
-
-void NavTableWindow::on_treeWidget_itemSelectionChanged()
-{
-    QList<QTreeWidgetItem*> selection = ui->treeWidget->selectedItems();
+    QModelIndexList selection = ui->treeView->selectionModel()->selectedRows();
     if (selection.size() == 1) {
-        supplier->select(treeItemData(selection[0]));
+        supplier->select(selection[0]);
     }
+}
+
+void NavTableWindow::on_treeView_activated(const QModelIndex &index)
+{
+    supplier->activate(index);
 }

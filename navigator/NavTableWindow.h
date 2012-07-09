@@ -22,9 +22,8 @@ public:
     ~NavTableWindow();
     
 private slots:
-    void on_treeWidget_itemActivated(QTreeWidgetItem *item, int column);
-
-    void on_treeWidget_itemSelectionChanged();
+    void selectionChanged();
+    void on_treeView_activated(const QModelIndex &index);
 
 private:
     Ui::NavTableWindow *ui;
