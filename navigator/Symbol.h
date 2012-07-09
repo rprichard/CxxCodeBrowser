@@ -10,7 +10,7 @@ namespace Nav {
 class Symbol
 {
 public:
-    Symbol(const QString &name);
+    explicit Symbol(const QString &name);
     QString name;
     QSet<Ref> refs;
 };
