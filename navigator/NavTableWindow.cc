@@ -5,6 +5,7 @@
 #include <QKeySequence>
 #include <QShortcut>
 #include <QStandardItemModel>
+#include <QSortFilterProxyModel>
 #include <QStringList>
 #include <QTreeWidgetItem>
 #include <cstdlib>
@@ -22,7 +23,12 @@ NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
     QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
     connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
 
-    ui->treeView->setModel(supplier->model());
+    proxyModel = new QSortFilterProxyModel(this);
+    proxyModel->setSourceModel(supplier->model());
+
+    QItemSelectionModel *selectionModel = ui->treeView->selectionModel();
+    ui->treeView->setModel(proxyModel);
+    delete selectionModel;
     connect(ui->treeView->selectionModel(),
             SIGNAL(selectionChanged(QItemSelection,QItemSelection)),
             this,
@@ -59,11 +65,11 @@ void NavTableWindow::selectionChanged()
 {
     QModelIndexList selection = ui->treeView->selectionModel()->selectedRows();
     if (selection.size() == 1) {
-        supplier->select(selection[0]);
+        supplier->select(proxyModel->mapToSource(selection[0]));
     }
 }
 
 void NavTableWindow::on_treeView_activated(const QModelIndex &index)
 {
-    supplier->activate(index);
+    supplier->activate(proxyModel->mapToSource(index));
 }

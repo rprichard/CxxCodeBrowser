@@ -13,6 +13,8 @@ namespace Nav {
 class TableSupplier;
 }
 
+class QSortFilterProxyModel;
+
 class NavTableWindow : public QMainWindow
 {
     Q_OBJECT
@@ -28,6 +30,7 @@ private slots:
 private:
     Ui::NavTableWindow *ui;
     Nav::TableSupplier *supplier;
+    QSortFilterProxyModel *proxyModel;
 };
 
 #endif // NAVTABLEWINDOW_H
