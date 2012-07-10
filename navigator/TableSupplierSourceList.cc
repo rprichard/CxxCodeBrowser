@@ -2,7 +2,7 @@
 #include "Project.h"
 #include "CSource.h"
 #include <iostream>
-#include "NavMainWindow.h"
+#include "MainWindow.h"
 #include <QVariant>
 
 namespace Nav {

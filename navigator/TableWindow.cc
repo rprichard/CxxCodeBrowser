@@ -1,5 +1,5 @@
-#include "NavTableWindow.h"
-#include "ui_NavTableWindow.h"
+#include "TableWindow.h"
+#include "ui_TableWindow.h"
 #include "TableSupplier.h"
 #include <QDebug>
 #include <QKeySequence>
@@ -10,9 +10,11 @@
 #include <QTreeWidgetItem>
 #include <cstdlib>
 
-NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
+namespace Nav {
+
+TableWindow::TableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::NavTableWindow),
+    ui(new Ui::TableWindow),
     supplier(supplier)
 {
     ui->setupUi(this);
@@ -56,12 +58,12 @@ NavTableWindow::NavTableWindow(Nav::TableSupplier *supplier, QWidget *parent) :
     resize(width(), height() + preferredSize);
 }
 
-NavTableWindow::~NavTableWindow()
+TableWindow::~TableWindow()
 {
     delete ui;
 }
 
-void NavTableWindow::selectionChanged()
+void TableWindow::selectionChanged()
 {
     QModelIndexList selection = ui->treeView->selectionModel()->selectedRows();
     if (selection.size() == 1) {
@@ -69,7 +71,9 @@ void NavTableWindow::selectionChanged()
     }
 }
 
-void NavTableWindow::on_treeView_activated(const QModelIndex &index)
+void TableWindow::on_treeView_activated(const QModelIndex &index)
 {
     supplier->activate(proxyModel->mapToSource(index));
 }
+
+} // namespace Nav

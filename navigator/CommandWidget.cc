@@ -1,16 +1,18 @@
-#include "NavCommandWidget.h"
+#include "CommandWidget.h"
 #include "Misc.h"
 #include <QMenu>
 #include <QDebug>
 
-NavCommandWidget::NavCommandWidget(QWidget *parent) :
+namespace Nav {
+
+CommandWidget::CommandWidget(QWidget *parent) :
     QPlainTextEdit(parent),
     prompt("> ")
 {
     appendPlainText(prompt);
 }
 
-void NavCommandWidget::keyPressEvent(QKeyEvent *event)
+void CommandWidget::keyPressEvent(QKeyEvent *event)
 {
     if (event->modifiers() & Qt::AltModifier) {
         event->ignore();
@@ -102,7 +104,7 @@ void NavCommandWidget::keyPressEvent(QKeyEvent *event)
     event->ignore();
 }
 
-void NavCommandWidget::mousePressEvent(QMouseEvent *event)
+void CommandWidget::mousePressEvent(QMouseEvent *event)
 {
     Nav::hackDisableDragAndDropByClearingSelection(this, event);
 
@@ -114,7 +116,7 @@ void NavCommandWidget::mousePressEvent(QMouseEvent *event)
     }
 }
 
-void NavCommandWidget::mouseReleaseEvent(QMouseEvent *event)
+void CommandWidget::mouseReleaseEvent(QMouseEvent *event)
 {
     if (event->button() == Qt::LeftButton ||
             event->button() == Qt::RightButton) {
@@ -124,7 +126,7 @@ void NavCommandWidget::mouseReleaseEvent(QMouseEvent *event)
     }
 }
 
-void NavCommandWidget::contextMenuEvent(QContextMenuEvent *event)
+void CommandWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu *menu = new QMenu();
     menu->addAction("&Copy", this, SLOT(copy()));
@@ -133,12 +135,12 @@ void NavCommandWidget::contextMenuEvent(QContextMenuEvent *event)
     delete menu;
 }
 
-void NavCommandWidget::actionCopy()
+void CommandWidget::actionCopy()
 {
     this->copy();
 }
 
-void NavCommandWidget::typeChar(QChar ch)
+void CommandWidget::typeChar(QChar ch)
 {
     // Filter out invalid characters.  0x7f is the DEL character.
     if (!(ch == '\t' || ch == '\n' || ch >= ' ') || ch == '\x7f') {
@@ -178,7 +180,7 @@ void NavCommandWidget::typeChar(QChar ch)
         emit commandEntered(command);
 }
 
-void NavCommandWidget::moveCmdCursor(
+void CommandWidget::moveCmdCursor(
         QTextCursor::MoveOperation op,
         QTextCursor::MoveMode mode)
 {
@@ -190,7 +192,7 @@ void NavCommandWidget::moveCmdCursor(
     ensureCursorVisible();
 }
 
-int NavCommandWidget::cmdPosition()
+int CommandWidget::cmdPosition()
 {
     QTextCursor c(document());
     c.movePosition(QTextCursor::End);
@@ -199,14 +201,14 @@ int NavCommandWidget::cmdPosition()
     return c.position();
 }
 
-int NavCommandWidget::endPosition()
+int CommandWidget::endPosition()
 {
     QTextCursor c(document());
     c.movePosition(QTextCursor::End);
     return c.position();
 }
 
-bool NavCommandWidget::removeText(int startPos, int stopPos)
+bool CommandWidget::removeText(int startPos, int stopPos)
 {
     int p1 = cmdPosition();
     int p2 = endPosition();
@@ -222,7 +224,7 @@ bool NavCommandWidget::removeText(int startPos, int stopPos)
     return true;
 }
 
-void NavCommandWidget::writeLine(const QString &text)
+void CommandWidget::writeLine(const QString &text)
 {
     int initialPos = textCursor().position();
     QTextCursor c(document());
@@ -234,3 +236,5 @@ void NavCommandWidget::writeLine(const QString &text)
     if (newPos != initialPos)
         ensureCursorVisible();
 }
+
+} // namespace Nav

@@ -1,5 +1,5 @@
-#include "NavMainWindow.h"
-#include "ui_NavMainWindow.h"
+#include "MainWindow.h"
+#include "ui_MainWindow.h"
 #include "Project.h"
 #include "Symbol.h"
 #include "SymbolTable.h"
@@ -7,7 +7,7 @@
 #include "FileManager.h"
 #include "CSource.h"
 #include "SourcesJsonReader.h"
-#include "NavTableWindow.h"
+#include "TableWindow.h"
 #include "TableSupplierSourceList.h"
 #include "TableSupplierRefList.h"
 #include <QDebug>
@@ -18,9 +18,11 @@
 #include <QTimer>
 #include <QKeySequence>
 
-NavMainWindow *theMainWindow;
+namespace Nav {
 
-NavMainWindow::NavMainWindow(QWidget *parent) :
+MainWindow *theMainWindow;
+
+MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
     file(NULL)
@@ -54,12 +56,12 @@ NavMainWindow::NavMainWindow(QWidget *parent) :
     connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
 }
 
-NavMainWindow::~NavMainWindow()
+MainWindow::~MainWindow()
 {
     delete ui;
 }
 
-void NavMainWindow::showFile(const QString &path)
+void MainWindow::showFile(const QString &path)
 {
     Nav::File *newFile = Nav::theProject->fileManager->file(path);
     if (newFile != NULL && newFile != file) {
@@ -68,7 +70,7 @@ void NavMainWindow::showFile(const QString &path)
     }
 }
 
-void NavMainWindow::selectText(int line, int column, int size)
+void MainWindow::selectText(int line, int column, int size)
 {
     // TODO: Do tab stops affect the column?
     QTextCursor c(ui->sourceWidget->document());
@@ -78,14 +80,14 @@ void NavMainWindow::selectText(int line, int column, int size)
     ui->sourceWidget->setTextCursor(c);
 }
 
-void NavMainWindow::actionViewSource()
+void MainWindow::actionViewSource()
 {
     Nav::TableSupplierSourceList *supplier = new Nav::TableSupplierSourceList();
-    NavTableWindow *tw = new NavTableWindow(supplier);
+    TableWindow *tw = new TableWindow(supplier);
     tw->show();
 }
 
-void NavMainWindow::actionCommand(const QString &commandIn)
+void MainWindow::actionCommand(const QString &commandIn)
 {
     QString command = commandIn.trimmed();
 
@@ -98,13 +100,15 @@ void NavMainWindow::actionCommand(const QString &commandIn)
             ui->commandWidget->writeLine(QString("Symbol not found: ") + symbolName);
         } else {
             Nav::TableSupplierRefList *supplier = new Nav::TableSupplierRefList(symbol);
-            NavTableWindow *tw = new NavTableWindow(supplier);
+            TableWindow *tw = new TableWindow(supplier);
             tw->show();
         }
     }
 }
 
-void NavMainWindow::closeEvent(QCloseEvent *event)
+void MainWindow::closeEvent(QCloseEvent *event)
 {
     QApplication::quit();
 }
+
+} // namespace Nav

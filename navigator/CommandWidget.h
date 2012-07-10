@@ -1,13 +1,15 @@
-#ifndef NAVCOMMANDWIDGET_H
-#define NAVCOMMANDWIDGET_H
+#ifndef NAV_COMMANDWIDGET_H
+#define NAV_COMMANDWIDGET_H
 
 #include <QPlainTextEdit>
 
-class NavCommandWidget : public QPlainTextEdit
+namespace Nav {
+
+class CommandWidget : public QPlainTextEdit
 {
     Q_OBJECT
 public:
-    explicit NavCommandWidget(QWidget *parent = 0);
+    explicit CommandWidget(QWidget *parent = 0);
 
     void keyPressEvent(QKeyEvent *event);
     void mousePressEvent(QMouseEvent *event);
@@ -36,4 +38,6 @@ private:
     QString prompt;
 };
 
-#endif // NAVCOMMANDWIDGET_H
+} // namespace Nav
+
+#endif // NAV_COMMANDWIDGET_H

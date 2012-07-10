@@ -1,30 +1,29 @@
-#ifndef NAVMAINWINDOW_H
-#define NAVMAINWINDOW_H
+#ifndef NAV_MAINWINDOW_H
+#define NAV_MAINWINDOW_H
 
 #include <QMainWindow>
+
+namespace Nav {
 
 namespace Ui {
 class MainWindow;
 }
 
-namespace Nav {
 class File;
-}
+class MainWindow;
 
-class NavMainWindow;
+extern MainWindow *theMainWindow;
 
-extern NavMainWindow *theMainWindow;
-
-class NavMainWindow : public QMainWindow
+class MainWindow : public QMainWindow
 {
     Q_OBJECT
-    
+
 public:
-    explicit NavMainWindow(QWidget *parent = 0);
-    ~NavMainWindow();
+    explicit MainWindow(QWidget *parent = 0);
+    ~MainWindow();
     void showFile(const QString &path);
     void selectText(int line, int column, int size);
-    
+
 private slots:
     void actionViewSource();
     void actionCommand(const QString &command);
@@ -37,4 +36,6 @@ private:
     Nav::File *file;
 };
 
-#endif // NAVMAINWINDOW_H
+} // namespace Nav
+
+#endif // NAV_MAINWINDOW_H

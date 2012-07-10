@@ -1,7 +1,7 @@
 #include "TableSupplierRefList.h"
 #include "Symbol.h"
 #include "File.h"
-#include "NavMainWindow.h"
+#include "MainWindow.h"
 #include <stdint.h>
 #include <QVariant>
 

@@ -5,13 +5,11 @@ TEMPLATE = app
 
 SOURCES += \
     SourcesJsonReader.cc \
-    NavTableWindow.cc \
     TableSupplierSourceList.cc \
     main.cc \
-    NavMainWindow.cc \
-    NavCommandWidget.cc \
+    MainWindow.cc \
+    CommandWidget.cc \
     Misc.cc \
-    NavSourceWidget.cc \
     Project.cc \
     CSource.cc \
     FileManager.cc \
@@ -20,17 +18,17 @@ SOURCES += \
     Symbol.cc \
     Ref.cc \
     SourceIndexer.cc \
-    TableSupplierRefList.cc
+    TableSupplierRefList.cc \
+    SourceWidget.cc \
+    TableWindow.cc
 
 HEADERS += \
     SourcesJsonReader.h \
     Misc.h \
-    NavTableWindow.h \
     TableSupplier.h \
     TableSupplierSourceList.h \
-    NavMainWindow.h \
-    NavCommandWidget.h \
-    NavSourceWidget.h \
+    MainWindow.h \
+    CommandWidget.h \
     Project.h \
     CSource.h \
     FileManager.h \
@@ -39,11 +37,13 @@ HEADERS += \
     Symbol.h \
     Ref.h \
     SourceIndexer.h \
-    TableSupplierRefList.h
+    TableSupplierRefList.h \
+    SourceWidget.h \
+    TableWindow.h
 
 FORMS += \
-    NavTableWindow.ui \
-    NavMainWindow.ui
+    MainWindow.ui \
+    TableWindow.ui
 
 target.path = /
 INSTALLS += target

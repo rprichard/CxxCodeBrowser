@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>MainWindow</class>
- <widget class="QMainWindow" name="MainWindow">
+ <class>Nav::MainWindow</class>
+ <widget class="QMainWindow" name="Nav::MainWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -29,7 +29,7 @@
       <property name="childrenCollapsible">
        <bool>false</bool>
       </property>
-      <widget class="NavSourceWidget" name="sourceWidget">
+      <widget class="Nav::SourceWidget" name="sourceWidget">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>0</horstretch>
@@ -49,7 +49,7 @@
         <bool>true</bool>
        </property>
       </widget>
-      <widget class="NavCommandWidget" name="commandWidget">
+      <widget class="Nav::CommandWidget" name="commandWidget">
        <property name="acceptDrops">
         <bool>false</bool>
        </property>
@@ -91,14 +91,14 @@
  <layoutdefault spacing="6" margin="11"/>
  <customwidgets>
   <customwidget>
-   <class>NavCommandWidget</class>
+   <class>Nav::CommandWidget</class>
    <extends>QPlainTextEdit</extends>
-   <header>NavCommandWidget.h</header>
+   <header>CommandWidget.h</header>
   </customwidget>
   <customwidget>
-   <class>NavSourceWidget</class>
+   <class>Nav::SourceWidget</class>
    <extends>QPlainTextEdit</extends>
-   <header>NavSourceWidget.h</header>
+   <header>SourceWidget.h</header>
   </customwidget>
  </customwidgets>
  <resources/>

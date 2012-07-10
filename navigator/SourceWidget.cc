@@ -1,14 +1,18 @@
-#include "NavSourceWidget.h"
+#include "SourceWidget.h"
 #include "Misc.h"
 #include <QDebug>
 
-NavSourceWidget::NavSourceWidget(QWidget *parent) :
+namespace Nav {
+
+SourceWidget::SourceWidget(QWidget *parent) :
     QPlainTextEdit(parent)
 {
 }
 
-void NavSourceWidget::mousePressEvent(QMouseEvent *event)
+void SourceWidget::mousePressEvent(QMouseEvent *event)
 {
     Nav::hackDisableDragAndDropByClearingSelection(this, event);
     QPlainTextEdit::mousePressEvent(event);
 }
+
+} // namespace Nav

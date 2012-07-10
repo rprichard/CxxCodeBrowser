@@ -15,6 +15,6 @@ void hackDisableDragAndDropByClearingSelection(
         QPlainTextEdit *editor,
         QMouseEvent *event);
 
-} /* Nav namespace */
+} // namespace Nav
 
 #endif // NAV_MISC_H
