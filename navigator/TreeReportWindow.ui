@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Nav::TableWindow</class>
- <widget class="QMainWindow" name="Nav::TableWindow">
+ <class>Nav::TreeReportWindow</class>
+ <widget class="QMainWindow" name="Nav::TreeReportWindow">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -19,13 +19,18 @@
      <number>2</number>
     </property>
     <item>
-     <widget class="QTreeView" name="treeView">
+     <widget class="QTreeWidget" name="treeWidget">
       <property name="font">
        <font>
         <family>Monospace</family>
         <pointsize>8</pointsize>
        </font>
       </property>
+      <column>
+       <property name="text">
+        <string notr="true">1</string>
+       </property>
+      </column>
      </widget>
     </item>
    </layout>

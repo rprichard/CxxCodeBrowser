@@ -7,9 +7,9 @@
 #include "FileManager.h"
 #include "CSource.h"
 #include "SourcesJsonReader.h"
-#include "TableWindow.h"
-#include "TableSupplierSourceList.h"
-#include "TableSupplierRefList.h"
+#include "TreeReportWindow.h"
+#include "ReportCSources.h"
+#include "ReportRefList.h"
 #include <QDebug>
 #include <QFile>
 #include <QFont>
@@ -82,8 +82,8 @@ void MainWindow::selectText(int line, int column, int size)
 
 void MainWindow::actionViewSource()
 {
-    Nav::TableSupplierSourceList *supplier = new Nav::TableSupplierSourceList();
-    TableWindow *tw = new TableWindow(supplier);
+    ReportCSources *r = new ReportCSources(theProject);
+    TreeReportWindow *tw = new TreeReportWindow(r);
     tw->show();
 }
 
@@ -99,8 +99,8 @@ void MainWindow::actionCommand(const QString &commandIn)
         if (symbol == NULL) {
             ui->commandWidget->writeLine(QString("Symbol not found: ") + symbolName);
         } else {
-            Nav::TableSupplierRefList *supplier = new Nav::TableSupplierRefList(symbol);
-            TableWindow *tw = new TableWindow(supplier);
+            ReportRefList *r = new ReportRefList(symbol);
+            TreeReportWindow *tw = new TreeReportWindow(r);
             tw->show();
         }
     }

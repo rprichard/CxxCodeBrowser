@@ -5,7 +5,6 @@ TEMPLATE = app
 
 SOURCES += \
     SourcesJsonReader.cc \
-    TableSupplierSourceList.cc \
     main.cc \
     MainWindow.cc \
     CommandWidget.cc \
@@ -18,15 +17,15 @@ SOURCES += \
     Symbol.cc \
     Ref.cc \
     SourceIndexer.cc \
-    TableSupplierRefList.cc \
     SourceWidget.cc \
-    TableWindow.cc
+    ReportRefList.cc \
+    ReportCSources.cc \
+    TreeReport.cc \
+    TreeReportWindow.cc
 
 HEADERS += \
     SourcesJsonReader.h \
     Misc.h \
-    TableSupplier.h \
-    TableSupplierSourceList.h \
     MainWindow.h \
     CommandWidget.h \
     Project.h \
@@ -37,13 +36,15 @@ HEADERS += \
     Symbol.h \
     Ref.h \
     SourceIndexer.h \
-    TableSupplierRefList.h \
     SourceWidget.h \
-    TableWindow.h
+    ReportRefList.h \
+    ReportCSources.h \
+    TreeReport.h \
+    TreeReportWindow.h
 
 FORMS += \
     MainWindow.ui \
-    TableWindow.ui
+    TreeReportWindow.ui
 
 target.path = /
 INSTALLS += target
