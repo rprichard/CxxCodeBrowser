@@ -63,10 +63,10 @@ MainWindow::~MainWindow()
 
 void MainWindow::showFile(const QString &path)
 {
-    Nav::File *newFile = Nav::theProject->fileManager->file(path);
-    if (newFile != NULL && newFile != file) {
-        file = newFile;
-        ui->sourceWidget->setPlainText(newFile->content);
+    Nav::File &newFile = Nav::theProject->fileManager->file(path);
+    if (&newFile != file) {
+        file = &newFile;
+        ui->sourceWidget->setPlainText(newFile.content);
     }
 }
 

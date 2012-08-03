@@ -41,35 +41,49 @@ struct MyPPCallbacks : clang::PPCallbacks
                              clang::FileID PrevFID);
 };
 
-void MyPPCallbacks::MacroExpands(const clang::Token &macroNameTok,
-                                 const clang::MacroInfo *MI,
-                                 clang::SourceRange Range)
+clang::PresumedLoc realLocationOfSourceLocation(clang::SourceLocation loc)
 {
-    return;
+    clang::SourceLocation sloc = pSM->getSpellingLoc(loc);
+    clang::FileID fid = pSM->getFileID(sloc);
+    unsigned int offset = pSM->getFileOffset(sloc);
+    const clang::FileEntry *pFE = pSM->getFileEntryForID(fid);
+    const char *filename = pFE != NULL ?
+                pFE->getName() : pSM->getBuffer(fid)->getBufferIdentifier();
+    return clang::PresumedLoc(filename,
+                              pSM->getLineNumber(fid, offset),
+                              pSM->getColumnNumber(fid, offset),
+                              clang::SourceLocation());
+}
+
+void MyPPCallbacks::MacroExpands(const clang::Token &macroNameTok,
+                                 const clang::MacroInfo *mi,
+                                 clang::SourceRange range)
+{
+    clang::PresumedLoc ploc = realLocationOfSourceLocation(range.getBegin());
 
     indent();
+    std::cerr << ploc.getFilename() << ":" << ploc.getLine() << ":" << ploc.getColumn();
+    std::cerr << ": expand " << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
 
-    std::cerr << "expand " << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
-
-    for (clang::MacroInfo::tokens_iterator it = MI->tokens_begin();
-         it != MI->tokens_end();
+    for (clang::MacroInfo::tokens_iterator it = mi->tokens_begin();
+         it != mi->tokens_end();
          ++it) {
         indent();
         std::cerr << "   " << it->getName() << std::endl;
     }
-
 }
 
 void MyPPCallbacks::MacroDefined(const clang::Token &macroNameTok,
                                  const clang::MacroInfo *MI)
 {
+    clang::PresumedLoc ploc = realLocationOfSourceLocation(MI->getDefinitionLoc());
+
     indent();
-
-    clang::SourceLocation loc = macroNameTok.getLocation();
-
-    std::cerr << pSM->getSpellingLineNumber(loc)
+    std::cerr << ploc.getFilename()
               << ":"
-              << pSM->getSpellingColumnNumber(loc)
+              << ploc.getLine()
+              << ":"
+              << ploc.getColumn()
               << ": #define "
               << macroNameTok.getIdentifierInfo()->getName().str()
               << std::endl;
@@ -82,22 +96,9 @@ void MyPPCallbacks::FileChanged(clang::SourceLocation loc,
 {
     if (reason == clang::PPCallbacks::EnterFile) {
         indent();
-        std::cerr << "enter " << pSM->getBufferName(loc)
-                  << "(" << pSM->getFileID(loc).getHashValue() << ")"
+        std::cerr << "enter " << pSM->getBufferName(loc) << " / " << pSM->getPresumedLoc(loc).getFilename()
+                  << " (" << pSM->getFileID(loc).getHashValue() << ")"
                   << std::endl;
-
-        const clang::FileEntry *pFE = pSM->getFileEntryForID(pSM->getFileID(loc));
-        if (pFE) {
-            llvm::MemoryBuffer *mem = pSM->getFileManager().getBufferForFile(pFE);
-            assert(mem);
-            llvm::StringRef str = mem->getBuffer();
-
-            indent();
-            std::string piece(str.data(), 10);
-            std::cerr << piece << std::endl;
-        }
-        indent();
-
         ++includeLevel;
     } else if (reason == clang::PPCallbacks::ExitFile) {
         --includeLevel;
@@ -152,7 +153,7 @@ int main()
 
     pSM = &ci.getSourceManager();
 
-
+    std::cerr << "<built-in>" << std::endl << ci.getPreprocessor().getPredefines() << "</built-in>" << std::endl;
     ci.getPreprocessor().addPPCallbacks(new MyPPCallbacks());
 
 

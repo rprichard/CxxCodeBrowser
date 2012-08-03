@@ -9,12 +9,10 @@ namespace Nav {
 class File
 {
 public:
+    File(const QString &path, const QString &content);
     static File *readFile(const QString &path);
     QString path;
     QString content;
-
-private:
-    File();
 };
 
 } // namespace Nav

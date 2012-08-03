@@ -13,7 +13,8 @@ class FileManager
 public:
     FileManager();
     ~FileManager();
-    File *file(const QString &path);
+    void addBuiltinFile(File *builtin);
+    File &file(const QString &path);
 
 private:
     QHash<QString, File*> fileMap;

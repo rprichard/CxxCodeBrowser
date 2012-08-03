@@ -4,20 +4,19 @@
 
 namespace Nav {
 
+File::File(const QString &path, const QString &content) :
+    path(path), content(content)
+{
+}
+
 File *File::readFile(const QString &path)
 {
     QFile qfile(path);
     if (!qfile.open(QFile::ReadOnly))
         return NULL;
-    File *file = new File;
-    file->path = path;
-    file->content = qfile.readAll();
+    File *file = new File(path, qfile.readAll());
     qfile.close();
     return file;
-}
-
-File::File()
-{
 }
 
 } // namespace Nav

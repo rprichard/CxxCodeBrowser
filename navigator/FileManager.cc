@@ -1,6 +1,7 @@
 #include "FileManager.h"
 #include "File.h"
 #include <QFile>
+#include <assert.h>
 
 namespace Nav {
 
@@ -15,19 +16,23 @@ FileManager::~FileManager()
     }
 }
 
-File *FileManager::file(const QString &path)
+void FileManager::addBuiltinFile(File *builtin)
 {
-    // HACK
-    if (path == "<built-in>" || path.isEmpty())
-        return NULL;
+    assert(!fileMap.contains(builtin->path));
+    fileMap[builtin->path] = builtin;
+}
+
+File &FileManager::file(const QString &path)
+{
+    assert(!path.isEmpty());
 
     if (!fileMap.contains(path)) {
         File *f = File::readFile(path);
         if (f == NULL)
-            return NULL;
+            f = new File(path, "Error: no such file");
         fileMap[path] = f;
     }
-    return fileMap[path];
+    return *fileMap[path];
 }
 
 } // namespace Nav

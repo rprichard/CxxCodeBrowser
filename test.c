@@ -5,12 +5,6 @@
 #define G(x) x * 2
 #define F(x) G(x)
 
-/* BUGS:
-
-   xref G
-   ==> missing use of G
-*/
-
 int main(void)
 {
     int tmp = MAX(3, 4);

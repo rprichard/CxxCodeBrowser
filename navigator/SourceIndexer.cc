@@ -4,6 +4,7 @@
 #include "Symbol.h"
 #include "SymbolTable.h"
 #include "FileManager.h"
+#include "File.h"
 #include "Ref.h"
 #include <QDebug>
 #include <stdio.h>
@@ -47,42 +48,58 @@ struct IndexerPPCallbacks : clang::PPCallbacks
             clang::FileID prevFID);
 };
 
+clang::PresumedLoc realLocationOfSourceLocation(
+        clang::SourceManager *pSM,
+        clang::SourceLocation loc)
+{
+    clang::SourceLocation sloc = pSM->getSpellingLoc(loc);
+    clang::FileID fid = pSM->getFileID(sloc);
+    unsigned int offset = pSM->getFileOffset(sloc);
+    const clang::FileEntry *pFE = pSM->getFileEntryForID(fid);
+    const char *filename = pFE != NULL ?
+                pFE->getName() : pSM->getBuffer(fid)->getBufferIdentifier();
+    return clang::PresumedLoc(
+                filename,
+                pSM->getLineNumber(fid, offset),
+                pSM->getColumnNumber(fid, offset),
+                clang::SourceLocation());
+}
+
 void IndexerPPCallbacks::MacroExpands(
         const clang::Token &macroNameTok,
         const clang::MacroInfo *mi,
         clang::SourceRange range)
 {
-    clang::SourceLocation loc = range.getBegin();
+    clang::PresumedLoc loc =
+            realLocationOfSourceLocation(pSM, range.getBegin());
     QString name = QString::fromStdString(
                 macroNameTok.getIdentifierInfo()->getName().str());
     Symbol *symbol = pST->symbol(name, true);
     Ref ref;
     ref.symbol = symbol;
-    ref.file = pFM->file(pSM->getBufferName(loc));
-    ref.line = pSM->getSpellingLineNumber(loc);
-    ref.column = pSM->getSpellingColumnNumber(loc);
+    ref.file = &pFM->file(loc.getFilename());
+    ref.line = loc.getLine();
+    ref.column = loc.getColumn();
     ref.kind = "Usage";
-    // TODO: Do something about null files.
-    if (ref.file != NULL)
-        symbol->refs.insert(ref);
+    symbol->refs.insert(ref);
 }
 
-void IndexerPPCallbacks::MacroDefined(const clang::Token &macroNameTok,
-                                 const clang::MacroInfo *mi)
+void IndexerPPCallbacks::MacroDefined(
+        const clang::Token &macroNameTok,
+        const clang::MacroInfo *mi)
 {
-    clang::SourceLocation loc = macroNameTok.getLocation();
+    clang::PresumedLoc loc =
+            realLocationOfSourceLocation(pSM, macroNameTok.getLocation());
     QString name = QString::fromStdString(
                 macroNameTok.getIdentifierInfo()->getName().str());
     Symbol *symbol = pST->symbol(name, true);
     Ref ref;
     ref.symbol = symbol;
-    ref.file = pFM->file(pSM->getBufferName(loc));
-    ref.line = pSM->getSpellingLineNumber(loc);
-    ref.column = pSM->getSpellingColumnNumber(loc);
+    ref.file = &pFM->file(loc.getFilename());
+    ref.line = loc.getLine();
+    ref.column = loc.getColumn();
     ref.kind = "Definition";
-    // TODO: Do something about null files.
-    if (ref.file != NULL)
-        symbol->refs.insert(ref);
+    symbol->refs.insert(ref);
 }
 
 void IndexerPPCallbacks::FileChanged(clang::SourceLocation loc,
@@ -141,6 +158,11 @@ void indexCSource(Project *project, CSource *csource)
     ci.createSourceManager(ci.getFileManager());
     ci.getPreprocessorOpts().UsePredefines = true;
     ci.createPreprocessor();
+
+    project->fileManager->addBuiltinFile(new File(
+            "<built-in>",
+            QString::fromStdString(ci.getPreprocessor().getPredefines())));
+
     ASTConsumer *astConsumer = new ASTConsumer();
     ci.setASTConsumer(astConsumer);
 
