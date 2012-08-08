@@ -1,7 +1,7 @@
 TEMPLATE = subdirs
 
 SUBDIRS += navigator \
-           clang_test \
+           clang-test \
            clang-index-test \
            libbtrace
 
