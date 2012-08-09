@@ -3,6 +3,7 @@ TEMPLATE = subdirs
 SUBDIRS += navigator \
            clang-test \
            clang-index-test \
+           clang-indexer \
            libbtrace
 
 btrace_script.path = /
