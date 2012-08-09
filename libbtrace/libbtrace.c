@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <dlfcn.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -100,6 +101,7 @@ int execl(const char *path, const char *arg, ...)
     va_end(ap);
 
     char **argv = malloc(sizeof(char*) * (count + 1));
+    assert(argv);
     va_start(ap, arg);
     for (int i = 0; i < count; ++i)
         argv[i] = va_arg(ap, char*);
@@ -123,6 +125,7 @@ int execlp(const char *file, const char *arg, ...)
     va_end(ap);
 
     char **argv = malloc(sizeof(char*) * (count + 1));
+    assert(argv);
     va_start(ap, arg);
     for (int i = 0; i < count; ++i)
         argv[i] = va_arg(ap, char*);
@@ -146,6 +149,7 @@ int execle(const char *path, const char *arg, ...)
     va_end(ap);
 
     char **argv = malloc(sizeof(char*) * (count + 1));
+    assert(argv);
     va_start(ap, arg);
     for (int i = 0; i < count; ++i)
         argv[i] = va_arg(ap, char*);
