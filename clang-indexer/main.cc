@@ -1,13 +1,10 @@
 #include <QtDebug>
 #include <QtCore>
-#include <QString>
-#include <QStringList>
+#include <cassert>
+#include <cstring>
 #include <fstream>
 #include <vector>
-#include <mutex>
 #include <json/reader.h>
-#include <string.h>
-#include <assert.h>
 #include <clang-c/Index.h>
 #include "IndexDb.h"
 
@@ -202,10 +199,7 @@ struct SourceFileInfo {
     std::vector<std::string> extraArgs;
 };
 
-void indexSourceFile(
-        SourceFileInfo sfi,
-        indexdb::Index *index,
-        std::mutex *mutex)
+indexdb::Index *indexSourceFile(SourceFileInfo sfi)
 {
     std::vector<char*> args;
     for (auto define : sfi.defines) {
@@ -230,7 +224,7 @@ void indexSourceFile(
                 );
 
     TUIndexer indexer;
-    indexer.index = new indexdb::Index; // index;
+    indexer.index = new indexdb::Index;
 
     indexer.pathStringTable = indexer.index->stringTable("path");
     indexer.kindStringTable = indexer.index->stringTable("kind");
@@ -240,21 +234,14 @@ void indexSourceFile(
     clang_visitChildren(tuCursor, &TUIndexer::visitor, &indexer);
     indexer.index->setStringSetState(indexdb::Index::StringSetArray);
 
-    {
-        std::lock_guard<std::mutex> lock(*mutex);
-        indexer.index->setStringSetState(indexdb::Index::StringSetArray);
-        mergeIndex(*index, *indexer.index);
-        //index->merge(*indexer.index);
-    }
-
-    delete indexer.index;
-
     clang_disposeTranslationUnit(tu);
     clang_disposeIndex(cxindex);
 
     for (char *arg : args) {
         free(arg);
     }
+
+    return indexer.index;
 }
 
 static std::vector<std::string> readJsonStringList(const Json::Value &json)
@@ -268,9 +255,8 @@ static std::vector<std::string> readJsonStringList(const Json::Value &json)
 
 void readSourcesJson(const Json::Value &json, indexdb::Index *index)
 {
-    QList<QFuture<void> > futures;
-
-    std::mutex mutex;
+    std::vector<std::string> paths;
+    std::vector<QFuture<indexdb::Index*> > fileIndices;
 
     for (Json::ValueIterator it = json.begin(), itEnd = json.end();
             it != itEnd; ++it) {
@@ -280,24 +266,21 @@ void readSourcesJson(const Json::Value &json, indexdb::Index *index)
         sfi.defines = readJsonStringList(sourceJson["defines"]);
         sfi.includes = readJsonStringList(sourceJson["includes"]);
         sfi.extraArgs = readJsonStringList(sourceJson["extraArgs"]);
-
-        std::cerr << sfi.path << std::endl;
-        //indexSourceFile(sfi, index, &mutex);
-        futures << QtConcurrent::run(indexSourceFile, sfi, index, &mutex);
-        //futures.last().waitForFinished(); // TODO: remove this
+        paths.push_back(sfi.path);
+        fileIndices.push_back(std::move(QtConcurrent::run(indexSourceFile, sfi)));
     }
 
-    // TODO: Consider requiring that files be merged in a deterministic order
-    // so that the final merged index is also deterministic.
-
-    foreach (QFuture<void> future, futures) {
-        future.waitForFinished();
+    for (size_t i = 0; i < paths.size(); ++i) {
+        std::cout << paths[i] << std::endl;
+        indexdb::Index *fileIndex = fileIndices[i].result();
+        mergeIndex(*index, *fileIndex);
+        delete fileIndex;
     }
 }
 
-void readSourcesJson(const QString &filename, indexdb::Index *index)
+void readSourcesJson(const std::string &filename, indexdb::Index *index)
 {
-    std::ifstream f(filename.toStdString().c_str());
+    std::ifstream f(filename.c_str());
     Json::Reader r;
     Json::Value rootJson;
     r.parse(f, rootJson);
@@ -310,16 +293,10 @@ int main(int argc, char *argv[])
 
     if (1) {
         index = new indexdb::Index;
-        readSourcesJson(QString("btrace.sources"), index);
+        readSourcesJson(std::string("btrace.sources"), index);
         index->setStringSetState(indexdb::Index::StringSetArray);
         index->dump();
         index->save("index");
-
-        /*
-        for (auto it = index->begin(); it != index->end(); ++it) {
-            std::cout << *it << std::endl;
-        }
-        */
 
         delete index;
     } else if (1) {
