@@ -12,15 +12,6 @@
 #include "IndexDb.h"
 
 
-// TODO: Is there a fundamental reason we can't have a tuple inside another
-// tuple?  i.e. Maybe we could allow arbitrary trees on either side of the
-// id->id mapping.  Need to consider the effect on tuple hash codes.  (Will
-// they be stable across merging? I think they could be.)  Need to consider
-// how/whether ID remapping is affected during merging -- I think it isn't
-// affected because we'd remap earlier IDs first -- and a tuple will always
-// have a greater ID than its contained tuples.
-
-
 struct TUIndexer {
     CXChildVisitResult visitor(
             CXCursor cursor,
@@ -31,11 +22,108 @@ struct TUIndexer {
             CXClientData data);
 
     indexdb::Index *index;
+    indexdb::HashSet<char> *pathStringTable;
+    indexdb::HashSet<char> *kindStringTable;
+    indexdb::HashSet<char> *usrStringTable;
 };
 
 static inline const char *nullToBlank(const char *string)
 {
     return (string != NULL) ? string : "";
+}
+
+static uint32_t readVleUInt32(const char *&buffer)
+{
+    uint32_t result = 0;
+    unsigned char nibble;
+    int bit = 0;
+    do {
+        nibble = static_cast<unsigned char>(*(buffer++));
+        result |= (nibble & 0x7F) << bit;
+        bit += 7;
+    } while ((nibble & 0x80) == 0x80);
+    return result;
+}
+
+// This encoding of a uint32 is guaranteed not to contain NUL bytes unless the
+// value is zero.
+static void writeVleUInt32(char *&buffer, uint32_t value)
+{
+    do {
+        unsigned char nibble = value & 0x7F;
+        value >>= 7;
+        if (value != 0)
+            nibble |= 0x80;
+        *buffer++ = nibble;
+    } while (value != 0);
+}
+
+// TODO: Try making src const.
+void mergeIndex(indexdb::Index &dest, indexdb::Index &src)
+{
+    const char *tables[] = { "usr", "path", "kind" };
+    std::vector<indexdb::ID> idMap[3];
+
+    for (int i = 0; i < 3; ++i) {
+        indexdb::HashSet<char> *destTable = dest.stringTable(tables[i]);
+        indexdb::HashSet<char> *srcTable = src.stringTable(tables[i]);
+        idMap[i].resize(srcTable->size());
+        for (indexdb::ID id = 0; id < srcTable->size(); ++id) {
+            std::pair<const char *, uint32_t> data = srcTable->data(id);
+            idMap[i][id] = destTable->id(data.first, data.second, srcTable->hash(id));
+        }
+    }
+
+    for (auto it = src.begin(); it != src.end(); ++it) {
+        const char *string = *it;
+        if (string[0] == 'R') {
+            string++;
+            uint32_t usrID = readVleUInt32(string) - 1;
+            uint32_t fileNameID = readVleUInt32(string) - 1;
+            uint32_t line = readVleUInt32(string) - 1;
+            uint32_t column = readVleUInt32(string) - 1;
+            uint32_t kindID = readVleUInt32(string) - 1;
+            assert(*string == '\0');
+
+            assert(usrID < idMap[0].size());
+            assert(fileNameID < idMap[1].size());
+            assert(kindID < idMap[2].size());
+            usrID = idMap[0][usrID] + 1;
+            fileNameID = idMap[1][fileNameID] + 1;
+            kindID = idMap[2][kindID] + 1;
+
+            char buffer[256], *pbuffer = buffer;
+            *pbuffer++ = 'R';
+            writeVleUInt32(pbuffer, usrID + 1);
+            writeVleUInt32(pbuffer, fileNameID + 1);
+            writeVleUInt32(pbuffer, line + 1);
+            writeVleUInt32(pbuffer, column + 1);
+            writeVleUInt32(pbuffer, kindID + 1);
+            *pbuffer++ = '\0';
+            dest.addString(buffer);
+        } else if (string[0] == 'L') {
+            string++;
+            uint32_t fileNameID = readVleUInt32(string) - 1;
+            uint32_t line = readVleUInt32(string) - 1;
+            uint32_t column = readVleUInt32(string) - 1;
+            uint32_t usrID = readVleUInt32(string) - 1;
+            assert(*string == '\0');
+
+            assert(usrID < idMap[0].size());
+            assert(fileNameID < idMap[1].size());
+            usrID = idMap[0][usrID] + 1;
+            fileNameID = idMap[1][fileNameID] + 1;
+
+            char buffer[256], *pbuffer = buffer;
+            *pbuffer++ = 'L';
+            writeVleUInt32(pbuffer, fileNameID + 1);
+            writeVleUInt32(pbuffer, line + 1);
+            writeVleUInt32(pbuffer, column + 1);
+            writeVleUInt32(pbuffer, usrID + 1);
+            *pbuffer++ = '\0';
+            dest.addString(buffer);
+        }
+    }
 }
 
 CXChildVisitResult TUIndexer::visitor(
@@ -64,27 +152,30 @@ CXChildVisitResult TUIndexer::visitor(
             const char *fileNameCStr = nullToBlank(clang_getCString(fileNameCXStr));
             const char *kindCStr = nullToBlank(clang_getCString(kindCXStr));
 
-            indexdb::ID usrID = index->stringID(usrCStr);
-            indexdb::ID kindID = index->stringID(kindCStr);
-            indexdb::ID fileNameID = index->stringID(fileNameCStr);
+            indexdb::ID usrID = usrStringTable->id(usrCStr);
+            indexdb::ID fileNameID = pathStringTable->id(fileNameCStr);
+            indexdb::ID kindID = kindStringTable->id(kindCStr);
 
-            char tmp[8];
-            for (int i = 0; i < 8; ++i) {
-                tmp[7 - i] = "0123456789abcdef"[(line >> (i * 4)) & 15];
-            }
-            indexdb::ID lineID = index->stringID(tmp, 8);
-            for (int i = 0; i < 8; ++i) {
-                tmp[7 - i] = "0123456789abcdef"[(column >> (i * 4)) & 15];
-            }
-            indexdb::ID columnID = index->stringID(tmp, 8);
+            char buffer[256], *pbuffer;
 
-            indexdb::ID location[3] = { fileNameID, lineID, columnID };
-            indexdb::ID locationID = index->tupleID(location, 3);
-            indexdb::ID ref[4] = { fileNameID, lineID, columnID, kindID };
-            indexdb::ID refID = index->tupleID(ref, 4);
+            pbuffer = buffer;
+            *pbuffer++ = 'R';
+            writeVleUInt32(pbuffer, usrID + 1);
+            writeVleUInt32(pbuffer, fileNameID + 1);
+            writeVleUInt32(pbuffer, line + 1);
+            writeVleUInt32(pbuffer, column + 1);
+            writeVleUInt32(pbuffer, kindID + 1);
+            *pbuffer++ = '\0';
+            index->addString(buffer);
 
-            index->addPair(usrID, refID);
-            index->addPair(locationID, usrID);
+            pbuffer = buffer;
+            *pbuffer++ = 'L';
+            writeVleUInt32(pbuffer, fileNameID + 1);
+            writeVleUInt32(pbuffer, line + 1);
+            writeVleUInt32(pbuffer, column + 1);
+            writeVleUInt32(pbuffer, usrID + 1);
+            *pbuffer++ = '\0';
+            index->addString(buffer);
         }
 
         clang_disposeString(kindCXStr);
@@ -140,13 +231,20 @@ void indexSourceFile(
 
     TUIndexer indexer;
     indexer.index = new indexdb::Index; // index;
+
+    indexer.pathStringTable = indexer.index->stringTable("path");
+    indexer.kindStringTable = indexer.index->stringTable("kind");
+    indexer.usrStringTable = indexer.index->stringTable("usr");
+
     CXCursor tuCursor = clang_getTranslationUnitCursor(tu);
     clang_visitChildren(tuCursor, &TUIndexer::visitor, &indexer);
-    indexer.index->setPairState(indexdb::Index::PairArray);
+    indexer.index->setStringSetState(indexdb::Index::StringSetArray);
 
     {
         std::lock_guard<std::mutex> lock(*mutex);
-        index->merge(*indexer.index);
+        indexer.index->setStringSetState(indexdb::Index::StringSetArray);
+        mergeIndex(*index, *indexer.index);
+        //index->merge(*indexer.index);
     }
 
     delete indexer.index;
@@ -213,16 +311,22 @@ int main(int argc, char *argv[])
     if (1) {
         index = new indexdb::Index;
         readSourcesJson(QString("btrace.sources"), index);
-        index->setPairState(indexdb::Index::PairArray);
+        index->setStringSetState(indexdb::Index::StringSetArray);
         index->dump();
         index->save("index");
+
+        /*
+        for (auto it = index->begin(); it != index->end(); ++it) {
+            std::cout << *it << std::endl;
+        }
+        */
+
         delete index;
     } else if (1) {
         index = new indexdb::Index("index");
         index->dump();
         delete index;
     }
-
 
     return 0;
 }

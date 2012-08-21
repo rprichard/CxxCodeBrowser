@@ -1,6 +1,7 @@
 #include "HashSet.h"
 #include "Buffer.h"
 #include "FileIo.h"
+#include "MurmurHash3.h"
 #include <cstring>
 #include <cassert>
 
@@ -10,6 +11,15 @@ template <typename DataType>
 HashSet<DataType>::HashSet() :
     m_index(1024, 0xFF)
 {
+}
+
+template <typename DataType>
+HashSet<DataType>::HashSet(HashSet &&other) :
+    m_data(std::move(other.m_data)),
+    m_table(std::move(other.m_table)),
+    m_index(std::move(other.m_index))
+{
+
 }
 
 template <typename DataType>
@@ -26,6 +36,15 @@ void HashSet<DataType>::write(Writer &writer)
     writer.writeBuffer(m_data);
     writer.writeBuffer(m_table);
     writer.writeBuffer(m_index);
+}
+
+template <typename DataType>
+ID HashSet<DataType>::id(const char *data)
+{
+    size_t size = strlen(data);
+    uint32_t hash;
+    MurmurHash3_x86_32(data, size, 0, &hash);
+    return id(data, size, hash);
 }
 
 template <typename DataType>

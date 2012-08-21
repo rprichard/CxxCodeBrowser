@@ -2,6 +2,7 @@
 #define INDEXDB_HASHSET_H
 
 #include <stdint.h>
+#include <cassert>
 #include "Buffer.h"
 
 namespace indexdb {
@@ -35,12 +36,15 @@ private:
 
 public:
     HashSet();
+    HashSet(HashSet &&other);
     HashSet(Reader &reader);
     void write(Writer &writer);
 
+    ID id(const char *data);
     ID id(const DataType *data, uint32_t dataSize, uint32_t hash);
 
     std::pair<const DataType*, uint32_t> data(ID id) {
+        assert(id < size());
         TableNode *n = &tablePtr()[id];
         return std::make_pair(&dataPtr()[n->offset], n->size);
     }

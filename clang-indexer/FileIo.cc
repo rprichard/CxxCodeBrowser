@@ -35,6 +35,12 @@ void Writer::writeUInt32(uint32_t val)
     fwrite(&val, 1, sizeof(val), m_fp);
 }
 
+void Writer::writeString(const std::string &string)
+{
+    writeUInt32(string.size());
+    writeData(string.data(), string.size());
+}
+
 void Writer::writeData(const void *data, size_t count)
 {
     fwrite(data, 1, count, m_fp);
@@ -74,6 +80,12 @@ uint32_t Reader::readUInt32()
     uint32_t result = *reinterpret_cast<uint32_t*>(m_buffer + m_bufferPointer);
     m_bufferPointer += sizeof(uint32_t);
     return result;
+}
+
+std::string Reader::readString()
+{
+    uint32_t amount = readUInt32();
+    return std::string(static_cast<char*>(readData(amount)), amount);
 }
 
 // The returned buffer is valid until the Reader is freed.

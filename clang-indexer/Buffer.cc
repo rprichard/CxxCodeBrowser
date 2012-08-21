@@ -40,6 +40,8 @@ Buffer::Buffer(Buffer &&other)
 
 Buffer &Buffer::operator=(Buffer &&other)
 {
+    if (!m_isMapped)
+        free(m_data);
     m_data = other.m_data;
     m_size = other.m_size;
     m_capacity = other.m_capacity;
