@@ -22,7 +22,7 @@ struct IndexHeader {
     uint32_t pairBufferSize;
 };
 
-Index::Index() : m_pairState(PairHash)
+Index::Index() : m_pairState(PairHash), m_reader(NULL)
 {
     m_stringSet = new HashSet<char>();
     m_tupleSet = new HashSet<ID>();
@@ -30,20 +30,17 @@ Index::Index() : m_pairState(PairHash)
 
 Index::Index(const std::string &path) : m_pairState(PairArray)
 {
-    int fd = open(path.c_str(), O_RDONLY);
-    assert(fd != -1);
-    Buffer headerBuffer = Buffer::fromFile(fd, 0, sizeof(IndexHeader));
-    IndexHeader *h = static_cast<IndexHeader*>(headerBuffer.data());
-    m_stringSet = new HashSet<char>(fd, h->stringSetOffset);
-    m_tupleSet = new HashSet<ID>(fd, h->tupleSetOffset);
-    m_pairBuffer = Buffer::fromFile(fd, h->pairBufferOffset, h->pairBufferSize);
-    close(fd);
+    m_reader = new Reader(path);
+    m_stringSet = new HashSet<char>(*m_reader);
+    m_tupleSet = new HashSet<ID>(*m_reader);
+    m_pairBuffer = m_reader->readBuffer();
 }
 
 Index::~Index()
 {
     delete m_stringSet;
     delete m_tupleSet;
+    delete m_reader;
 }
 
 void Index::merge(const Index &other)
@@ -105,23 +102,10 @@ void Index::merge(const Index &other)
 void Index::save(const std::string &path)
 {
     assert(m_pairState == PairArray);
-    int fd = open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY, 0777);
-    assert(fd != -1);
-    IndexHeader h = {0, 0, 0, 0};
-    ssize_t result = ::write(fd, &h, sizeof(h));
-    assert(result == sizeof(h));
-    padFile(fd);
-    h.stringSetOffset = tell(fd);
-    m_stringSet->write(fd);
-    h.tupleSetOffset = tell(fd);
-    m_tupleSet->write(fd);
-    h.pairBufferOffset = tell(fd);
-    h.pairBufferSize = m_pairBuffer.size();
-    m_pairBuffer.write(fd);
-    lseek(fd, 0, SEEK_SET);
-    result = ::write(fd, &h, sizeof(h));
-    assert(result == sizeof(h));
-    close(fd);
+    Writer writer(path);
+    m_stringSet->write(writer);
+    m_tupleSet->write(writer);
+    writer.writeBuffer(m_pairBuffer);
 }
 
 void Index::dump()

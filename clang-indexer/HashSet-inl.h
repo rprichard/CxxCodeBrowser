@@ -6,15 +6,6 @@
 
 namespace indexdb {
 
-struct HashSetHeader {
-    uint32_t dataBufferOffset;
-    uint32_t dataBufferSize;
-    uint32_t tableBufferOffset;
-    uint32_t tableBufferSize;
-    uint32_t indexBufferOffset;
-    uint32_t indexBufferSize;
-};
-
 template <typename DataType>
 HashSet<DataType>::HashSet() :
     m_index(1024, 0xFF)
@@ -22,34 +13,19 @@ HashSet<DataType>::HashSet() :
 }
 
 template <typename DataType>
-HashSet<DataType>::HashSet(int fd, uint32_t offset) {
-    Buffer b = Buffer::fromFile(fd, offset, sizeof(HashSetHeader));
-    HashSetHeader *h = static_cast<HashSetHeader*>(b.data());
-    m_data = Buffer::fromFile(fd, h->dataBufferOffset, h->dataBufferSize);
-    m_table = Buffer::fromFile(fd, h->tableBufferOffset, h->tableBufferSize);
-    m_index = Buffer::fromFile(fd, h->indexBufferOffset, h->indexBufferSize);
+HashSet<DataType>::HashSet(Reader &reader)
+{
+    m_data = reader.readBuffer();
+    m_table = reader.readBuffer();
+    m_index = reader.readBuffer();
 }
 
 template <typename DataType>
-void HashSet<DataType>::write(int fd)
+void HashSet<DataType>::write(Writer &writer)
 {
-    assert(tell(fd) == roundToPage(tell(fd)));
-
-    HashSetHeader h;
-    h.dataBufferOffset = tell(fd) + kPageSize;
-    h.dataBufferSize = m_data.size();
-    h.tableBufferOffset = roundToPage(h.dataBufferOffset + h.dataBufferSize);
-    h.tableBufferSize = m_table.size();
-    h.indexBufferOffset = roundToPage(h.tableBufferOffset + h.tableBufferSize);
-    h.indexBufferSize = m_index.size();
-
-    ssize_t result = ::write(fd, &h, sizeof(h));
-    assert(result == sizeof(h));
-    padFile(fd);
-
-    m_data.write(fd);
-    m_table.write(fd);
-    m_index.write(fd);
+    writer.writeBuffer(m_data);
+    writer.writeBuffer(m_table);
+    writer.writeBuffer(m_index);
 }
 
 template <typename DataType>

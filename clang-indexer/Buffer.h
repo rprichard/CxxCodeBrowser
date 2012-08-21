@@ -9,11 +9,14 @@ class Buffer {
 public:
     Buffer();
     Buffer(uint32_t size, int fillChar=0);
+    Buffer(Buffer &other) = delete;
     Buffer(Buffer &&other);
     Buffer &operator=(Buffer &&other);
-    static Buffer fromFile(int fd, uint32_t offset, uint32_t size);
+    Buffer &operator=(Buffer &other) = delete;
+    static Buffer fromMappedBuffer(void *data, uint32_t size);
+    //static Buffer fromFile(int fd, uint32_t offset, uint32_t size);
     ~Buffer();
-    void write(int fd);
+    //void write(int fd) const;
     uint32_t size() const;
     void *data();
     const void *data() const;

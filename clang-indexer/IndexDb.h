@@ -10,6 +10,8 @@
 
 namespace indexdb {
 
+class Reader;
+
 struct Pair {
     ID key;
     ID value;
@@ -77,6 +79,7 @@ private:
     std::unordered_set<Pair, PairHashFunc> m_pairHash;
     Buffer m_pairBuffer;
     PairState m_pairState;
+    Reader *m_reader;
 };
 
 } // namespace indexdb

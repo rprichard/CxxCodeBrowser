@@ -1,20 +1,43 @@
 #ifndef INDEXDB_FILEIO_H
 #define INDEXDB_FILEIO_H
 
+#include <string>
 #include <stdint.h>
 
 namespace indexdb {
 
-const uint32_t kPageSize = 4096;
+class Buffer;
 
-void padFile(int fd);
+class Writer {
+public:
+    Writer(const std::string &path);
+    ~Writer();
+    void writeUInt32(uint32_t val);
+    void writeData(const void *data, size_t count);
+    void writeBuffer(const Buffer &buffer);
+private:
+    FILE *m_fp;
+    uint64_t m_writeOffset;
+};
 
-inline uint32_t roundToPage(uint32_t size)
-{
-    return (size + kPageSize - 1) & -kPageSize;
-}
+class Reader {
+public:
+    Reader(const std::string &path);
+    ~Reader();
+    uint32_t readUInt32();
+    void readLine(const char *&line, size_t &size);
+    void *readData(size_t size);
+    Buffer readBuffer();
+private:
+    inline char readChar();
+    char readCharFull();
+    void loadChunk();
+private:
+    char *m_buffer;
+    size_t m_bufferSize;
+    size_t m_bufferPointer;
+};
 
-uint32_t tell(int fd);
 
 } // namespace indexdb
 

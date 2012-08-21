@@ -51,33 +51,20 @@ Buffer &Buffer::operator=(Buffer &&other)
     return *this;
 }
 
-Buffer Buffer::fromFile(int fd, uint32_t offset, uint32_t size)
+Buffer Buffer::fromMappedBuffer(void *data, uint32_t size)
 {
-    // I think the size is not guaranteed to be a multiple of page size.
-    assert(offset == roundToPage(offset));
-    Buffer b;
-    b.m_data = mmap(NULL, size, PROT_READ, MAP_PRIVATE, fd, offset);
-    assert(b.m_data != reinterpret_cast<void*>(-1));
-    b.m_size = size;
-    b.m_capacity = size;
-    b.m_isMapped = true;
-    return std::move(b);
+    Buffer result;
+    result.m_data = data;
+    result.m_size = size;
+    result.m_capacity = size;
+    result.m_isMapped = true;
+    return result;
 }
 
 Buffer::~Buffer()
 {
-    if (m_isMapped)
-        munmap(m_data, m_capacity);
-    else
+    if (!m_isMapped)
         free(m_data);
-}
-
-void Buffer::write(int fd)
-{
-    assert(tell(fd) == roundToPage(tell(fd)));
-    ssize_t ret = ::write(fd, m_data, m_size);
-    assert(ret == m_size);
-    padFile(fd);
 }
 
 uint32_t Buffer::size() const

@@ -6,6 +6,8 @@
 
 namespace indexdb {
 
+class Reader;
+class Writer;
 typedef uint32_t ID;
 const ID kInvalidID = static_cast<ID>(-1);
 
@@ -33,8 +35,8 @@ private:
 
 public:
     HashSet();
-    HashSet(int fd, uint32_t offset);
-    void write(int fd);
+    HashSet(Reader &reader);
+    void write(Writer &writer);
 
     ID id(const DataType *data, uint32_t dataSize, uint32_t hash);
 

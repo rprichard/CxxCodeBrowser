@@ -1,27 +1,98 @@
 #include "FileIo.h"
+#include "Buffer.h"
 #include <cassert>
 
 // UNIX headers
-#include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
 
 namespace indexdb {
 
-void padFile(int fd)
+Writer::Writer(const std::string &path)
 {
-    static char zero[kPageSize];
-    int extra = lseek(fd, 0, SEEK_CUR) & (kPageSize - 1);
-    if (extra != 0) {
-        ssize_t result = write(fd, zero, kPageSize - extra);
-        assert(result == kPageSize - extra);
-    }
+    m_fp = fopen(path.c_str(), "w");
+    assert(m_fp);
+    m_writeOffset = 0;
 }
 
-uint32_t tell(int fd)
+Writer::~Writer()
 {
-    return lseek(fd, 0, SEEK_CUR);
+    fclose(m_fp);
+}
+
+void Writer::writeUInt32(uint32_t val)
+{
+    static const char padding[sizeof(uint32_t) - 1] = { 0 };
+    uint32_t padAmount = m_writeOffset & (sizeof(uint32_t) - 1);
+    if (padAmount != 0) {
+        padAmount = sizeof(uint32_t) - padAmount;
+        fwrite(padding, 1, padAmount, m_fp);
+        m_writeOffset += padAmount;
+    }
+    fwrite(&val, 1, sizeof(val), m_fp);
+}
+
+void Writer::writeData(const void *data, size_t count)
+{
+    fwrite(data, 1, count, m_fp);
+    m_writeOffset += count;
+}
+
+void Writer::writeBuffer(const Buffer &buffer)
+{
+    writeUInt32(buffer.size());
+    writeData(buffer.data(), buffer.size());
+}
+
+Reader::Reader(const std::string &path)
+{
+    int fd = open(path.c_str(), O_RDONLY);
+    assert(fd != -1);
+    m_bufferPointer = 0;
+    m_bufferSize = lseek(fd, 0, SEEK_END); // TODO: allow 64-bit offset
+    m_buffer = static_cast<char*>(
+                mmap(NULL, m_bufferSize, PROT_READ, MAP_PRIVATE, fd, 0));
+    assert(m_buffer != reinterpret_cast<void*>(-1));
+    close(fd);
+}
+
+Reader::~Reader()
+{
+    munmap(m_buffer, m_bufferSize);
+}
+
+uint32_t Reader::readUInt32()
+{
+    uint32_t padAmount = m_bufferPointer & (sizeof(uint32_t) - 1);
+    if (padAmount != 0) {
+        m_bufferPointer += sizeof(uint32_t) - padAmount;
+    }
+    // TODO: Is this type punning safe?
+    uint32_t result = *reinterpret_cast<uint32_t*>(m_buffer + m_bufferPointer);
+    m_bufferPointer += sizeof(uint32_t);
+    return result;
+}
+
+// The returned buffer is valid until the Reader is freed.
+// (The entire file is mapped into memory.)
+void *Reader::readData(size_t size)
+{
+    void *result = &m_buffer[m_bufferPointer];
+    m_bufferPointer += size;
+    return result;
+}
+
+// The returned Buffer has pointers into the Reader's memory-mapped buffer,
+// so it should be freed before the Reader.
+// TODO: Consider some way of automatically keeping the Reader or mmap region
+// alive, like reference counting?
+Buffer Reader::readBuffer()
+{
+    uint32_t size = readUInt32();
+    return Buffer::fromMappedBuffer(readData(size), size);
 }
 
 } // namespace indexdb
