@@ -1,13 +1,14 @@
-#include <QtDebug>
 #include <QtCore>
+#include <QtDebug>
 #include <cassert>
 #include <cstring>
 #include <fstream>
 #include <vector>
+
 #include <json/reader.h>
 #include <clang-c/Index.h>
-#include "IndexDb.h"
 
+#include "IndexDb.h"
 
 struct TUIndexer {
     CXChildVisitResult visitor(
@@ -218,13 +219,11 @@ int main(int argc, char *argv[])
         index = new indexdb::Index;
         readSourcesJson(std::string("btrace.sources"), index);
         index->setReadOnly();
-        index->dump();
         index->save("index");
 
         delete index;
     } else if (1) {
         index = new indexdb::Index("index");
-        index->dump();
 
         indexdb::Table *table = index->table("ref");
         indexdb::Row row(table->columnCount());

@@ -14,9 +14,7 @@ public:
     Buffer &operator=(Buffer &&other);
     Buffer &operator=(Buffer &other) = delete;
     static Buffer fromMappedBuffer(void *data, uint32_t size);
-    //static Buffer fromFile(int fd, uint32_t offset, uint32_t size);
     ~Buffer();
-    //void write(int fd) const;
     uint32_t size() const;
     void *data();
     const void *data() const;

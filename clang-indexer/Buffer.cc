@@ -1,5 +1,4 @@
 #include "Buffer.h"
-#include "FileIo.h"
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
@@ -9,6 +8,8 @@
 // UNIX headers
 #include <sys/mman.h>
 #include <unistd.h>
+
+#include "FileIo.h"
 
 namespace indexdb {
 

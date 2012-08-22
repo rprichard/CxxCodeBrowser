@@ -19,7 +19,6 @@ HashSet<DataType>::HashSet(HashSet &&other) :
     m_table(std::move(other.m_table)),
     m_index(std::move(other.m_index))
 {
-
 }
 
 template <typename DataType>

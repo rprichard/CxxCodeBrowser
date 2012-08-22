@@ -1,15 +1,12 @@
 #include "IndexDb.h"
-#include "MurmurHash3.h"
-#include "FileIo.h"
+
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <vector>
-#include <algorithm>
 
-// UNIX headers
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
+#include "FileIo.h"
+#include "MurmurHash3.h"
 
 namespace indexdb {
 
@@ -296,11 +293,17 @@ void Index::save(const std::string &path)
     }
 }
 
+// Merge all of the string tables and tables from the other index into the
+// current index.  String tables and tables are created if they do not exist.
+// A table must have the same number and name of columns in the two indices.
 // TODO: try to make other const.
 void Index::merge(Index &other)
 {
     std::map<std::string, std::vector<indexdb::ID> > idMap;
 
+    // For each string table in "other", add all of the strings to the
+    // corresponding string table in "this", while also building a table
+    // mapping each of the "other" IDs into "this" IDs.
     for (auto pair : other.m_stringTables) {
         idMap[pair.first] = std::vector<indexdb::ID>();
         std::vector<indexdb::ID> &stringTableIdMap = idMap[pair.first];
@@ -315,6 +318,8 @@ void Index::merge(Index &other)
         }
     }
 
+    // For each row in each "other" table, add the row to the corresponding
+    // table in "this", after remapping IDs.
     for (auto tablePair : other.m_tables) {
         Table *srcTable = tablePair.second;
         Table *destTable = addTable(tablePair.first, srcTable->m_columnNames);
@@ -328,10 +333,10 @@ void Index::mergeTable(
         std::map<std::string, std::vector<indexdb::ID> > &idMap)
 {
     int columnCount = srcTable->columnCount();
-    TableIterator it = srcTable->begin();
-    TableIterator itEnd = srcTable->end();
-    Row row(columnCount);
 
+    // For efficiency, create a table mapping column numbers to the appropriate
+    // ID remapping table for that column, or NULL if the integers are not
+    // remapped (e.g. line/column numbers).
     std::vector<std::vector<indexdb::ID>*> tableIdMap;
     tableIdMap.resize(columnCount);
     for (int i = 0; i < columnCount; ++i) {
@@ -340,7 +345,11 @@ void Index::mergeTable(
             tableIdMap[i] = &idMap[name];
     }
 
-    for (; it != itEnd; ++it) {
+    // Add each of the source table's rows to the destination table.
+    Row row(columnCount);
+    for (TableIterator it = srcTable->begin(), itEnd = srcTable->end();
+            it != itEnd;
+            ++it) {
         it.value(row);
         for (int i = 0; i < columnCount; ++i) {
             if (tableIdMap[i] != NULL) {
@@ -353,10 +362,8 @@ void Index::mergeTable(
     }
 }
 
-void Index::dump()
-{
-}
-
+// Returns the string table with the given name.  Creates the table if it does
+// not exist.  The index must be writable to call this method.
 HashSet<char> *Index::addStringTable(const std::string &name)
 {
     assert(!m_readonly);
@@ -367,35 +374,44 @@ HashSet<char> *Index::addStringTable(const std::string &name)
     return m_stringTables[name];
 }
 
+// Returns the string table with the given name or NULL if it does not exist.
 HashSet<char> *Index::stringTable(const std::string &name)
 {
     auto it = m_stringTables.find(name);
     return (it != m_stringTables.end()) ? it->second : NULL;
 }
 
+// Returns the string table with the given name or NULL if it does not exist.
 const HashSet<char> *Index::stringTable(const std::string &name) const
 {
     auto it = m_stringTables.find(name);
     return (it != m_stringTables.end()) ? it->second : NULL;
 }
 
+// Returns the table with the given name, creating it if it does not exist.  If
+// it already exists, then its column names must match the given ones.  The
+// index must be writable to call this method.
 Table *Index::addTable(const std::string &name, const std::vector<std::string> &names)
 {
     assert(!m_readonly);
     auto it = m_tables.find(name);
-    if (it != m_tables.end())
+    if (it != m_tables.end()) {
+        assert(it->second->m_columnNames == names);
         return it->second;
+    }
     assert(m_tables.find(name) == m_tables.end());
     m_tables[name] = new Table(this, names);
     return m_tables[name];
 }
 
+// Return the table with the given name or NULL if it does not exist.
 const Table *Index::table(const std::string &name) const
 {
     auto it = m_tables.find(name);
     return (it != m_tables.end()) ? it->second : NULL;
 }
 
+// Return the table with the given name or NULL if it does not exist.
 Table *Index::table(const std::string &name)
 {
     auto it = m_tables.find(name);

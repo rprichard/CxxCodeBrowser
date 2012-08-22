@@ -5,8 +5,6 @@
 #include <cassert>
 #include <map>
 #include <string>
-#include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 #include "HashSet.h"
@@ -125,7 +123,6 @@ public:
     ~Index();
     void save(const std::string &path);
     void merge(Index &other);
-    void dump();
 
     // Add/query values.
     HashSet<char> *addStringTable(const std::string &name);
