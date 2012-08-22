@@ -19,108 +19,18 @@ struct TUIndexer {
             CXClientData data);
 
     indexdb::Index *index;
+
     indexdb::HashSet<char> *pathStringTable;
     indexdb::HashSet<char> *kindStringTable;
     indexdb::HashSet<char> *usrStringTable;
+
+    indexdb::Table *refTable;
+    indexdb::Table *locTable;
 };
 
 static inline const char *nullToBlank(const char *string)
 {
     return (string != NULL) ? string : "";
-}
-
-static uint32_t readVleUInt32(const char *&buffer)
-{
-    uint32_t result = 0;
-    unsigned char nibble;
-    int bit = 0;
-    do {
-        nibble = static_cast<unsigned char>(*(buffer++));
-        result |= (nibble & 0x7F) << bit;
-        bit += 7;
-    } while ((nibble & 0x80) == 0x80);
-    return result;
-}
-
-// This encoding of a uint32 is guaranteed not to contain NUL bytes unless the
-// value is zero.
-static void writeVleUInt32(char *&buffer, uint32_t value)
-{
-    do {
-        unsigned char nibble = value & 0x7F;
-        value >>= 7;
-        if (value != 0)
-            nibble |= 0x80;
-        *buffer++ = nibble;
-    } while (value != 0);
-}
-
-// TODO: Try making src const.
-void mergeIndex(indexdb::Index &dest, indexdb::Index &src)
-{
-    const char *tables[] = { "usr", "path", "kind" };
-    std::vector<indexdb::ID> idMap[3];
-
-    for (int i = 0; i < 3; ++i) {
-        indexdb::HashSet<char> *destTable = dest.stringTable(tables[i]);
-        indexdb::HashSet<char> *srcTable = src.stringTable(tables[i]);
-        idMap[i].resize(srcTable->size());
-        for (indexdb::ID id = 0; id < srcTable->size(); ++id) {
-            std::pair<const char *, uint32_t> data = srcTable->data(id);
-            idMap[i][id] = destTable->id(data.first, data.second, srcTable->hash(id));
-        }
-    }
-
-    for (auto it = src.begin(); it != src.end(); ++it) {
-        const char *string = *it;
-        if (string[0] == 'R') {
-            string++;
-            uint32_t usrID = readVleUInt32(string) - 1;
-            uint32_t fileNameID = readVleUInt32(string) - 1;
-            uint32_t line = readVleUInt32(string) - 1;
-            uint32_t column = readVleUInt32(string) - 1;
-            uint32_t kindID = readVleUInt32(string) - 1;
-            assert(*string == '\0');
-
-            assert(usrID < idMap[0].size());
-            assert(fileNameID < idMap[1].size());
-            assert(kindID < idMap[2].size());
-            usrID = idMap[0][usrID] + 1;
-            fileNameID = idMap[1][fileNameID] + 1;
-            kindID = idMap[2][kindID] + 1;
-
-            char buffer[256], *pbuffer = buffer;
-            *pbuffer++ = 'R';
-            writeVleUInt32(pbuffer, usrID + 1);
-            writeVleUInt32(pbuffer, fileNameID + 1);
-            writeVleUInt32(pbuffer, line + 1);
-            writeVleUInt32(pbuffer, column + 1);
-            writeVleUInt32(pbuffer, kindID + 1);
-            *pbuffer++ = '\0';
-            dest.addString(buffer);
-        } else if (string[0] == 'L') {
-            string++;
-            uint32_t fileNameID = readVleUInt32(string) - 1;
-            uint32_t line = readVleUInt32(string) - 1;
-            uint32_t column = readVleUInt32(string) - 1;
-            uint32_t usrID = readVleUInt32(string) - 1;
-            assert(*string == '\0');
-
-            assert(usrID < idMap[0].size());
-            assert(fileNameID < idMap[1].size());
-            usrID = idMap[0][usrID] + 1;
-            fileNameID = idMap[1][fileNameID] + 1;
-
-            char buffer[256], *pbuffer = buffer;
-            *pbuffer++ = 'L';
-            writeVleUInt32(pbuffer, fileNameID + 1);
-            writeVleUInt32(pbuffer, line + 1);
-            writeVleUInt32(pbuffer, column + 1);
-            writeVleUInt32(pbuffer, usrID + 1);
-            *pbuffer++ = '\0';
-            dest.addString(buffer);
-        }
-    }
 }
 
 CXChildVisitResult TUIndexer::visitor(
@@ -153,26 +63,24 @@ CXChildVisitResult TUIndexer::visitor(
             indexdb::ID fileNameID = pathStringTable->id(fileNameCStr);
             indexdb::ID kindID = kindStringTable->id(kindCStr);
 
-            char buffer[256], *pbuffer;
+            {
+                indexdb::Row refRow(5);
+                refRow[0] = usrID;
+                refRow[1] = fileNameID;
+                refRow[2] = line;
+                refRow[3] = column;
+                refRow[4] = kindID;
+                refTable->add(refRow);
+            }
 
-            pbuffer = buffer;
-            *pbuffer++ = 'R';
-            writeVleUInt32(pbuffer, usrID + 1);
-            writeVleUInt32(pbuffer, fileNameID + 1);
-            writeVleUInt32(pbuffer, line + 1);
-            writeVleUInt32(pbuffer, column + 1);
-            writeVleUInt32(pbuffer, kindID + 1);
-            *pbuffer++ = '\0';
-            index->addString(buffer);
-
-            pbuffer = buffer;
-            *pbuffer++ = 'L';
-            writeVleUInt32(pbuffer, fileNameID + 1);
-            writeVleUInt32(pbuffer, line + 1);
-            writeVleUInt32(pbuffer, column + 1);
-            writeVleUInt32(pbuffer, usrID + 1);
-            *pbuffer++ = '\0';
-            index->addString(buffer);
+            {
+                indexdb::Row locRow(4);
+                locRow[0] = fileNameID;
+                locRow[1] = line;
+                locRow[2] = column;
+                locRow[3] = usrID;
+                locTable->add(locRow);
+            }
         }
 
         clang_disposeString(kindCXStr);
@@ -226,13 +134,28 @@ indexdb::Index *indexSourceFile(SourceFileInfo sfi)
     TUIndexer indexer;
     indexer.index = new indexdb::Index;
 
-    indexer.pathStringTable = indexer.index->stringTable("path");
-    indexer.kindStringTable = indexer.index->stringTable("kind");
-    indexer.usrStringTable = indexer.index->stringTable("usr");
+    indexer.pathStringTable = indexer.index->addStringTable("path");
+    indexer.kindStringTable = indexer.index->addStringTable("kind");
+    indexer.usrStringTable = indexer.index->addStringTable("usr");
+
+    std::vector<std::string> refColumns;
+    refColumns.push_back("usr");
+    refColumns.push_back("path");
+    refColumns.push_back(""); // line
+    refColumns.push_back(""); // column
+    refColumns.push_back("kind");
+    indexer.refTable = indexer.index->addTable("ref", refColumns);
+
+    std::vector<std::string> locColumns;
+    locColumns.push_back("path");
+    locColumns.push_back(""); // line
+    locColumns.push_back(""); // column
+    locColumns.push_back("usr");
+    indexer.locTable = indexer.index->addTable("loc", locColumns);
 
     CXCursor tuCursor = clang_getTranslationUnitCursor(tu);
     clang_visitChildren(tuCursor, &TUIndexer::visitor, &indexer);
-    indexer.index->setStringSetState(indexdb::Index::StringSetArray);
+    indexer.index->setReadOnly();
 
     clang_disposeTranslationUnit(tu);
     clang_disposeIndex(cxindex);
@@ -273,7 +196,7 @@ void readSourcesJson(const Json::Value &json, indexdb::Index *index)
     for (size_t i = 0; i < paths.size(); ++i) {
         std::cout << paths[i] << std::endl;
         indexdb::Index *fileIndex = fileIndices[i].result();
-        mergeIndex(*index, *fileIndex);
+        index->merge(*fileIndex);
         delete fileIndex;
     }
 }
@@ -294,7 +217,7 @@ int main(int argc, char *argv[])
     if (1) {
         index = new indexdb::Index;
         readSourcesJson(std::string("btrace.sources"), index);
-        index->setStringSetState(indexdb::Index::StringSetArray);
+        index->setReadOnly();
         index->dump();
         index->save("index");
 
@@ -302,6 +225,20 @@ int main(int argc, char *argv[])
     } else if (1) {
         index = new indexdb::Index("index");
         index->dump();
+
+        indexdb::Table *table = index->table("ref");
+        indexdb::Row row(table->columnCount());
+
+        if (0) {
+            for (indexdb::TableIterator it = table->begin(); it != table->end(); ++it) {
+                it.value(row);
+                for (int i = 0; i < row.count(); ++i) {
+                    std::cout << row[i] << " ";
+                }
+                std::cout << std::endl;
+            }
+        }
+
         delete index;
     }
 
