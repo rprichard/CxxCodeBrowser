@@ -2,12 +2,15 @@
 #define INDEXDB_H
 
 #include <stdint.h>
+
 #include <cassert>
+#include <cstring>
 #include <map>
 #include <string>
 #include <utility>
 #include <vector>
-#include "HashSet.h"
+
+#include "StringTable.h"
 
 namespace indexdb {
 
@@ -80,13 +83,15 @@ public:
 
     TableIterator begin() const {
         assert(m_readonly);
-        return TableIterator(this, static_cast<const char*>(m_stringSetBuffer.data()));
+        return TableIterator(this, static_cast<const char*>(
+                                 m_stringSetBuffer.data()) + 1);
     }
 
     TableIterator end() const {
         assert(m_readonly);
-        return TableIterator(this, static_cast<const char*>(m_stringSetBuffer.data()) +
-                                                            m_stringSetBuffer.size());
+        return TableIterator(this, static_cast<const char*>(
+                                 m_stringSetBuffer.data()) +
+                                 m_stringSetBuffer.size());
     }
 
     std::string columnName(int i) const {
@@ -103,9 +108,9 @@ private:
 
     bool m_readonly;
     std::vector<std::string> m_columnNames;
-    std::vector<HashSet<char>*> m_columnStringSets;
+    std::vector<StringTable*> m_columnStringSets;
     Buffer m_stringSetBuffer;
-    HashSet<char> m_stringSetHash;
+    StringTable m_stringSetHash;
 
     friend class Index;
 };
@@ -122,12 +127,12 @@ public:
     explicit Index(const std::string &path);
     ~Index();
     void save(const std::string &path);
-    void merge(Index &other);
+    void merge(const Index &other);
 
     // Add/query values.
-    HashSet<char> *addStringTable(const std::string &name);
-    HashSet<char> *stringTable(const std::string &name);
-    const HashSet<char> *stringTable(const std::string &name) const;
+    StringTable *addStringTable(const std::string &name);
+    StringTable *stringTable(const std::string &name);
+    const StringTable *stringTable(const std::string &name) const;
     Table *addTable(const std::string &name, const std::vector<std::string> &names);
     Table *table(const std::string &name);
     const Table *table(const std::string &name) const;
@@ -142,7 +147,7 @@ private:
     Reader *m_reader;
 
     bool m_readonly;
-    std::map<std::string, HashSet<char>*> m_stringTables;
+    std::map<std::string, StringTable*> m_stringTables;
     std::map<std::string, Table*> m_tables;
 };
 

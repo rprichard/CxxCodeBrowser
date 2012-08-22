@@ -8,7 +8,8 @@ SOURCES += \
     IndexDb.cc \
     Buffer.cc \
     MurmurHash3.cpp \
-    FileIo.cc
+    FileIo.cc \
+    StringTable.cc
 
 LIBS += -lclang
 
@@ -22,8 +23,7 @@ QMAKE_CXXFLAGS += -Wall -Wno-unused-parameter -std=c++0x
 
 HEADERS += \
     IndexDb.h \
-    HashSet.h \
     Buffer.h \
-    HashSet-inl.h \
     MurmurHash3.h \
-    FileIo.h
+    FileIo.h \
+    StringTable.h

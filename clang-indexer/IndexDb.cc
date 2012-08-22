@@ -84,16 +84,12 @@ void TableIterator::value(Row &row)
 
 TableIterator &TableIterator::operator--()
 {
-    // TODO: This code could be simplified/optimized if the buffer were
-    // guaranteed to start with an empty NUL character.
     const char *start = m_table->begin().m_string;
     assert(m_string - start >= 2);
     assert(m_string[-1] == '\0');
     m_string -= 2;
     while (true) {
-        if (m_string == start) {
-            break;
-        } else if (m_string[0] == '\0') {
+        if (m_string[0] == '\0') {
             m_string++;
             break;
         }
@@ -112,7 +108,7 @@ void Table::add(const Row &row)
     assert(!m_readonly);
     char buffer[256]; // TODO: handle arbitrary row sizes
     encodeRow(row, buffer);
-    m_stringSetHash.id(buffer);
+    m_stringSetHash.insert(buffer);
 }
 
 int Table::columnCount() const
@@ -150,6 +146,7 @@ void Table::write(Writer &writer)
 Table::Table(Index *index, const std::vector<std::string> &columnNames) :
     m_readonly(false)
 {
+    assert(columnNames.size() >= 1);
     uint32_t size = columnNames.size();
     m_columnNames = columnNames;
     m_columnStringSets.resize(size);
@@ -171,19 +168,10 @@ void Table::setReadOnly()
         sortedStrings[i] = i;
 
     struct CompareFunc {
-        HashSet<char> *m_stringSetHash;
+        StringTable *m_stringSetHash;
         bool operator()(const uint32_t &x, const uint32_t &y) {
-            std::pair<const char*, uint32_t> xData = m_stringSetHash->data(x);
-            std::pair<const char*, uint32_t> yData = m_stringSetHash->data(y);
-            int res = strncmp(xData.first, yData.first, std::min(xData.second, yData.second));
-            if (res < 0)
-                return true;
-            else if (res > 0)
-                return false;
-            else if (xData.second < yData.second)
-                return true;
-            else
-                return false;
+            return strcmp(m_stringSetHash->item(x),
+                          m_stringSetHash->item(y)) < 0;
         }
     } compareFunc;
 
@@ -191,10 +179,16 @@ void Table::setReadOnly()
 
     std::sort<uint32_t*, CompareFunc>(&sortedStrings[0], &sortedStrings[size], compareFunc);
 
+    // Prepend an initial NUL character to simplify iterator decrement.
+    m_stringSetBuffer.append("", 1);
+
     for (uint32_t i = 0; i < size; ++i) {
-        std::pair<const char*, uint32_t> data = m_stringSetHash.data(sortedStrings[i]);
-        m_stringSetBuffer.append(data.first, data.second);
-        m_stringSetBuffer.append("\0", 1);
+        // The itemSize does not include the NUL-terminator, but item's result
+        // is guaranteed to be NUL-terminated.  Add one to the size so the
+        // string in m_stringSetBuffer is also NUL-terminated.
+        m_stringSetBuffer.append(
+                    m_stringSetHash.item(sortedStrings[i]),
+                    m_stringSetHash.itemSize(sortedStrings[i]) + 1);
     }
 
     m_readonly = true;
@@ -252,7 +246,7 @@ Index::Index(const std::string &path) : m_readonly(true)
     tableCount = m_reader->readUInt32();
     for (uint32_t i = 0; i < tableCount; ++i) {
         std::string tableName = m_reader->readString();
-        m_stringTables[tableName] = new HashSet<char>(*m_reader);
+        m_stringTables[tableName] = new StringTable(*m_reader);
     }
 
     tableCount = m_reader->readUInt32();
@@ -265,7 +259,7 @@ Index::Index(const std::string &path) : m_readonly(true)
 Index::~Index()
 {
     for (auto &it : m_stringTables) {
-        HashSet<char> *hashSet = it.second;
+        StringTable *hashSet = it.second;
         delete hashSet;
     }
 
@@ -296,8 +290,7 @@ void Index::save(const std::string &path)
 // Merge all of the string tables and tables from the other index into the
 // current index.  String tables and tables are created if they do not exist.
 // A table must have the same number and name of columns in the two indices.
-// TODO: try to make other const.
-void Index::merge(Index &other)
+void Index::merge(const Index &other)
 {
     std::map<std::string, std::vector<indexdb::ID> > idMap;
 
@@ -307,13 +300,14 @@ void Index::merge(Index &other)
     for (auto pair : other.m_stringTables) {
         idMap[pair.first] = std::vector<indexdb::ID>();
         std::vector<indexdb::ID> &stringTableIdMap = idMap[pair.first];
-        HashSet<char> *destStringTable = addStringTable(pair.first);
-        HashSet<char> *srcStringTable = pair.second;
+        StringTable *destStringTable = addStringTable(pair.first);
+        StringTable *srcStringTable = pair.second;
         stringTableIdMap.resize(srcStringTable->size());
         for (size_t srcID = 0; srcID < srcStringTable->size(); ++srcID) {
-            std::pair<const char*, uint32_t> data = srcStringTable->data(srcID);
-            ID destID = destStringTable->id(data.first, data.second,
-                                            srcStringTable->hash(srcID));
+            ID destID = destStringTable->insert(
+                        srcStringTable->item(srcID),
+                        srcStringTable->itemSize(srcID),
+                        srcStringTable->itemHash(srcID));
             stringTableIdMap[srcID] = destID;
         }
     }
@@ -364,25 +358,25 @@ void Index::mergeTable(
 
 // Returns the string table with the given name.  Creates the table if it does
 // not exist.  The index must be writable to call this method.
-HashSet<char> *Index::addStringTable(const std::string &name)
+StringTable *Index::addStringTable(const std::string &name)
 {
     assert(!m_readonly);
     auto it = m_stringTables.find(name);
     if (it != m_stringTables.end())
         return it->second;
-    m_stringTables[name] = new HashSet<char>();
+    m_stringTables[name] = new StringTable();
     return m_stringTables[name];
 }
 
 // Returns the string table with the given name or NULL if it does not exist.
-HashSet<char> *Index::stringTable(const std::string &name)
+StringTable *Index::stringTable(const std::string &name)
 {
     auto it = m_stringTables.find(name);
     return (it != m_stringTables.end()) ? it->second : NULL;
 }
 
 // Returns the string table with the given name or NULL if it does not exist.
-const HashSet<char> *Index::stringTable(const std::string &name) const
+const StringTable *Index::stringTable(const std::string &name) const
 {
     auto it = m_stringTables.find(name);
     return (it != m_stringTables.end()) ? it->second : NULL;

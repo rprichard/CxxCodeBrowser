@@ -21,9 +21,9 @@ struct TUIndexer {
 
     indexdb::Index *index;
 
-    indexdb::HashSet<char> *pathStringTable;
-    indexdb::HashSet<char> *kindStringTable;
-    indexdb::HashSet<char> *usrStringTable;
+    indexdb::StringTable *pathStringTable;
+    indexdb::StringTable *kindStringTable;
+    indexdb::StringTable *usrStringTable;
 
     indexdb::Table *refTable;
     indexdb::Table *locTable;
@@ -60,9 +60,9 @@ CXChildVisitResult TUIndexer::visitor(
             const char *fileNameCStr = nullToBlank(clang_getCString(fileNameCXStr));
             const char *kindCStr = nullToBlank(clang_getCString(kindCXStr));
 
-            indexdb::ID usrID = usrStringTable->id(usrCStr);
-            indexdb::ID fileNameID = pathStringTable->id(fileNameCStr);
-            indexdb::ID kindID = kindStringTable->id(kindCStr);
+            indexdb::ID usrID = usrStringTable->insert(usrCStr);
+            indexdb::ID fileNameID = pathStringTable->insert(fileNameCStr);
+            indexdb::ID kindID = kindStringTable->insert(kindCStr);
 
             {
                 indexdb::Row refRow(5);
@@ -227,11 +227,12 @@ int main(int argc, char *argv[])
 
         indexdb::Table *table = index->table("ref");
         indexdb::Row row(table->columnCount());
-        indexdb::HashSet<char> *usr = index->stringTable("usr");
-        indexdb::HashSet<char> *path = index->stringTable("path");
-        indexdb::HashSet<char> *kind = index->stringTable("kind");
+        indexdb::StringTable *usr = index->stringTable("usr");
+        indexdb::StringTable *path = index->stringTable("path");
+        indexdb::StringTable *kind = index->stringTable("kind");
 
-        indexdb::ID symbol = usr->id("c:IdentifierResolver.cpp@10052@N@clang@C@IdentifierResolver@F@tryAddTopLevelDecl#*$@N@clang@C@NamedDecl#$@N@clang@C@DeclarationName#@IDI");
+        indexdb::ID symbol = usr->id("c:BasicBlockTracing.c@1826@F@llvm_start_basic_block_tracing@ArraySize");
+        assert(symbol != indexdb::kInvalidID);
         indexdb::Row r(1);
         r[0] = symbol;
         auto it = table->lowerBound(r);
@@ -239,9 +240,7 @@ int main(int argc, char *argv[])
             it.value(r);
             if (r[0] != symbol)
                 break;
-            std::pair<const char*, uint32_t> pathData = path->data(r[1]);
-            std::pair<const char*, uint32_t> kindData = kind->data(r[4]);
-            std::cout << std::string(pathData.first, pathData.second) << ":" << r[2] << ":" << r[3] << " -- " << std::string(kindData.first, kindData.second) << std::endl;
+            std::cout << path->item(r[1]) << ":" << r[2] << ":" << r[3] << " -- " << kind->item(r[4]) << std::endl;
             ++it;
         }
 

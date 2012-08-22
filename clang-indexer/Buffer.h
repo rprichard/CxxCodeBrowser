@@ -19,6 +19,7 @@ public:
     void *data();
     const void *data() const;
     void append(const void *data, uint32_t size);
+    bool isMapped() const { return m_isMapped; }
 
 private:
     void *m_data;
