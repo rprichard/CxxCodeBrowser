@@ -85,6 +85,26 @@ void TableIterator::value(Row &row)
     decodeRow(row, m_string);
 }
 
+TableIterator &TableIterator::operator--()
+{
+    // TODO: This code could be simplified/optimized if the buffer were
+    // guaranteed to start with an empty NUL character.
+    const char *start = m_table->begin().m_string;
+    assert(m_string - start >= 2);
+    assert(m_string[-1] == '\0');
+    m_string -= 2;
+    while (true) {
+        if (m_string == start) {
+            break;
+        } else if (m_string[0] == '\0') {
+            m_string++;
+            break;
+        }
+        m_string--;
+    }
+    return *this;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Table
@@ -181,6 +201,41 @@ void Table::setReadOnly()
     }
 
     m_readonly = true;
+}
+
+// Find the first iterator that is greater than or equal to the given row.
+TableIterator Table::lowerBound(const Row &row)
+{
+    char buffer[256]; // TODO: allow arbitary size
+    assert(static_cast<size_t>(row.count()) <= m_columnNames.size());
+    encodeRow(row, buffer);
+
+    TableIterator itMin = begin();
+    TableIterator itMax = end();
+
+    // Binary search for the provided row.
+    while (itMin != itMax) {
+        // Find a midpoint itMid.  It will be in the range [itMin, itMax).
+        TableIterator itMid = itMin;
+        {
+            const char *midStr = itMin.m_string + ((itMax.m_string - itMin.m_string) / 2);
+            assert(midStr < itMax.m_string);
+            midStr += strlen(midStr) + 1;
+            itMid.m_string = midStr;
+            --itMid;
+            assert(itMid >= itMin && itMid < itMax);
+        }
+
+        int cmp = strcmp(itMid.m_string, buffer);
+        if (cmp < 0) {
+            itMin = itMid;
+            ++itMin;
+        } else {
+            itMax = itMid;
+        }
+    }
+
+    return itMin;
 }
 
 

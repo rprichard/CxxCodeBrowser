@@ -53,6 +53,7 @@ class TableIterator {
 public:
     explicit TableIterator(const Table *table, const char *string) : m_table(table), m_string(string) {}
     TableIterator &operator++() { m_string += strlen(m_string) + 1; return *this; }
+    TableIterator &operator--();
     bool operator!=(const TableIterator &other) { return m_string != other.m_string; }
     bool operator==(const TableIterator &other) { return m_string == other.m_string; }
     bool operator<(const TableIterator &other) { return m_string < other.m_string; }
@@ -64,6 +65,8 @@ public:
 private:
     const Table *m_table;
     const char *m_string;
+
+    friend class Table;
 };
 
 
@@ -91,6 +94,8 @@ public:
     std::string columnName(int i) const {
         return m_columnNames[i];
     }
+
+    TableIterator lowerBound(const Row &row);
 
 private:
     Table(Index *index, Reader &reader);

@@ -228,15 +228,22 @@ int main(int argc, char *argv[])
 
         indexdb::Table *table = index->table("ref");
         indexdb::Row row(table->columnCount());
+        indexdb::HashSet<char> *usr = index->stringTable("usr");
+        indexdb::HashSet<char> *path = index->stringTable("path");
+        indexdb::HashSet<char> *kind = index->stringTable("kind");
 
-        if (0) {
-            for (indexdb::TableIterator it = table->begin(); it != table->end(); ++it) {
-                it.value(row);
-                for (int i = 0; i < row.count(); ++i) {
-                    std::cout << row[i] << " ";
-                }
-                std::cout << std::endl;
-            }
+        indexdb::ID symbol = usr->id("c:IdentifierResolver.cpp@10052@N@clang@C@IdentifierResolver@F@tryAddTopLevelDecl#*$@N@clang@C@NamedDecl#$@N@clang@C@DeclarationName#@IDI");
+        indexdb::Row r(1);
+        r[0] = symbol;
+        auto it = table->lowerBound(r);
+        while (true) {
+            it.value(r);
+            if (r[0] != symbol)
+                break;
+            std::pair<const char*, uint32_t> pathData = path->data(r[1]);
+            std::pair<const char*, uint32_t> kindData = kind->data(r[4]);
+            std::cout << std::string(pathData.first, pathData.second) << ":" << r[2] << ":" << r[3] << " -- " << std::string(kindData.first, kindData.second) << std::endl;
+            ++it;
         }
 
         delete index;
