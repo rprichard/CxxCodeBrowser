@@ -16,12 +16,6 @@ FileManager::~FileManager()
     }
 }
 
-void FileManager::addBuiltinFile(File *builtin)
-{
-    assert(!fileMap.contains(builtin->path));
-    fileMap[builtin->path] = builtin;
-}
-
 File &FileManager::file(const QString &path)
 {
     assert(!path.isEmpty());

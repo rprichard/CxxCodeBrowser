@@ -1,5 +1,5 @@
-#ifndef NAV_REPORTCSOURCES_H
-#define NAV_REPORTCSOURCES_H
+#ifndef NAV_REPORTFILELIST_H
+#define NAV_REPORTFILELIST_H
 
 #include "TreeReport.h"
 #include <QString>
@@ -10,11 +10,12 @@
 namespace Nav {
 
 class Project;
+class File;
 
-class ReportCSources : public Nav::TableReport
+class ReportFileList : public TableReport
 {
 public:
-    ReportCSources(Project *project);
+    ReportFileList(Project *project);
 
     QString getTitle();
     QStringList getColumns();
@@ -23,9 +24,10 @@ public:
     void select(const Index &index);
 
 private:
-    Project *project;
+    Project *m_project;
+    QList<File*> m_files;
 };
 
 } // namespace Nav
 
-#endif // NAV_REPORTCSOURCES_H
+#endif // NAV_REPORTFILELIST_H

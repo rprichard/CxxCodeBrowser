@@ -1,19 +1,20 @@
-#include "ReportRefList.h"
-#include "Symbol.h"
 #include "File.h"
 #include "MainWindow.h"
+#include "Project.h"
+#include "Ref.h"
+#include "ReportRefList.h"
 
 namespace Nav {
 
-ReportRefList::ReportRefList(Symbol *symbol) :
-    symbol(symbol),
-    refList(symbol->refs.values())
+ReportRefList::ReportRefList(Project *project, const QString &symbol) :
+    m_symbol(symbol)
 {
+    m_refList = project->queryReferencesOfSymbol(symbol);
 }
 
 QString ReportRefList::getTitle()
 {
-    return "References to " + symbol->name;
+    return "References to " + m_symbol;
 }
 
 QStringList ReportRefList::getColumns()
@@ -21,29 +22,32 @@ QStringList ReportRefList::getColumns()
     QStringList result;
     result << "File";
     result << "Line";
+    result << "Column";
     result << "Type";
     return result;
 }
 
 int ReportRefList::getRowCount()
 {
-    return refList.size();
+    return m_refList.size();
 }
 
 QList<QVariant> ReportRefList::getText(const Index &index)
 {
     QList<QVariant> result;
-    result << refList[index.row()].file->path;
-    result << refList[index.row()].line;
-    result << refList[index.row()].kind;
+    const Ref &ref = m_refList[index.row()];
+    result << ref.file->path();
+    result << ref.line;
+    result << ref.column;
+    result << ref.kind;
     return result;
 }
 
 void ReportRefList::select(const Index &index)
 {
-    const Ref &ref = refList[index.row()];
-    theMainWindow->showFile(ref.file->path);
-    theMainWindow->selectText(ref.line, ref.column, ref.symbol->name.size());
+    const Ref &ref = m_refList[index.row()];
+    theMainWindow->showFile(ref.file->path());
+    theMainWindow->selectText(ref.line, ref.column, 1);
 }
 
 } // namespace Nav

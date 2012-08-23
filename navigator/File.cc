@@ -5,7 +5,7 @@
 namespace Nav {
 
 File::File(const QString &path, const QString &content) :
-    path(path), content(content)
+    m_path(path), m_content(content)
 {
 }
 

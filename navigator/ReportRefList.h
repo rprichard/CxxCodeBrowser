@@ -5,15 +5,17 @@
 #include "Ref.h"
 #include <QList>
 #include <QVariant>
+#include <QString>
 
 namespace Nav {
 
+class Project;
 class Symbol;
 
 class ReportRefList : public TableReport
 {
 public:
-    ReportRefList(Symbol *symbol);
+    ReportRefList(Project *project, const QString &symbol);
 
     QString getTitle();
     QStringList getColumns();
@@ -22,8 +24,8 @@ public:
     void select(const Index &index);
 
 private:
-    Symbol *symbol;
-    QList<Ref> refList;
+    QString m_symbol;
+    QList<Ref> m_refList;
 };
 
 } // namespace Nav

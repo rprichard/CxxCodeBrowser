@@ -13,7 +13,6 @@ class FileManager
 public:
     FileManager();
     ~FileManager();
-    void addBuiltinFile(File *builtin);
     File &file(const QString &path);
 
 private:

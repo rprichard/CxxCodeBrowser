@@ -5,22 +5,16 @@
 
 namespace Nav {
 
-class Symbol;
 class File;
 
-class Ref
+struct Ref
 {
-public:
-    Symbol *symbol;
+    QString symbol;
     File *file;
     int line;
     int column;
     QString kind;
 };
-
-unsigned int qHash(const Nav::Ref &ref);
-
-bool operator==(const Nav::Ref &r1, const Nav::Ref &r2);
 
 } // namespace Nav
 

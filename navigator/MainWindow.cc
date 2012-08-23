@@ -1,14 +1,10 @@
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
 #include "Project.h"
-#include "Symbol.h"
-#include "SymbolTable.h"
 #include "File.h"
 #include "FileManager.h"
-#include "CSource.h"
-#include "SourcesJsonReader.h"
 #include "TreeReportWindow.h"
-#include "ReportCSources.h"
+#include "ReportFileList.h"
 #include "ReportRefList.h"
 #include <QDebug>
 #include <QFile>
@@ -48,7 +44,7 @@ MainWindow::MainWindow(QWidget *parent) :
     newSizes << 1;
     ui->splitter->setSizes(newSizes);
 
-    connect(ui->action_Source_List, SIGNAL(triggered()), this, SLOT(actionViewSource()));
+    connect(ui->action_File_List, SIGNAL(triggered()), this, SLOT(actionViewFileList()));
     connect(ui->commandWidget, SIGNAL(commandEntered(QString)), SLOT(actionCommand(QString)));
 
     // Register Ctrl+Q.
@@ -63,10 +59,10 @@ MainWindow::~MainWindow()
 
 void MainWindow::showFile(const QString &path)
 {
-    Nav::File &newFile = Nav::theProject->fileManager->file(path);
+    Nav::File &newFile = Nav::theProject->fileManager()->file(path);
     if (&newFile != file) {
         file = &newFile;
-        ui->sourceWidget->setPlainText(newFile.content);
+        ui->sourceWidget->setPlainText(newFile.content());
     }
 }
 
@@ -80,9 +76,9 @@ void MainWindow::selectText(int line, int column, int size)
     ui->sourceWidget->setTextCursor(c);
 }
 
-void MainWindow::actionViewSource()
+void MainWindow::actionViewFileList()
 {
-    ReportCSources *r = new ReportCSources(theProject);
+    ReportFileList *r = new ReportFileList(theProject);
     TreeReportWindow *tw = new TreeReportWindow(r);
     tw->show();
 }
@@ -91,18 +87,17 @@ void MainWindow::actionCommand(const QString &commandIn)
 {
     QString command = commandIn.trimmed();
 
-    if (command == "sources") {
-        actionViewSource();
+    if (command == "files") {
+        actionViewFileList();
     } else if (command.startsWith("xref ")) {
         QString symbolName = command.mid(strlen("xref "));
-        Nav::Symbol *symbol = Nav::theProject->symbolTable->symbol(symbolName);
-        if (symbol == NULL) {
-            ui->commandWidget->writeLine(QString("Symbol not found: ") + symbolName);
-        } else {
-            ReportRefList *r = new ReportRefList(symbol);
-            TreeReportWindow *tw = new TreeReportWindow(r);
-            tw->show();
-        }
+
+        // TODO: We need to print this message eventually.
+        //ui->commandWidget->writeLine(QString("Symbol not found: ") + symbolName);
+
+        ReportRefList *r = new ReportRefList(theProject, symbolName);
+        TreeReportWindow *tw = new TreeReportWindow(r);
+        tw->show();
     }
 }
 

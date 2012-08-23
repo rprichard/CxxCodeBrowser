@@ -25,7 +25,7 @@ public:
     void selectText(int line, int column, int size);
 
 private slots:
-    void actionViewSource();
+    void actionViewFileList();
     void actionCommand(const QString &command);
 
 protected:

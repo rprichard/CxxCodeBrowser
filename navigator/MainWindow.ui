@@ -77,14 +77,14 @@
     <property name="title">
      <string>&amp;View</string>
     </property>
-    <addaction name="action_Source_List"/>
+    <addaction name="action_File_List"/>
    </widget>
    <addaction name="menu_View"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
-  <action name="action_Source_List">
+  <action name="action_File_List">
    <property name="text">
-    <string>&amp;Source List...</string>
+    <string>&amp;File List...</string>
    </property>
   </action>
  </widget>
