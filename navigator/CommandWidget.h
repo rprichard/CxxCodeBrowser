@@ -17,7 +17,7 @@ public:
     void contextMenuEvent(QContextMenuEvent *event);
 
 private slots:
-    void actionCopy();
+    void actionPaste();
 
 signals:
     void commandEntered(const QString &command);

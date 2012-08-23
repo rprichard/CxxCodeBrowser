@@ -1,7 +1,11 @@
 #include "CommandWidget.h"
-#include "Misc.h"
-#include <QMenu>
+
+#include <QApplication>
+#include <QClipboard>
 #include <QDebug>
+#include <QMenu>
+
+#include "Misc.h"
 
 namespace Nav {
 
@@ -87,7 +91,7 @@ void CommandWidget::keyPressEvent(QKeyEvent *event)
             copy();
             return;
         } else if (event->key() == Qt::Key_V) {
-            // TODO: Call typeChar() for each char pasted.
+            actionPaste();
             return;
         }
     }
@@ -111,6 +115,9 @@ void CommandWidget::mousePressEvent(QMouseEvent *event)
     if (event->button() == Qt::LeftButton ||
             event->button() == Qt::RightButton) {
         QPlainTextEdit::mousePressEvent(event);
+    } else if (event->button() == Qt::MiddleButton) {
+        foreach (QChar ch, QApplication::clipboard()->text(QClipboard::Selection))
+            typeChar(ch);
     } else {
         event->ignore();
     }
@@ -130,14 +137,16 @@ void CommandWidget::contextMenuEvent(QContextMenuEvent *event)
 {
     QMenu *menu = new QMenu();
     menu->addAction("&Copy", this, SLOT(copy()));
+    menu->addAction("&Paste", this, SLOT(actionPaste()));
     menu->addAction("Select All", this, SLOT(selectAll()));
     menu->exec(event->globalPos());
     delete menu;
 }
 
-void CommandWidget::actionCopy()
+void CommandWidget::actionPaste()
 {
-    this->copy();
+    foreach (QChar ch, QApplication::clipboard()->text())
+        typeChar(ch);
 }
 
 void CommandWidget::typeChar(QChar ch)
