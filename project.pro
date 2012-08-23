@@ -1,6 +1,10 @@
 TEMPLATE = subdirs
 
-SUBDIRS += navigator \
+# Require that dependencies are built before building their users.
+CONFIG += ordered
+
+SUBDIRS += libindexdb \
+           navigator \
            clang-test \
            clang-index-test \
            clang-indexer \

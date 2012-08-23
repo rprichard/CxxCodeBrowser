@@ -8,7 +8,7 @@
 #include <json/reader.h>
 #include <clang-c/Index.h>
 
-#include "IndexDb.h"
+#include "../libindexdb/IndexDb.h"
 
 struct TUIndexer {
     CXChildVisitResult visitor(
@@ -213,39 +213,9 @@ void readSourcesJson(const std::string &filename, indexdb::Index *index)
 
 int main(int argc, char *argv[])
 {
-    indexdb::Index *index;
-
-    if (1) {
-        index = new indexdb::Index;
-        readSourcesJson(std::string("btrace.sources"), index);
-        index->setReadOnly();
-        index->save("index");
-
-        delete index;
-    } else if (1) {
-        index = new indexdb::Index("index");
-
-        indexdb::Table *table = index->table("ref");
-        indexdb::Row row(table->columnCount());
-        indexdb::StringTable *usr = index->stringTable("usr");
-        indexdb::StringTable *path = index->stringTable("path");
-        indexdb::StringTable *kind = index->stringTable("kind");
-
-        indexdb::ID symbol = usr->id("c:BasicBlockTracing.c@1826@F@llvm_start_basic_block_tracing@ArraySize");
-        assert(symbol != indexdb::kInvalidID);
-        indexdb::Row r(1);
-        r[0] = symbol;
-        auto it = table->lowerBound(r);
-        while (true) {
-            it.value(r);
-            if (r[0] != symbol)
-                break;
-            std::cout << path->item(r[1]) << ":" << r[2] << ":" << r[3] << " -- " << kind->item(r[4]) << std::endl;
-            ++it;
-        }
-
-        delete index;
-    }
-
+    indexdb::Index *index = new indexdb::Index;
+    readSourcesJson(std::string("btrace.sources"), index);
+    index->setReadOnly();
+    index->save("index");
     return 0;
 }
