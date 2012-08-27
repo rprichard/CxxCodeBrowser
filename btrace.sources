@@ -1,6 +1,3 @@
 [
-        {"file": "/home/rprichard/project/test.c"
-        ,"includes": []
-        ,"defines": []
-        ,"extraArgs": []}
-}
+        {"file": "/home/rprichard/project/test.cc"}
+]

@@ -1,3 +1,73 @@
+Experiment with indexing other large projects:
+ * Linux kernel
+ * X.org
+ * Firefox
+ * Chromium
+ * LibreOffice
+
+Make click and right-click do the "right" thing" in the SourceWidget.  I need
+the ability to click on identifiers/lines/characters to navigate.
+
+Improve the indexing:
+ * We need to differentiate between declarations and definitions for functions
+   and structs/classes.
+ * Calls seem to be turned into three xrefs: CallExpr, DeclRefExpr, and
+   UnexposedExpr.  There should be only one.
+ * The definition of a constructor, Foo::Foo, generates three references:
+    - A TypeRef for the first Foo.
+    - A TypeRef and a CXXConstructor for the second Foo.  This second TypeRef
+      reference is inconvenient.
+ * Maybe it'd be nice if each USR had a more user-friendly name?  I'm not sure
+   this really works.  I've noticed that some USRs are extremely long, so they
+   will have to be truncated when displayed.
+ * Maybe we could get kind information on the symbols themselves, not just on
+   the xrefs?
+
+Things need to be sorted:
+ * References in the xref window need to be sorted by either
+   (file, line, column) or by kind.  Right now, sorting by one category leaves
+   the entries in an arbitrary order w.r.t. the other categories.
+ * Right-clicking an identifier shows symbols in arbitrary order, AFAIK.
+
+Show a count of items in the TreeReportWindow.
+
+The TreeReportWindow is frequently too narrow to hold references.  A big part
+of the problem is that a complete path is displayed.  Maybe we can make the
+path shorter like so:
+ - When the path is a child of the project root (e.g. /home/rprichard/llvm),
+   then use a relative path (e.g. include/llvm/Pass.h), but use an absolute
+   path otherwise.
+ - This isn't quite right when there are directories like
+   /home/rprichard/llvm-build that contain auto-generated code.
+ - One fix is to make /home/rprichard the project root.
+ - This is probably the best solution.
+ - A more complicated idea:  Recognize that there are certain "domains"(?) in
+   the filesystem (e.g. /, /usr, /opt, $HOME), and /home/rprichard/llvm and
+   /home/rprichard are in the same $HOME domain, and since $PROJECT_ROOT is
+   /home/rprichard/llvm, use a ../llvm-build relative path to refer to that
+   directory.  Use absolute paths for things like /usr/include/stdio.h.
+
+It'd be nice if the line/column/type columns of the xref window were not
+resizable.
+
+Does #ifdef FOO create a reference to FOO?  I think it should.
+
+Built-in macro definitions ought to be recorded somehow.
+
+The line "#define F(x) G(x)" isn't recording an expansion of G even when F is
+expanded.
+
+Ubiquitous Ctrl-F (source widget and tree report window)
+
+A "grep" feature.
+
+Some way to see the files that *aren't* C/C++ source code.  e.g. build files,
+READMEs, etc.  Maybe use a tree for the files instead of a table?
+
+Syntax highlighting.
+
+-------------------------------------------------------------------------------
+
 Main window improvements:
 
  * Show the name of the current file.
@@ -54,10 +124,6 @@ Indexing / modeling:
     - class/struct/union/enum names
     - enumerators
     - C++ namespaces
-
- * Indexing is slow.  It could be parallelized, but it probably can't be sped
-   up enough, so it will probably be necessary to have a separate "index" step
-   that constructs a reusable index file.
 
  * For a Ref, save a starting and ending column rather than just a start
    column?  (e.g.: Suppose I have a "foobar" field that's referenced inside
