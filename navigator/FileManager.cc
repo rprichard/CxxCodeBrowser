@@ -19,13 +19,8 @@ FileManager::~FileManager()
 File &FileManager::file(const QString &path)
 {
     assert(!path.isEmpty());
-
-    if (!fileMap.contains(path)) {
-        File *f = File::readFile(path);
-        if (f == NULL)
-            f = new File(path, "Error: no such file");
-        fileMap[path] = f;
-    }
+    if (!fileMap.contains(path))
+        fileMap[path] = new File(path);
     return *fileMap[path];
 }
 

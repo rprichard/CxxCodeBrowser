@@ -47,7 +47,7 @@ void ReportRefList::select(const Index &index)
 {
     const Ref &ref = m_refList[index.row()];
     theMainWindow->showFile(ref.file->path());
-    theMainWindow->selectText(ref.line, ref.column, 1);
+    theMainWindow->selectIdentifier(ref.line, ref.column);
 }
 
 } // namespace Nav

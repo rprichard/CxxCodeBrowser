@@ -20,8 +20,7 @@ MainWindow *theMainWindow;
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow),
-    file(NULL)
+    ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
 
@@ -60,20 +59,12 @@ MainWindow::~MainWindow()
 void MainWindow::showFile(const QString &path)
 {
     Nav::File &newFile = Nav::theProject->fileManager()->file(path);
-    if (&newFile != file) {
-        file = &newFile;
-        ui->sourceWidget->setPlainText(newFile.content());
-    }
+    ui->sourceWidget->setFile(&newFile);
 }
 
-void MainWindow::selectText(int line, int column, int size)
+void MainWindow::selectIdentifier(int line, int column)
 {
-    // TODO: Do tab stops affect the column?
-    QTextCursor c(ui->sourceWidget->document());
-    c.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor, line - 1);
-    c.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column - 1);
-    c.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, size);
-    ui->sourceWidget->setTextCursor(c);
+    ui->sourceWidget->selectIdentifier(line, column);
 }
 
 void MainWindow::actionViewFileList()

@@ -9,7 +9,6 @@ namespace Ui {
 class MainWindow;
 }
 
-class File;
 class MainWindow;
 
 extern MainWindow *theMainWindow;
@@ -22,7 +21,7 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     void showFile(const QString &path);
-    void selectText(int line, int column, int size);
+    void selectIdentifier(int line, int column);
 
 private slots:
     void actionViewFileList();
@@ -33,7 +32,6 @@ protected:
 
 private:
     Ui::MainWindow *ui;
-    Nav::File *file;
 };
 
 } // namespace Nav

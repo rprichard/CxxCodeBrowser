@@ -45,9 +45,6 @@
        <property name="undoRedoEnabled">
         <bool>false</bool>
        </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
       </widget>
       <widget class="Nav::CommandWidget" name="commandWidget">
        <property name="acceptDrops">
