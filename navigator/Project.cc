@@ -82,7 +82,7 @@ QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
                 rowLookup[1] != rowItem[1] ||
                 rowLookup[2] != rowItem[2])
             break;
-        result << m_index->stringTable("usr")->item(rowLookup[3]);
+        result << m_index->stringTable("usr")->item(rowItem[3]);
     }
 
     return result;
