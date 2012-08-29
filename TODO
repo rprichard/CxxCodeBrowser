@@ -66,6 +66,9 @@ READMEs, etc.  Maybe use a tree for the files instead of a table?
 
 Syntax highlighting.
 
+BUG: I see some files in the Mozilla index that have .. components in them
+(e.g. mozilla-central/obj-x86_64-unknown-linux-gnu/toolkit/mozapps/update/updater/../../../../xpcom/build/nsVersionComparator.cpp)
+
 -------------------------------------------------------------------------------
 
 Main window improvements:
