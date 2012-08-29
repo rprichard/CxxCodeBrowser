@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstring>
 #include <fstream>
+#include <sstream>
 #include <vector>
 
 #include <json/reader.h>
@@ -108,6 +109,32 @@ struct SourceFileInfo {
     std::vector<std::string> extraArgs;
 };
 
+static indexdb::Index *newIndex()
+{
+    indexdb::Index *index = new indexdb::Index;
+
+    index->addStringTable("path");
+    index->addStringTable("kind");
+    index->addStringTable("usr");
+
+    std::vector<std::string> refColumns;
+    refColumns.push_back("usr");
+    refColumns.push_back("path");
+    refColumns.push_back(""); // line
+    refColumns.push_back(""); // column
+    refColumns.push_back("kind");
+    index->addTable("ref", refColumns);
+
+    std::vector<std::string> locColumns;
+    locColumns.push_back("path");
+    locColumns.push_back(""); // line
+    locColumns.push_back(""); // column
+    locColumns.push_back("usr");
+    index->addTable("loc", locColumns);
+
+    return index;
+}
+
 indexdb::Index *indexSourceFile(SourceFileInfo sfi)
 {
     std::vector<char*> args;
@@ -131,28 +158,27 @@ indexdb::Index *indexSourceFile(SourceFileInfo sfi)
                 NULL, 0,
                 CXTranslationUnit_DetailedPreprocessingRecord // CXTranslationUnit_None
                 );
+    if (!tu) {
+        std::stringstream ss;
+        ss << "Error parsing translation unit: " << sfi.path;
+        for (size_t i = 0; i < args.size(); ++i) {
+            ss << " " << args[i];
+        }
+        ss << std::endl;
+        std::cerr << ss.str();
+        return newIndex();
+    }
+
+    assert(tu);
 
     TUIndexer indexer;
-    indexer.index = new indexdb::Index;
+    indexer.index = newIndex();
 
-    indexer.pathStringTable = indexer.index->addStringTable("path");
-    indexer.kindStringTable = indexer.index->addStringTable("kind");
-    indexer.usrStringTable = indexer.index->addStringTable("usr");
-
-    std::vector<std::string> refColumns;
-    refColumns.push_back("usr");
-    refColumns.push_back("path");
-    refColumns.push_back(""); // line
-    refColumns.push_back(""); // column
-    refColumns.push_back("kind");
-    indexer.refTable = indexer.index->addTable("ref", refColumns);
-
-    std::vector<std::string> locColumns;
-    locColumns.push_back("path");
-    locColumns.push_back(""); // line
-    locColumns.push_back(""); // column
-    locColumns.push_back("usr");
-    indexer.locTable = indexer.index->addTable("loc", locColumns);
+    indexer.pathStringTable = indexer.index->stringTable("path");
+    indexer.kindStringTable = indexer.index->stringTable("kind");
+    indexer.usrStringTable = indexer.index->stringTable("usr");
+    indexer.refTable = indexer.index->table("ref");
+    indexer.locTable = indexer.index->table("loc");
 
     CXCursor tuCursor = clang_getTranslationUnitCursor(tu);
     clang_visitChildren(tuCursor, &TUIndexer::visitor, &indexer);
