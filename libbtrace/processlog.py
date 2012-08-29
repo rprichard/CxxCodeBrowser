@@ -74,6 +74,8 @@ filterPattern = re.compile(
 
 sourceExtensions = [".c", ".cc", ".cpp", ".cxx", ".c++"]
 
+assemblyExtensions = [".s", ".S"]
+
 
 def endsWithOneOf(text, extensions):
     for extension in extensions:
@@ -118,13 +120,29 @@ def extractSourceFile(command):
                                      arg[2:])))
             elif arg[1] == "D":
                 outputDefines.append(arg[2:])
+            elif arg == "-include":
+                # Keep this and next argument.
+                assert len(args) >= 1
+                outputExtraArgs.append(arg)
+                outputExtraArgs.append(
+                    os.path.realpath(
+                        os.path.join(command.cwd,
+                                     args.pop(0))))
+            elif arg in ["-MF", "-MT", "-MQ", "--param"]:
+                # Discard this and next argument.
+                assert len(args) >= 1
+                args.pop(0)
             else:
                 outputExtraArgs.append(arg)
         elif endsWithOneOf(arg, sourceExtensions):
             assert inputFile is None
             inputFile = arg
+        elif endsWithOneOf(arg, assemblyExtensions):
+            return None
         else:
             print("Unknown argument: " + arg)
+            print(command.argv)
+            outputExtraArgs.append(arg)
 
     if inputFile is None:
         return None
