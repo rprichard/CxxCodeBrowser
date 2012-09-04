@@ -5,7 +5,6 @@ CONFIG += ordered
 
 SUBDIRS += libindexdb \
            navigator \
-           clang-test \
            clang-index-test \
            clang-indexer \
            libbtrace

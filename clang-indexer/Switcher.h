@@ -1,5 +1,7 @@
-#ifndef SWITCHER_H
-#define SWITCHER_H
+#ifndef INDEXER_SWITCHER_H
+#define INDEXER_SWITCHER_H
+
+namespace indexer {
 
 template <typename T>
 class Switcher
@@ -17,4 +19,6 @@ private:
     T m_origVal;
 };
 
-#endif // SWITCHER_H
+} // namespace indexer
+
+#endif // INDEXER_SWITCHER_H

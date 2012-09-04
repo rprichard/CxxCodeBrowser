@@ -1,16 +1,12 @@
-#include <clang/AST/ASTConsumer.h>
-#include <clang/AST/RecursiveASTVisitor.h>
-#include <clang/Frontend/CompilerInstance.h>
-#include <clang/Frontend/FrontendActions.h>
-#include <clang/Basic/FileSystemOptions.h>
-#include <clang/Basic/SourceManager.h>
-#include <clang/Basic/Diagnostic.h>
-#include <clang/Lex/Preprocessor.h>
-#include <clang/Tooling/Tooling.h>
-#include <iostream>
-#include <sstream>
+#include "ASTIndexer.h"
 
-#include "../clang-indexer/Switcher.h"
+#include <iostream>
+#include <llvm/Support/Casting.h>
+#include <string>
+
+#include "Switcher.h"
+
+namespace indexer {
 
 // TODO: For an array access, X[I], skip over the array-to-pointer decay.  We
 // currently record that X's address is taken, which is technically true, but
@@ -31,156 +27,6 @@
 // actually the same type, I would think that an xref on one should show both.
 
 // TODO: Unary ++ and --
-
-struct Location {
-    const char *filename;
-    unsigned int line;
-    int column;
-
-    std::string toString() const {
-        std::stringstream ss;
-        ss << filename << ":" << line << ":" << column;
-        return ss.str();
-    }
-};
-
-Location convertLocation(
-        clang::SourceManager *pSM,
-        clang::SourceLocation loc)
-{
-    Location result = { "", 0, 0 };
-    if (loc.isInvalid())
-        return result;
-    clang::SourceLocation sloc = pSM->getSpellingLoc(loc);
-    clang::FileID fid = pSM->getFileID(sloc);
-    unsigned int offset = pSM->getFileOffset(sloc);
-    const clang::FileEntry *pFE = pSM->getFileEntryForID(fid);
-    result.filename = pFE != NULL ?
-                pFE->getName() : pSM->getBuffer(fid)->getBufferIdentifier();
-    // TODO: The comment for getLineNumber says it's slow.  Is this going to
-    // be a problem?
-    result.line = pSM->getLineNumber(fid, offset);
-    result.column = pSM->getColumnNumber(fid, offset);
-    return result;
-}
-
-struct IndexerPPCallbacks : clang::PPCallbacks
-{
-    clang::SourceManager *pSM;
-    IndexerPPCallbacks(clang::SourceManager *pSM) : pSM(pSM) {}
-    virtual void MacroExpands(const clang::Token &macroNameTok,
-                              const clang::MacroInfo *MI,
-                              clang::SourceRange Range);
-    virtual void MacroDefined(const clang::Token &macroNameTok,
-                              const clang::MacroInfo *MI);
-    virtual void Defined(const clang::Token &macroNameTok);
-    virtual void Ifdef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
-    virtual void Ifndef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
-};
-
-void IndexerPPCallbacks::MacroExpands(const clang::Token &macroNameTok,
-                                 const clang::MacroInfo *mi,
-                                 clang::SourceRange range)
-{
-    Location loc = convertLocation(pSM, range.getBegin());
-    std::cerr << loc.toString() << ": expand "
-              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
-}
-
-void IndexerPPCallbacks::MacroDefined(const clang::Token &macroNameTok,
-                                 const clang::MacroInfo *MI)
-{
-    Location loc = convertLocation(pSM, MI->getDefinitionLoc());
-    std::cerr << loc.toString() << ": #define "
-              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
-}
-
-void IndexerPPCallbacks::Defined(const clang::Token &macroNameTok)
-{
-    Location loc = convertLocation(pSM, macroNameTok.getLocation());
-    std::cerr << loc.toString() << ": defined(): "
-              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
-}
-
-
-
-class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
-{
-public:
-    ASTIndexer(clang::SourceManager *pSM) :
-        m_pSM(pSM), m_thisContext(0), m_childContext(0)
-    {
-    }
-
-    void indexDecl(clang::Decl *d) { TraverseDecl(d); }
-
-private:
-    typedef clang::RecursiveASTVisitor<ASTIndexer> base;
-    friend class clang::RecursiveASTVisitor<ASTIndexer>;
-
-    // XXX: The CF_Read flag is useful mostly for lvalues -- for rvalues, we
-    // don't set the CF_Read flag, but the rvalue is assumed to be read anyway.
-
-    enum ContextFlags {
-        CF_Called       = 0x1,      // the value is read only to be called
-        CF_Read         = 0x2,      // the value is read for any other use
-        CF_AddressTaken = 0x4,      // the gl-value's address escapes
-        CF_Assigned     = 0x8,      // the gl-value is assigned to
-        CF_Mutated      = 0x10      // the gl-value is updated (i.e. compound assignment)
-    };
-
-    typedef unsigned int Context;
-
-    clang::SourceManager *m_pSM;
-    Context m_thisContext;
-    Context m_childContext;
-
-    // Misc routines
-    bool shouldUseDataRecursionFor(clang::Stmt *s) const;
-
-    // Dispatcher routines
-    bool TraverseStmt(clang::Stmt *stmt);
-    bool TraverseType(clang::QualType t);
-    bool TraverseTypeLoc(clang::TypeLoc tl);
-    bool TraverseDecl(clang::Decl *d);
-
-    // Expression context propagation
-    bool TraverseCallExpr(clang::CallExpr *e) { return TraverseCallCommon(e); }
-    bool TraverseCXXMemberCallExpr(clang::CXXMemberCallExpr *e) { return TraverseCallCommon(e); }
-    bool TraverseCXXOperatorCallExpr(clang::CXXOperatorCallExpr *e) { return TraverseCallCommon(e); }
-    bool TraverseBinComma(clang::BinaryOperator *s);
-    bool TraverseBinAssign(clang::BinaryOperator *e) { return TraverseAssignCommon(e, CF_Assigned); }
-#define OPERATOR(NAME) bool TraverseBin##NAME##Assign(clang::CompoundAssignOperator *e) { return TraverseAssignCommon(e, CF_Mutated); }
-    OPERATOR(Mul) OPERATOR(Div) OPERATOR(Rem) OPERATOR(Add) OPERATOR(Sub)
-    OPERATOR(Shl) OPERATOR(Shr) OPERATOR(And) OPERATOR(Or)  OPERATOR(Xor)
-#undef OPERATOR
-    bool VisitParenExpr(clang::ParenExpr *e) { m_childContext = m_thisContext; return true; }
-    bool VisitCastExpr(clang::CastExpr *e);
-    bool VisitUnaryAddrOf(clang::UnaryOperator *e);
-    bool VisitUnaryDeref(clang::UnaryOperator *e);
-    bool VisitDeclStmt(clang::DeclStmt *s);
-    bool VisitReturnStmt(clang::ReturnStmt *s);
-    bool VisitVarDecl(clang::VarDecl *d);
-    bool VisitInitListExpr(clang::InitListExpr *e);
-    bool TraverseConstructorInitializer(clang::CXXCtorInitializer *init);
-    bool TraverseCallCommon(clang::CallExpr *call);
-    bool TraverseAssignCommon(clang::BinaryOperator *e, ContextFlags lhsFlag);
-
-    // Expression reference recording
-    bool VisitMemberExpr(clang::MemberExpr *e);
-    bool VisitDeclRefExpr(clang::DeclRefExpr *e);
-    void RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context);
-
-    // NestedNameSpecifier handling
-    bool TraverseNestedNameSpecifierLoc(clang::NestedNameSpecifierLoc qualifier);
-
-    // Declaration handling
-    bool VisitDecl(clang::Decl *d);
-
-    // Reference recording
-    void RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind);
-};
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // Misc routines
@@ -543,52 +389,4 @@ void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, const Location &loc, const c
     std::cerr << loc.toString() << "," << kind << ": " << name << std::endl;
 }
 
-
-
-
-struct IndexerASTConsumer : clang::ASTConsumer {
-    clang::SourceManager *pSM;
-
-    virtual bool HandleTopLevelDecl(clang::DeclGroupRef declGroup);
-};
-
-bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
-{
-    for (clang::DeclGroupRef::iterator i = declGroup.begin(); i != declGroup.end(); ++i) {
-        std::cerr << "=====HandleTopLevelDecl" << std::endl;
-        clang::Decl *decl = *i;
-
-        ASTIndexer iv(pSM);
-        iv.indexDecl(decl);
-    }
-    return true;
-}
-
-struct IndexerAction : clang::ASTFrontendAction {
-    virtual clang::ASTConsumer *CreateASTConsumer(
-            clang::CompilerInstance &ci,
-            llvm::StringRef inFile) {
-        IndexerASTConsumer *astConsumer = new IndexerASTConsumer;
-        astConsumer->pSM = &ci.getSourceManager();
-        return astConsumer;
-    }
-    virtual bool BeginSourceFileAction(clang::CompilerInstance &ci,
-                                       llvm::StringRef filename) {
-        ci.getDiagnostics().setClient(new clang::IgnoringDiagConsumer);
-        ci.getPreprocessor().addPPCallbacks(new IndexerPPCallbacks(&ci.getSourceManager()));
-        return true;
-    }
-};
-
-int main()
-{
-    std::vector<std::string> argv;
-    argv.push_back("/home/rprichard/llvm-install-dbg/bin/clang++");
-    argv.push_back("-c");
-    argv.push_back("-std=c++11");
-    argv.push_back("test.cc");
-    llvm::OwningPtr<clang::FileManager> fm(new clang::FileManager(clang::FileSystemOptions()));
-    llvm::OwningPtr<IndexerAction> action(new IndexerAction);
-    clang::tooling::ToolInvocation ti(argv, action.take(), fm.get());
-    ti.run();
-}
+} // namespace indexer

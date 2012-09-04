@@ -4,7 +4,11 @@ TARGET = clang-indexer
 TEMPLATE = app
 
 SOURCES += \
-    main.cc
+    main.cc \
+    ASTIndexer.cc \
+    Location.cc \
+    IndexerPPCallbacks.cc \
+    TUIndexer.cc
 
 LIBS += -lclang
 CONFIG += link_pkgconfig
@@ -19,4 +23,10 @@ INSTALLS += target
 QMAKE_CXXFLAGS += -Wall -Wno-unused-parameter -std=c++0x
 
 HEADERS += \
-    Switcher.h
+    Switcher.h \
+    ASTIndexer.h \
+    Location.h \
+    IndexerPPCallbacks.h \
+    TUIndexer.h
+
+include(../clang.pri)
