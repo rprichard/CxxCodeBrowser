@@ -1,201 +1,492 @@
 #include <stdio.h>
 #include <iostream>
+#include <sstream>
 #include "llvm/Support/Host.h"
+#include "llvm/Support/PathV1.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/Utils.h"
+#include "clang/Frontend/FrontendActions.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTConsumer.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Parse/Parser.h"
 #include "clang/Parse/ParseAST.h"
+#include "clang/Basic/Version.h"
+#include "clang/Tooling/CompilationDatabase.h"
+#include "clang/Tooling/Tooling.h"
+#include "../clang-indexer/Switcher.h"
 
+// TODO: For an array access, X[I], skip over the array-to-pointer decay.  We
+// currently record that X's address is taken, which is technically true, but
+// the address does not generally escape.
 
-static clang::SourceManager *pSM;
-static int includeLevel = 0;
+// TODO: A struct assignment in C++ turns into an operator= call, even if the
+// user did not define an operator= function.  Consider handling operator=
+// calls the same way that normal assignment operations are handled.  Consider
+// doing the same for the other overloadable operators.
 
+struct Location {
+    const char *filename;
+    unsigned int line;
+    int column;
 
-static void indent()
-{
-    for (int i = 0; i < includeLevel; ++i)
-        std::cerr << "|       ";
-}
-
-
-struct MyPPCallbacks : clang::PPCallbacks
-{
-    virtual void MacroExpands(const clang::Token &macroNameTok,
-                              const clang::MacroInfo *MI,
-                              clang::SourceRange Range);
-
-    virtual void MacroDefined(const clang::Token &macroNameTok,
-                              const clang::MacroInfo *MI);
-
-    virtual void FileChanged(clang::SourceLocation Loc,
-                             clang::PPCallbacks::FileChangeReason Reason,
-                             clang::SrcMgr::CharacteristicKind FileType,
-                             clang::FileID PrevFID);
+    std::string toString() const {
+        std::stringstream ss;
+        ss << filename << ":" << line << ":" << column;
+        return ss.str();
+    }
 };
 
-clang::PresumedLoc realLocationOfSourceLocation(clang::SourceLocation loc)
+Location convertLocation(
+        clang::SourceManager *pSM,
+        clang::SourceLocation loc)
 {
+    Location result = { "", 0, 0 };
+    if (loc.isInvalid())
+        return result;
     clang::SourceLocation sloc = pSM->getSpellingLoc(loc);
     clang::FileID fid = pSM->getFileID(sloc);
     unsigned int offset = pSM->getFileOffset(sloc);
     const clang::FileEntry *pFE = pSM->getFileEntryForID(fid);
-    const char *filename = pFE != NULL ?
+    result.filename = pFE != NULL ?
                 pFE->getName() : pSM->getBuffer(fid)->getBufferIdentifier();
-    return clang::PresumedLoc(filename,
-                              pSM->getLineNumber(fid, offset),
-                              pSM->getColumnNumber(fid, offset),
-                              clang::SourceLocation());
+    // TODO: The comment for getLineNumber says it's slow.  Is this going to
+    // be a problem?
+    result.line = pSM->getLineNumber(fid, offset);
+    result.column = pSM->getColumnNumber(fid, offset);
+    return result;
 }
 
-void MyPPCallbacks::MacroExpands(const clang::Token &macroNameTok,
+struct IndexerPPCallbacks : clang::PPCallbacks
+{
+    clang::SourceManager *pSM;
+    IndexerPPCallbacks(clang::SourceManager *pSM) : pSM(pSM) {}
+    virtual void MacroExpands(const clang::Token &macroNameTok,
+                              const clang::MacroInfo *MI,
+                              clang::SourceRange Range);
+    virtual void MacroDefined(const clang::Token &macroNameTok,
+                              const clang::MacroInfo *MI);
+    virtual void Defined(const clang::Token &macroNameTok);
+    virtual void Ifdef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
+    virtual void Ifndef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
+};
+
+void IndexerPPCallbacks::MacroExpands(const clang::Token &macroNameTok,
                                  const clang::MacroInfo *mi,
                                  clang::SourceRange range)
 {
-    clang::PresumedLoc ploc = realLocationOfSourceLocation(range.getBegin());
-
-    indent();
-    std::cerr << ploc.getFilename() << ":" << ploc.getLine() << ":" << ploc.getColumn();
-    std::cerr << ": expand " << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
-
-    for (clang::MacroInfo::tokens_iterator it = mi->tokens_begin();
-         it != mi->tokens_end();
-         ++it) {
-        indent();
-        std::cerr << "   " << it->getName() << std::endl;
-    }
+    Location loc = convertLocation(pSM, range.getBegin());
+    std::cerr << loc.toString() << ": expand "
+              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
 }
 
-void MyPPCallbacks::MacroDefined(const clang::Token &macroNameTok,
+void IndexerPPCallbacks::MacroDefined(const clang::Token &macroNameTok,
                                  const clang::MacroInfo *MI)
 {
-    clang::PresumedLoc ploc = realLocationOfSourceLocation(MI->getDefinitionLoc());
-
-    indent();
-    std::cerr << ploc.getFilename()
-              << ":"
-              << ploc.getLine()
-              << ":"
-              << ploc.getColumn()
-              << ": #define "
-              << macroNameTok.getIdentifierInfo()->getName().str()
-              << std::endl;
+    Location loc = convertLocation(pSM, MI->getDefinitionLoc());
+    std::cerr << loc.toString() << ": #define "
+              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
 }
 
-void MyPPCallbacks::FileChanged(clang::SourceLocation loc,
-                                clang::PPCallbacks::FileChangeReason reason,
-                                clang::SrcMgr::CharacteristicKind fileType,
-                                clang::FileID prevFID)
+void IndexerPPCallbacks::Defined(const clang::Token &macroNameTok)
 {
-    if (reason == clang::PPCallbacks::EnterFile) {
-        indent();
-        std::cerr << "enter " << pSM->getBufferName(loc) << " / " << pSM->getPresumedLoc(loc).getFilename()
-                  << " (" << pSM->getFileID(loc).getHashValue() << ")"
-                  << std::endl;
-        ++includeLevel;
-    } else if (reason == clang::PPCallbacks::ExitFile) {
-        --includeLevel;
-        indent();
-        std::cerr << "exit" << std::endl;
-    }
+    Location loc = convertLocation(pSM, macroNameTok.getLocation());
+    std::cerr << loc.toString() << ": defined(): "
+              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
 }
+
+
+
+struct IndexerVisitor : clang::RecursiveASTVisitor<IndexerVisitor>
+{
+    typedef clang::RecursiveASTVisitor<IndexerVisitor> base;
+
+    // XXX: The CF_Read flag is useful mostly for lvalues -- for rvalues, we
+    // don't set the CF_Read flag, but the rvalue is assumed to be read anyway.
+
+    enum ContextFlags {
+        CF_Called       = 0x1,      // the value is read only to be called
+        CF_Read         = 0x2,      // the value is read for any other use
+        CF_AddressTaken = 0x4,      // the gl-value's address escapes
+        CF_Assigned     = 0x8,      // the gl-value is assigned to
+        CF_Mutated      = 0x10      // the gl-value is updated (i.e. compound assignment)
+    };
+
+    typedef unsigned int Context;
+
+    clang::SourceManager *pSM;
+    Context m_thisContext;
+    Context m_childContext;
+
+    IndexerVisitor() : m_thisContext(0), m_childContext(0) {}
+
+    // Misc routines
+    bool shouldUseDataRecursionFor(clang::Stmt *s) const;
+
+    // Dispatcher routines
+    bool TraverseStmt(clang::Stmt *stmt);
+    bool TraverseType(clang::QualType t);
+    bool TraverseTypeLoc(clang::TypeLoc tl);
+    bool TraverseDecl(clang::Decl *d);
+
+    // Context-propagation routines
+    bool TraverseCallExpr(clang::CallExpr *e) { return TraverseCallCommon(e); }
+    bool TraverseCXXMemberCallExpr(clang::CXXMemberCallExpr *e) { return TraverseCallCommon(e); }
+    bool TraverseCXXOperatorCallExpr(clang::CXXOperatorCallExpr *e) { return TraverseCallCommon(e); }
+    bool TraverseBinComma(clang::BinaryOperator *s);
+    bool TraverseBinAssign(clang::BinaryOperator *e) { return TraverseAssignCommon(e, CF_Assigned); }
+#define OPERATOR(NAME) bool TraverseBin##NAME##Assign(clang::CompoundAssignOperator *e) { return TraverseAssignCommon(e, CF_Mutated); }
+    OPERATOR(Mul) OPERATOR(Div) OPERATOR(Rem) OPERATOR(Add) OPERATOR(Sub)
+    OPERATOR(Shl) OPERATOR(Shr) OPERATOR(And) OPERATOR(Or)  OPERATOR(Xor)
+#undef OPERATOR
+    bool VisitParenExpr(clang::ParenExpr *e) { m_childContext = m_thisContext; return true; }
+    bool VisitCastExpr(clang::CastExpr *e);
+    bool VisitUnaryAddrOf(clang::UnaryOperator *e);
+    bool VisitUnaryDeref(clang::UnaryOperator *e);
+    bool VisitDeclStmt(clang::DeclStmt *s);
+    bool VisitReturnStmt(clang::ReturnStmt *s);
+    bool VisitVarDecl(clang::VarDecl *d);
+    bool VisitInitListExpr(clang::InitListExpr *e);
+    bool TraverseConstructorInitializer(clang::CXXCtorInitializer *init);
+
+    // Referencing-recording leaf routines
+    bool VisitMemberExpr(clang::MemberExpr *e);
+    bool VisitDeclRefExpr(clang::DeclRefExpr *e);
+
+private:
+    bool TraverseCallCommon(clang::CallExpr *call);
+    bool TraverseAssignCommon(clang::BinaryOperator *e, ContextFlags lhsFlag);
+    void RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context);
+    void RecordDeclRef(clang::NamedDecl *d, const Location &loc, Context context);
+    void RecordReference(const char *symbol, const Location &loc, const char *kind);
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Misc routines
+
+bool IndexerVisitor::shouldUseDataRecursionFor(clang::Stmt *s) const
+{
+    if (s == NULL || !base::shouldUseDataRecursionFor(s))
+        return false;
+    if (clang::UnaryOperator *e = llvm::dyn_cast<clang::UnaryOperator>(s)) {
+        return e->getOpcode() >= clang::UO_Plus &&
+                e->getOpcode() <= clang::UO_Imag;
+    }
+    if (clang::BinaryOperator *e = llvm::dyn_cast<clang::BinaryOperator>(s)) {
+        return e->getOpcode() >= clang::BO_Mul &&
+                e->getOpcode() <= clang::BO_LOr;
+    }
+    return false;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Dispatcher routines
+
+// Set the "this" context to the "child" context and reset the child context
+// to default.
+
+bool IndexerVisitor::TraverseStmt(clang::Stmt *stmt)
+{
+    if (stmt == NULL)
+        return true;
+
+    Switcher<Context> sw1(m_thisContext, m_childContext);
+
+    if (clang::Expr *e = llvm::dyn_cast<clang::Expr>(stmt)) {
+        if (e->isRValue())
+            m_thisContext &= ~(CF_AddressTaken | CF_Assigned | CF_Mutated);
+    } else {
+        m_thisContext = 0;
+    }
+
+    Switcher<Context> sw2(m_childContext, m_thisContext);
+
+    return base::TraverseStmt(stmt);
+}
+
+bool IndexerVisitor::TraverseType(clang::QualType t)
+{
+    Switcher<Context> sw1(m_thisContext, 0);
+    Switcher<Context> sw2(m_childContext, 0);
+    return base::TraverseType(t);
+}
+
+bool IndexerVisitor::TraverseTypeLoc(clang::TypeLoc tl)
+{
+    Switcher<Context> sw1(m_thisContext, 0);
+    Switcher<Context> sw2(m_childContext, 0);
+    return base::TraverseTypeLoc(tl);
+}
+
+bool IndexerVisitor::TraverseDecl(clang::Decl *d)
+{
+    Switcher<Context> sw1(m_thisContext, 0);
+    Switcher<Context> sw2(m_childContext, 0);
+    return base::TraverseDecl(d);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Context-propagation routines
+
+bool IndexerVisitor::TraverseCallCommon(clang::CallExpr *call)
+{
+    {
+        m_childContext = CF_Called;
+        TraverseStmt(call->getCallee());
+    }
+    for (unsigned int i = 0; i < call->getNumArgs(); ++i) {
+        clang::Expr *arg = call->getArg(i);
+        // If the child is really an lvalue, then this call is passing a
+        // reference.  If the child is not an lvalue, then this address-taken
+        // flag will be masked out, and the rvalue will be assumed to be read.
+        m_childContext = CF_AddressTaken;
+        TraverseStmt(arg);
+    }
+    return true;
+}
+
+bool IndexerVisitor::TraverseBinComma(clang::BinaryOperator *s)
+{
+    {
+        m_childContext = 0;
+        TraverseStmt(s->getLHS());
+    }
+    {
+        m_childContext = m_thisContext;
+        TraverseStmt(s->getRHS());
+    }
+    return true;
+}
+
+bool IndexerVisitor::TraverseAssignCommon(
+        clang::BinaryOperator *e,
+        ContextFlags lhsFlag)
+{
+    {
+        m_childContext = m_thisContext | lhsFlag;
+        if (m_childContext & CF_Called) {
+            m_childContext ^= CF_Called;
+            m_childContext |= CF_Read;
+        }
+        TraverseStmt(e->getLHS());
+    }
+    {
+        m_childContext = 0;
+        TraverseStmt(e->getRHS());
+    }
+    return true;
+}
+
+bool IndexerVisitor::VisitCastExpr(clang::CastExpr *e)
+{
+    if (e->getCastKind() == clang::CK_ArrayToPointerDecay) {
+        // Note that e->getSubExpr() can be an rvalue array, in which case the
+        // CF_AddressTaken context will be masked away to 0.
+        m_childContext = CF_AddressTaken;
+    } else if (e->getCastKind() == clang::CK_ToVoid) {
+        m_childContext = 0;
+    } else if (e->getCastKind() == clang::CK_LValueToRValue) {
+        m_childContext = CF_Read;
+    }
+    return true;
+}
+
+bool IndexerVisitor::VisitUnaryAddrOf(clang::UnaryOperator *e)
+{
+    m_childContext = CF_AddressTaken;
+    return true;
+}
+
+bool IndexerVisitor::VisitUnaryDeref(clang::UnaryOperator *e)
+{
+    m_childContext = 0;
+    return true;
+}
+
+bool IndexerVisitor::VisitDeclStmt(clang::DeclStmt *s)
+{
+    // If a declaration is a reference to an lvalue initializer, then we
+    // record that that the initializer's address was taken.  If it is
+    // an rvalue instead, then we'll see something else in the tree indicating
+    // what kind of reference to record (e.g. lval-to-rval cast, assignment,
+    // call, & operator) or assume the rvalue is being read.
+    m_childContext = CF_AddressTaken;
+    return true;
+}
+
+bool IndexerVisitor::VisitReturnStmt(clang::ReturnStmt *s)
+{
+    // See comment for VisitDeclStmt.
+    m_childContext = CF_AddressTaken;
+    return true;
+}
+
+bool IndexerVisitor::VisitVarDecl(clang::VarDecl *d)
+{
+    // See comment for VisitDeclStmt.  Set the context for the variable's
+    // initializer.  Also handle default arguments on parameter declarations.
+    m_childContext = CF_AddressTaken;
+    return true;
+}
+
+bool IndexerVisitor::VisitInitListExpr(clang::InitListExpr *e)
+{
+    // See comment for VisitDeclStmt.  An initializer list can also bind
+    // references.
+    m_childContext = CF_AddressTaken;
+    return true;
+}
+
+bool IndexerVisitor::TraverseConstructorInitializer(clang::CXXCtorInitializer *init)
+{
+    // See comment for VisitDeclStmt.
+    m_childContext = CF_AddressTaken;
+    return base::TraverseConstructorInitializer(init);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Referencing-recording leaf routines
+
+bool IndexerVisitor::VisitMemberExpr(clang::MemberExpr *e)
+{
+    RecordDeclRefExpr(
+                e->getMemberDecl(),
+                convertLocation(pSM, e->getMemberLoc()),
+                e,
+                m_thisContext);
+
+    // Update the child context for the base sub-expression.
+    if (e->isArrow()) {
+        m_childContext = CF_Read;
+    } else {
+        m_childContext = 0;
+        if (m_thisContext & CF_AddressTaken)
+            m_childContext |= CF_AddressTaken;
+        if (m_thisContext & (CF_Assigned | CF_Mutated))
+            m_childContext |= CF_Mutated;
+        if (m_thisContext & CF_Read)
+            m_childContext |= CF_Read;
+        if (m_thisContext & CF_Called) {
+            // I'm not sure what the best behavior here is.
+            m_childContext |= CF_Called;
+        }
+    }
+
+    return true;
+}
+
+bool IndexerVisitor::VisitDeclRefExpr(clang::DeclRefExpr *e)
+{
+    RecordDeclRefExpr(
+                e->getDecl(),
+                convertLocation(pSM, e->getLocation()),
+                e,
+                m_thisContext);
+    return true;
+}
+
+void IndexerVisitor::RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context)
+{
+    Context adjustedContext;
+
+    if (llvm::isa<clang::FunctionDecl>(*d)) {
+        // XXX: This code seems sloppy, but I suspect it will work well enough.
+        adjustedContext = 0;
+        if (context & CF_Called)
+            adjustedContext |= CF_Called;
+        if (context & (CF_Read | CF_AddressTaken))
+            adjustedContext |= CF_AddressTaken;
+        if (adjustedContext == 0)
+            adjustedContext |= CF_AddressTaken;
+    } else {
+        adjustedContext = context;
+        if (adjustedContext == 0 && e->isRValue())
+            adjustedContext |= CF_Read;
+    }
+    RecordDeclRef(d, loc, adjustedContext);
+}
+
+void IndexerVisitor::RecordDeclRef(clang::NamedDecl *d, const Location &loc, Context context)
+{
+    std::string name = d->getDeclName().getAsString();
+
+    if (context & CF_Called)
+        RecordReference(name.c_str(), loc, "Called");
+    if (context & CF_Read)
+        RecordReference(name.c_str(), loc, "Read");
+    if (context & CF_AddressTaken)
+        RecordReference(name.c_str(), loc, "Address-Taken");
+    if (context & CF_Assigned)
+        RecordReference(name.c_str(), loc, "Assigned");
+    if (context & CF_Mutated)
+        RecordReference(name.c_str(), loc, "Modified");
+
+    if (context == 0)
+        RecordReference(name.c_str(), loc, "Other");
+}
+
+void IndexerVisitor::RecordReference(const char *symbol, const Location &loc, const char *kind)
+{
+    std::cerr << loc.toString() << "," << kind << ": " << symbol << std::endl;
+}
+
+
+
+
+struct IndexerASTConsumer : clang::ASTConsumer {
+    clang::SourceManager *pSM;
+
+    virtual bool HandleTopLevelDecl(clang::DeclGroupRef declGroup);
+};
+
+bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
+{
+    for (clang::DeclGroupRef::iterator i = declGroup.begin(); i != declGroup.end(); ++i) {
+        std::cerr << "=====HandleTopLevelDecl" << std::endl;
+        clang::Decl *decl = *i;
+        //decl->dump();
+        //std::cerr << std::endl;
+
+        IndexerVisitor iv;
+        iv.pSM = pSM;
+        iv.TraverseDecl(decl);
+    }
+    return true;
+}
+
+struct IndexerAction : clang::ASTFrontendAction {
+    virtual clang::ASTConsumer *CreateASTConsumer(
+            clang::CompilerInstance &ci,
+            llvm::StringRef inFile) {
+        IndexerASTConsumer *astConsumer = new IndexerASTConsumer;
+        astConsumer->pSM = &ci.getSourceManager();
+        return astConsumer;
+    }
+    virtual bool BeginSourceFileAction(clang::CompilerInstance &ci,
+                                       llvm::StringRef filename) {
+        ci.getDiagnostics().setClient(new clang::IgnoringDiagConsumer);
+        ci.getPreprocessor().addPPCallbacks(new IndexerPPCallbacks(&ci.getSourceManager()));
+        return true;
+    }
+};
 
 int main()
 {
-    using clang::FileEntry;
-    using clang::Token;
-    using clang::ASTContext;
-    using clang::ASTConsumer;
-    using clang::Parser;
-
-    clang::CompilerInstance ci;
-    ci.createDiagnostics(0, NULL);
-
-    clang::TargetOptions to;
-    to.Triple = llvm::sys::getDefaultTargetTriple();
-    clang::TargetInfo *pti = clang::TargetInfo::CreateTargetInfo(ci.getDiagnostics(), to);
-    ci.setTarget(pti);
-
-    clang::HeaderSearchOptions &hso = ci.getHeaderSearchOpts();
-    const char *paths[] = {
-        "/usr/include/c++/4.6",
-        "/usr/include/c++/4.6/x86_64-linux-gnu/.",
-        "/usr/include/c++/4.6/backward",
-        "/usr/local/include",
-        "/usr/include/x86_64-linux-gnu",
-        "/usr/include",
-        "/usr/include/clang/3.0/include/",
-        "/usr/lib/gcc/x86_64-linux-gnu/4.6/include",
-        "/usr/lib/gcc/x86_64-linux-gnu/4.6/include-fixed",
-    };
-    for (size_t i = 0; i < sizeof(paths) / sizeof(paths[0]); ++i) {
-        hso.AddPath(paths[i], clang::frontend::System, false, false, false);
-    }
-
-
-
-
-
-
-    ci.createFileManager();
-    ci.createSourceManager(ci.getFileManager());
-    ci.getPreprocessorOpts().UsePredefines = true;
-    ci.createPreprocessor();
-    ASTConsumer *astConsumer = new ASTConsumer();
-    ci.setASTConsumer(astConsumer);
-
-    pSM = &ci.getSourceManager();
-
-    std::cerr << "<built-in>" << std::endl << ci.getPreprocessor().getPredefines() << "</built-in>" << std::endl;
-    ci.getPreprocessor().addPPCallbacks(new MyPPCallbacks());
-
-
-
-    ci.createASTContext();
-    //ci.createSema(clang::TU_Complete, NULL);
-    //ci.getSema().Initialize();
-
-    const FileEntry *pFile = ci.getFileManager().getFile("/home/rprichard/project/test.c");
-    ci.getSourceManager().createMainFileID(pFile);
-
-    //std::cerr << ci.getPreprocessor().getPredefines() << std::endl;
-
-    //ci.getPreprocessor().EnterMainSourceFile();
-    ci.getDiagnosticClient().BeginSourceFile(ci.getLangOpts(),
-                                             &ci.getPreprocessor());
-
-#if 0
-    Token tok;
-    do {
-        ci.getPreprocessor().Lex(tok);
-        if (ci.getDiagnostics().hasErrorOccurred()) {
-            std::cerr << "err occurred!" << std::endl;
-            break;
-        }
-        ci.getPreprocessor().DumpToken(tok);
-        std::cerr << std::endl;
-    } while (tok.isNot(clang::tok::eof));
-#endif
-
-
-    //Parser parser(ci.getPreprocessor(), astConsumer, false);
-    //parser.ParseTranslationUnit();
-
-    clang::ParseAST(ci.getPreprocessor(), astConsumer, ci.getASTContext());
-
-    ci.getDiagnosticClient().EndSourceFile();
-
-    //ci.getASTContext().Idents.PrintStats();
-
-
-
-
-    return 0;
+    std::vector<std::string> argv;
+    argv.push_back("/home/rprichard/llvm-install-dbg/bin/clang++");
+    argv.push_back("-c");
+    argv.push_back("-std=c++11");
+    argv.push_back("test.cc");
+    llvm::OwningPtr<clang::FileManager> fm(new clang::FileManager(clang::FileSystemOptions()));
+    llvm::OwningPtr<IndexerAction> action(new IndexerAction);
+    clang::tooling::ToolInvocation ti(argv, action.take(), fm.get());
+    ti.run();
 }

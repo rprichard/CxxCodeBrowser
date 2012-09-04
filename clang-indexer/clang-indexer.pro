@@ -17,3 +17,6 @@ target.path = /
 INSTALLS += target
 
 QMAKE_CXXFLAGS += -Wall -Wno-unused-parameter -std=c++0x
+
+HEADERS += \
+    Switcher.h
