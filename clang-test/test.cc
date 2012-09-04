@@ -1,27 +1,15 @@
-#include <stdio.h>
+#include <clang/AST/ASTConsumer.h>
+#include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/Frontend/CompilerInstance.h>
+#include <clang/Frontend/FrontendActions.h>
+#include <clang/Basic/FileSystemOptions.h>
+#include <clang/Basic/SourceManager.h>
+#include <clang/Basic/Diagnostic.h>
+#include <clang/Lex/Preprocessor.h>
+#include <clang/Tooling/Tooling.h>
 #include <iostream>
 #include <sstream>
-#include "llvm/Support/Host.h"
-#include "llvm/Support/PathV1.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/Utils.h"
-#include "clang/Frontend/FrontendActions.h"
-#include "clang/Basic/TargetOptions.h"
-#include "clang/Basic/TargetInfo.h"
-#include "clang/Basic/FileManager.h"
-#include "clang/Basic/FileSystemOptions.h"
-#include "clang/Basic/SourceManager.h"
-#include "clang/Lex/Preprocessor.h"
-#include "clang/Basic/Diagnostic.h"
-#include "clang/AST/ASTContext.h"
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Basic/LangOptions.h"
-#include "clang/Parse/Parser.h"
-#include "clang/Parse/ParseAST.h"
-#include "clang/Basic/Version.h"
-#include "clang/Tooling/CompilationDatabase.h"
-#include "clang/Tooling/Tooling.h"
+
 #include "../clang-indexer/Switcher.h"
 
 // TODO: For an array access, X[I], skip over the array-to-pointer decay.  We
