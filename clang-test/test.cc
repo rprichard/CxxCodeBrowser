@@ -33,6 +33,15 @@
 // calls the same way that normal assignment operations are handled.  Consider
 // doing the same for the other overloadable operators.
 
+// TODO: Look at clang::UsingDecl and clang::UsingShadowDecl.  Consider this
+// test case:
+//     namespace Foo { enum E { Test }; E v2; }
+//     using Foo::E;
+//     E v1;
+// Are the first "E" and the last "E" the same symbol in the index?  If there
+// is a Foo::E identifier recorded, is a plain E also recorded?  Since they're
+// actually the same type, I would think that an xref on one should show both.
+
 struct Location {
     const char *filename;
     unsigned int line;
@@ -137,7 +146,7 @@ struct IndexerVisitor : clang::RecursiveASTVisitor<IndexerVisitor>
     bool TraverseTypeLoc(clang::TypeLoc tl);
     bool TraverseDecl(clang::Decl *d);
 
-    // Context-propagation routines
+    // Expression context propagation
     bool TraverseCallExpr(clang::CallExpr *e) { return TraverseCallCommon(e); }
     bool TraverseCXXMemberCallExpr(clang::CXXMemberCallExpr *e) { return TraverseCallCommon(e); }
     bool TraverseCXXOperatorCallExpr(clang::CXXOperatorCallExpr *e) { return TraverseCallCommon(e); }
@@ -156,18 +165,24 @@ struct IndexerVisitor : clang::RecursiveASTVisitor<IndexerVisitor>
     bool VisitVarDecl(clang::VarDecl *d);
     bool VisitInitListExpr(clang::InitListExpr *e);
     bool TraverseConstructorInitializer(clang::CXXCtorInitializer *init);
-
-    // Referencing-recording leaf routines
-    bool VisitMemberExpr(clang::MemberExpr *e);
-    bool VisitDeclRefExpr(clang::DeclRefExpr *e);
-
-private:
     bool TraverseCallCommon(clang::CallExpr *call);
     bool TraverseAssignCommon(clang::BinaryOperator *e, ContextFlags lhsFlag);
+
+    // Expression reference recording
+    bool VisitMemberExpr(clang::MemberExpr *e);
+    bool VisitDeclRefExpr(clang::DeclRefExpr *e);
     void RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context);
-    void RecordDeclRef(clang::NamedDecl *d, const Location &loc, Context context);
-    void RecordReference(const char *symbol, const Location &loc, const char *kind);
+
+    // NestedNameSpecifier handling
+    bool TraverseNestedNameSpecifierLoc(clang::NestedNameSpecifierLoc qualifier);
+
+    // Declaration handling
+    bool VisitDecl(clang::Decl *d);
+
+    // Reference recording
+    void RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind);
 };
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Misc routines
@@ -186,6 +201,7 @@ bool IndexerVisitor::shouldUseDataRecursionFor(clang::Stmt *s) const
     }
     return false;
 }
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Dispatcher routines
@@ -233,8 +249,9 @@ bool IndexerVisitor::TraverseDecl(clang::Decl *d)
     return base::TraverseDecl(d);
 }
 
+
 ///////////////////////////////////////////////////////////////////////////////
-// Context-propagation routines
+// Expression context propagation
 
 bool IndexerVisitor::TraverseCallCommon(clang::CallExpr *call)
 {
@@ -347,13 +364,20 @@ bool IndexerVisitor::VisitInitListExpr(clang::InitListExpr *e)
 
 bool IndexerVisitor::TraverseConstructorInitializer(clang::CXXCtorInitializer *init)
 {
+    if (init->getMember() != NULL) {
+        RecordDeclRef(init->getMember(),
+                      convertLocation(pSM, init->getMemberLocation()),
+                      "Initialized");
+    }
+
     // See comment for VisitDeclStmt.
     m_childContext = CF_AddressTaken;
     return base::TraverseConstructorInitializer(init);
 }
 
+
 ///////////////////////////////////////////////////////////////////////////////
-// Referencing-recording leaf routines
+// Expression reference recording
 
 bool IndexerVisitor::VisitMemberExpr(clang::MemberExpr *e)
 {
@@ -395,47 +419,130 @@ bool IndexerVisitor::VisitDeclRefExpr(clang::DeclRefExpr *e)
 
 void IndexerVisitor::RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context)
 {
-    Context adjustedContext;
-
     if (llvm::isa<clang::FunctionDecl>(*d)) {
         // XXX: This code seems sloppy, but I suspect it will work well enough.
-        adjustedContext = 0;
         if (context & CF_Called)
-            adjustedContext |= CF_Called;
-        if (context & (CF_Read | CF_AddressTaken))
-            adjustedContext |= CF_AddressTaken;
-        if (adjustedContext == 0)
-            adjustedContext |= CF_AddressTaken;
+            RecordDeclRef(d, loc, "Called");
+        if (!(context & CF_Called) || (context & (CF_Read | CF_AddressTaken)))
+            RecordDeclRef(d, loc, "Address-Taken");
     } else {
-        adjustedContext = context;
-        if (adjustedContext == 0 && e->isRValue())
-            adjustedContext |= CF_Read;
+        if (context & CF_Called)
+            RecordDeclRef(d, loc, "Called");
+        if (context & CF_Read)
+            RecordDeclRef(d, loc, "Read");
+        if (context & CF_AddressTaken)
+            RecordDeclRef(d, loc, "Address-Taken");
+        if (context & CF_Assigned)
+            RecordDeclRef(d, loc, "Assigned");
+        if (context & CF_Mutated)
+            RecordDeclRef(d, loc, "Modified");
+        if (context == 0)
+            RecordDeclRef(d, loc, e->isRValue() ? "Read" : "Other");
     }
-    RecordDeclRef(d, loc, adjustedContext);
 }
 
-void IndexerVisitor::RecordDeclRef(clang::NamedDecl *d, const Location &loc, Context context)
+
+///////////////////////////////////////////////////////////////////////////////
+// NestedNameSpecifier handling
+
+bool IndexerVisitor::TraverseNestedNameSpecifierLoc(
+        clang::NestedNameSpecifierLoc qualifier)
+{
+    for (; qualifier; qualifier = qualifier.getPrefix()) {
+        clang::NestedNameSpecifier *nns = qualifier.getNestedNameSpecifier();
+        switch (nns->getKind()) {
+        case clang::NestedNameSpecifier::Namespace:
+            RecordDeclRef(nns->getAsNamespace(),
+                          convertLocation(pSM, qualifier.getLocalBeginLoc()),
+                          "Qualifier");
+            break;
+        case clang::NestedNameSpecifier::NamespaceAlias:
+            RecordDeclRef(nns->getAsNamespaceAlias(),
+                          convertLocation(pSM, qualifier.getLocalBeginLoc()),
+                          "Qualifier");
+            break;
+        case clang::NestedNameSpecifier::TypeSpec:
+        case clang::NestedNameSpecifier::TypeSpecWithTemplate:
+            {
+                const clang::RecordType *rt = nns->getAsType()->getAs<clang::RecordType>();
+                if (rt != NULL) {
+                    RecordDeclRef(rt->getDecl(),
+                                  convertLocation(pSM, qualifier.getLocalBeginLoc()),
+                                  "Qualifier");
+                }
+            }
+            break;
+        default:
+            // TODO: Do these cases matter?
+            break;
+        }
+    }
+    return true;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Declaration handling
+
+bool IndexerVisitor::VisitDecl(clang::Decl *d)
+{
+    if (clang::NamedDecl *nd = llvm::dyn_cast<clang::NamedDecl>(d)) {
+        Location loc = convertLocation(pSM, nd->getLocation());
+        if (clang::FunctionDecl *fd = llvm::dyn_cast<clang::FunctionDecl>(d)) {
+            const char *kind;
+            kind = fd->isThisDeclarationADefinition() ? "Definition" : "Declaration";
+            RecordDeclRef(nd, loc, kind);
+        } else if (clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(d)) {
+            const char *kind;
+            if (vd->isThisDeclarationADefinition() == clang::VarDecl::DeclarationOnly) {
+                kind = "Declaration";
+            } else {
+                kind = "Definition";
+            }
+            RecordDeclRef(nd, loc, kind);
+        } else if (clang::CXXRecordDecl *rd = llvm::dyn_cast<clang::CXXRecordDecl>(d)) {
+            const char *kind = "Declaration";
+            if (rd->isThisDeclarationADefinition()) {
+                kind = "Definition";
+                // Record base classes.
+                for (clang::CXXRecordDecl::base_class_iterator it = rd->bases_begin(); it != rd->bases_end(); ++it) {
+                    clang::CXXBaseSpecifier *bs = it;
+                    const clang::RecordType *baseType = bs->getType().getTypePtr()->getAs<clang::RecordType>();
+                    if (baseType) {
+                        RecordDeclRef(
+                                    baseType->getDecl(),
+                                    convertLocation(pSM, bs->getTypeSourceInfo()->getTypeLoc().getBeginLoc()),
+                                    "Base-Class");
+                    }
+                }
+            }
+            RecordDeclRef(nd, loc, kind);
+        } else if (clang::TagDecl *td = llvm::dyn_cast<clang::TagDecl>(d)) {
+            // TODO: Handle the C++11 fixed underlying type of enumeration
+            // declarations.
+            const char *kind;
+            kind = td->isThisDeclarationADefinition() ? "Definition" : "Declaration";
+            RecordDeclRef(nd, loc, kind);
+        } else if (clang::UsingDirectiveDecl *ud = llvm::dyn_cast<clang::UsingDirectiveDecl>(d)) {
+            RecordDeclRef(
+                        ud->getNominatedNamespaceAsWritten(),
+                        loc, "Using-Directive");
+        } else {
+            RecordDeclRef(nd, loc, "Declaration");
+        }
+    }
+
+    return true;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Reference recording
+
+void IndexerVisitor::RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind)
 {
     std::string name = d->getDeclName().getAsString();
-
-    if (context & CF_Called)
-        RecordReference(name.c_str(), loc, "Called");
-    if (context & CF_Read)
-        RecordReference(name.c_str(), loc, "Read");
-    if (context & CF_AddressTaken)
-        RecordReference(name.c_str(), loc, "Address-Taken");
-    if (context & CF_Assigned)
-        RecordReference(name.c_str(), loc, "Assigned");
-    if (context & CF_Mutated)
-        RecordReference(name.c_str(), loc, "Modified");
-
-    if (context == 0)
-        RecordReference(name.c_str(), loc, "Other");
-}
-
-void IndexerVisitor::RecordReference(const char *symbol, const Location &loc, const char *kind)
-{
-    std::cerr << loc.toString() << "," << kind << ": " << symbol << std::endl;
+    std::cerr << loc.toString() << "," << kind << ": " << name << std::endl;
 }
 
 
