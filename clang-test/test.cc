@@ -30,6 +30,8 @@
 // is a Foo::E identifier recorded, is a plain E also recorded?  Since they're
 // actually the same type, I would think that an xref on one should show both.
 
+// TODO: Unary ++ and --
+
 struct Location {
     const char *filename;
     unsigned int line;
@@ -102,9 +104,19 @@ void IndexerPPCallbacks::Defined(const clang::Token &macroNameTok)
 
 
 
-struct IndexerVisitor : clang::RecursiveASTVisitor<IndexerVisitor>
+class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
 {
-    typedef clang::RecursiveASTVisitor<IndexerVisitor> base;
+public:
+    ASTIndexer(clang::SourceManager *pSM) :
+        m_pSM(pSM), m_thisContext(0), m_childContext(0)
+    {
+    }
+
+    void indexDecl(clang::Decl *d) { TraverseDecl(d); }
+
+private:
+    typedef clang::RecursiveASTVisitor<ASTIndexer> base;
+    friend class clang::RecursiveASTVisitor<ASTIndexer>;
 
     // XXX: The CF_Read flag is useful mostly for lvalues -- for rvalues, we
     // don't set the CF_Read flag, but the rvalue is assumed to be read anyway.
@@ -119,11 +131,9 @@ struct IndexerVisitor : clang::RecursiveASTVisitor<IndexerVisitor>
 
     typedef unsigned int Context;
 
-    clang::SourceManager *pSM;
+    clang::SourceManager *m_pSM;
     Context m_thisContext;
     Context m_childContext;
-
-    IndexerVisitor() : m_thisContext(0), m_childContext(0) {}
 
     // Misc routines
     bool shouldUseDataRecursionFor(clang::Stmt *s) const;
@@ -175,7 +185,7 @@ struct IndexerVisitor : clang::RecursiveASTVisitor<IndexerVisitor>
 ///////////////////////////////////////////////////////////////////////////////
 // Misc routines
 
-bool IndexerVisitor::shouldUseDataRecursionFor(clang::Stmt *s) const
+bool ASTIndexer::shouldUseDataRecursionFor(clang::Stmt *s) const
 {
     if (s == NULL || !base::shouldUseDataRecursionFor(s))
         return false;
@@ -197,7 +207,7 @@ bool IndexerVisitor::shouldUseDataRecursionFor(clang::Stmt *s) const
 // Set the "this" context to the "child" context and reset the child context
 // to default.
 
-bool IndexerVisitor::TraverseStmt(clang::Stmt *stmt)
+bool ASTIndexer::TraverseStmt(clang::Stmt *stmt)
 {
     if (stmt == NULL)
         return true;
@@ -216,21 +226,21 @@ bool IndexerVisitor::TraverseStmt(clang::Stmt *stmt)
     return base::TraverseStmt(stmt);
 }
 
-bool IndexerVisitor::TraverseType(clang::QualType t)
+bool ASTIndexer::TraverseType(clang::QualType t)
 {
     Switcher<Context> sw1(m_thisContext, 0);
     Switcher<Context> sw2(m_childContext, 0);
     return base::TraverseType(t);
 }
 
-bool IndexerVisitor::TraverseTypeLoc(clang::TypeLoc tl)
+bool ASTIndexer::TraverseTypeLoc(clang::TypeLoc tl)
 {
     Switcher<Context> sw1(m_thisContext, 0);
     Switcher<Context> sw2(m_childContext, 0);
     return base::TraverseTypeLoc(tl);
 }
 
-bool IndexerVisitor::TraverseDecl(clang::Decl *d)
+bool ASTIndexer::TraverseDecl(clang::Decl *d)
 {
     Switcher<Context> sw1(m_thisContext, 0);
     Switcher<Context> sw2(m_childContext, 0);
@@ -241,7 +251,7 @@ bool IndexerVisitor::TraverseDecl(clang::Decl *d)
 ///////////////////////////////////////////////////////////////////////////////
 // Expression context propagation
 
-bool IndexerVisitor::TraverseCallCommon(clang::CallExpr *call)
+bool ASTIndexer::TraverseCallCommon(clang::CallExpr *call)
 {
     {
         m_childContext = CF_Called;
@@ -258,7 +268,7 @@ bool IndexerVisitor::TraverseCallCommon(clang::CallExpr *call)
     return true;
 }
 
-bool IndexerVisitor::TraverseBinComma(clang::BinaryOperator *s)
+bool ASTIndexer::TraverseBinComma(clang::BinaryOperator *s)
 {
     {
         m_childContext = 0;
@@ -271,7 +281,7 @@ bool IndexerVisitor::TraverseBinComma(clang::BinaryOperator *s)
     return true;
 }
 
-bool IndexerVisitor::TraverseAssignCommon(
+bool ASTIndexer::TraverseAssignCommon(
         clang::BinaryOperator *e,
         ContextFlags lhsFlag)
 {
@@ -290,7 +300,7 @@ bool IndexerVisitor::TraverseAssignCommon(
     return true;
 }
 
-bool IndexerVisitor::VisitCastExpr(clang::CastExpr *e)
+bool ASTIndexer::VisitCastExpr(clang::CastExpr *e)
 {
     if (e->getCastKind() == clang::CK_ArrayToPointerDecay) {
         // Note that e->getSubExpr() can be an rvalue array, in which case the
@@ -304,19 +314,19 @@ bool IndexerVisitor::VisitCastExpr(clang::CastExpr *e)
     return true;
 }
 
-bool IndexerVisitor::VisitUnaryAddrOf(clang::UnaryOperator *e)
+bool ASTIndexer::VisitUnaryAddrOf(clang::UnaryOperator *e)
 {
     m_childContext = CF_AddressTaken;
     return true;
 }
 
-bool IndexerVisitor::VisitUnaryDeref(clang::UnaryOperator *e)
+bool ASTIndexer::VisitUnaryDeref(clang::UnaryOperator *e)
 {
     m_childContext = 0;
     return true;
 }
 
-bool IndexerVisitor::VisitDeclStmt(clang::DeclStmt *s)
+bool ASTIndexer::VisitDeclStmt(clang::DeclStmt *s)
 {
     // If a declaration is a reference to an lvalue initializer, then we
     // record that that the initializer's address was taken.  If it is
@@ -327,14 +337,14 @@ bool IndexerVisitor::VisitDeclStmt(clang::DeclStmt *s)
     return true;
 }
 
-bool IndexerVisitor::VisitReturnStmt(clang::ReturnStmt *s)
+bool ASTIndexer::VisitReturnStmt(clang::ReturnStmt *s)
 {
     // See comment for VisitDeclStmt.
     m_childContext = CF_AddressTaken;
     return true;
 }
 
-bool IndexerVisitor::VisitVarDecl(clang::VarDecl *d)
+bool ASTIndexer::VisitVarDecl(clang::VarDecl *d)
 {
     // See comment for VisitDeclStmt.  Set the context for the variable's
     // initializer.  Also handle default arguments on parameter declarations.
@@ -342,7 +352,7 @@ bool IndexerVisitor::VisitVarDecl(clang::VarDecl *d)
     return true;
 }
 
-bool IndexerVisitor::VisitInitListExpr(clang::InitListExpr *e)
+bool ASTIndexer::VisitInitListExpr(clang::InitListExpr *e)
 {
     // See comment for VisitDeclStmt.  An initializer list can also bind
     // references.
@@ -350,11 +360,11 @@ bool IndexerVisitor::VisitInitListExpr(clang::InitListExpr *e)
     return true;
 }
 
-bool IndexerVisitor::TraverseConstructorInitializer(clang::CXXCtorInitializer *init)
+bool ASTIndexer::TraverseConstructorInitializer(clang::CXXCtorInitializer *init)
 {
     if (init->getMember() != NULL) {
         RecordDeclRef(init->getMember(),
-                      convertLocation(pSM, init->getMemberLocation()),
+                      convertLocation(m_pSM, init->getMemberLocation()),
                       "Initialized");
     }
 
@@ -367,11 +377,11 @@ bool IndexerVisitor::TraverseConstructorInitializer(clang::CXXCtorInitializer *i
 ///////////////////////////////////////////////////////////////////////////////
 // Expression reference recording
 
-bool IndexerVisitor::VisitMemberExpr(clang::MemberExpr *e)
+bool ASTIndexer::VisitMemberExpr(clang::MemberExpr *e)
 {
     RecordDeclRefExpr(
                 e->getMemberDecl(),
-                convertLocation(pSM, e->getMemberLoc()),
+                convertLocation(m_pSM, e->getMemberLoc()),
                 e,
                 m_thisContext);
 
@@ -395,17 +405,17 @@ bool IndexerVisitor::VisitMemberExpr(clang::MemberExpr *e)
     return true;
 }
 
-bool IndexerVisitor::VisitDeclRefExpr(clang::DeclRefExpr *e)
+bool ASTIndexer::VisitDeclRefExpr(clang::DeclRefExpr *e)
 {
     RecordDeclRefExpr(
                 e->getDecl(),
-                convertLocation(pSM, e->getLocation()),
+                convertLocation(m_pSM, e->getLocation()),
                 e,
                 m_thisContext);
     return true;
 }
 
-void IndexerVisitor::RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context)
+void ASTIndexer::RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context)
 {
     if (llvm::isa<clang::FunctionDecl>(*d)) {
         // XXX: This code seems sloppy, but I suspect it will work well enough.
@@ -433,7 +443,7 @@ void IndexerVisitor::RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc,
 ///////////////////////////////////////////////////////////////////////////////
 // NestedNameSpecifier handling
 
-bool IndexerVisitor::TraverseNestedNameSpecifierLoc(
+bool ASTIndexer::TraverseNestedNameSpecifierLoc(
         clang::NestedNameSpecifierLoc qualifier)
 {
     for (; qualifier; qualifier = qualifier.getPrefix()) {
@@ -441,12 +451,12 @@ bool IndexerVisitor::TraverseNestedNameSpecifierLoc(
         switch (nns->getKind()) {
         case clang::NestedNameSpecifier::Namespace:
             RecordDeclRef(nns->getAsNamespace(),
-                          convertLocation(pSM, qualifier.getLocalBeginLoc()),
+                          convertLocation(m_pSM, qualifier.getLocalBeginLoc()),
                           "Qualifier");
             break;
         case clang::NestedNameSpecifier::NamespaceAlias:
             RecordDeclRef(nns->getAsNamespaceAlias(),
-                          convertLocation(pSM, qualifier.getLocalBeginLoc()),
+                          convertLocation(m_pSM, qualifier.getLocalBeginLoc()),
                           "Qualifier");
             break;
         case clang::NestedNameSpecifier::TypeSpec:
@@ -455,7 +465,7 @@ bool IndexerVisitor::TraverseNestedNameSpecifierLoc(
                 const clang::RecordType *rt = nns->getAsType()->getAs<clang::RecordType>();
                 if (rt != NULL) {
                     RecordDeclRef(rt->getDecl(),
-                                  convertLocation(pSM, qualifier.getLocalBeginLoc()),
+                                  convertLocation(m_pSM, qualifier.getLocalBeginLoc()),
                                   "Qualifier");
                 }
             }
@@ -472,10 +482,10 @@ bool IndexerVisitor::TraverseNestedNameSpecifierLoc(
 ///////////////////////////////////////////////////////////////////////////////
 // Declaration handling
 
-bool IndexerVisitor::VisitDecl(clang::Decl *d)
+bool ASTIndexer::VisitDecl(clang::Decl *d)
 {
     if (clang::NamedDecl *nd = llvm::dyn_cast<clang::NamedDecl>(d)) {
-        Location loc = convertLocation(pSM, nd->getLocation());
+        Location loc = convertLocation(m_pSM, nd->getLocation());
         if (clang::FunctionDecl *fd = llvm::dyn_cast<clang::FunctionDecl>(d)) {
             const char *kind;
             kind = fd->isThisDeclarationADefinition() ? "Definition" : "Declaration";
@@ -499,7 +509,7 @@ bool IndexerVisitor::VisitDecl(clang::Decl *d)
                     if (baseType) {
                         RecordDeclRef(
                                     baseType->getDecl(),
-                                    convertLocation(pSM, bs->getTypeSourceInfo()->getTypeLoc().getBeginLoc()),
+                                    convertLocation(m_pSM, bs->getTypeSourceInfo()->getTypeLoc().getBeginLoc()),
                                     "Base-Class");
                     }
                 }
@@ -527,7 +537,7 @@ bool IndexerVisitor::VisitDecl(clang::Decl *d)
 ///////////////////////////////////////////////////////////////////////////////
 // Reference recording
 
-void IndexerVisitor::RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind)
+void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind)
 {
     std::string name = d->getDeclName().getAsString();
     std::cerr << loc.toString() << "," << kind << ": " << name << std::endl;
@@ -547,12 +557,9 @@ bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
     for (clang::DeclGroupRef::iterator i = declGroup.begin(); i != declGroup.end(); ++i) {
         std::cerr << "=====HandleTopLevelDecl" << std::endl;
         clang::Decl *decl = *i;
-        //decl->dump();
-        //std::cerr << std::endl;
 
-        IndexerVisitor iv;
-        iv.pSM = pSM;
-        iv.TraverseDecl(decl);
+        ASTIndexer iv(pSM);
+        iv.indexDecl(decl);
     }
     return true;
 }
