@@ -350,13 +350,24 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
             if (rd->isThisDeclarationADefinition()) {
                 kind = "Definition";
                 // Record base classes.
+
+                // XXX: This code is ugly.  It needs to be refactored at least.
+                // Maybe all type references should be caught using
+                // VisitTypeLoc.
+
                 for (clang::CXXRecordDecl::base_class_iterator it = rd->bases_begin(); it != rd->bases_end(); ++it) {
                     clang::CXXBaseSpecifier *bs = it;
                     const clang::RecordType *baseType = bs->getType().getTypePtr()->getAs<clang::RecordType>();
                     if (baseType) {
+                        clang::TypeLoc baseClangTypeLoc = bs->getTypeSourceInfo()->getTypeLoc();
+                        clang::SourceLocation baseClangLoc = baseClangTypeLoc.getBeginLoc();
+                        if (baseClangTypeLoc.getTypeLocClass() == clang::TypeLoc::Elaborated) {
+                            clang::ElaboratedTypeLoc &elaboratedTypeLoc = *llvm::cast<clang::ElaboratedTypeLoc>(&baseClangTypeLoc);
+                            baseClangLoc = elaboratedTypeLoc.getNamedTypeLoc().getBeginLoc();
+                        }
                         RecordDeclRef(
                                     baseType->getDecl(),
-                                    convertLocation(m_pSM, bs->getTypeSourceInfo()->getTypeLoc().getBeginLoc()),
+                                    convertLocation(m_pSM, baseClangLoc),
                                     "Base-Class");
                     }
                 }
