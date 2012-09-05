@@ -8,7 +8,8 @@ SOURCES += \
     ASTIndexer.cc \
     Location.cc \
     IndexerPPCallbacks.cc \
-    TUIndexer.cc
+    TUIndexer.cc \
+    IndexBuilder.cc
 
 LIBS += -lclang
 CONFIG += link_pkgconfig
@@ -27,6 +28,7 @@ HEADERS += \
     ASTIndexer.h \
     Location.h \
     IndexerPPCallbacks.h \
-    TUIndexer.h
+    TUIndexer.h \
+    IndexBuilder.h
 
 include(../clang.pri)

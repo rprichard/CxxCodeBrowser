@@ -4,6 +4,7 @@
 #include <llvm/Support/Casting.h>
 #include <string>
 
+#include "IndexBuilder.h"
 #include "Switcher.h"
 
 namespace indexer {

@@ -10,7 +10,14 @@
 #include <clang-c/Index.h>
 
 #include "../libindexdb/IndexDb.h"
+#include "IndexBuilder.h"
+#include "TUIndexer.h"
 
+// The Clang driver uses this driver path to locate its built-in include files
+// which are at ../lib/clang/<VERSION>/include from the bin directory.
+#define kDriverPath "/home/rprichard/llvm-install/bin/clang"
+
+#if 0
 struct TUIndexer {
     CXChildVisitResult visitor(
             CXCursor cursor,
@@ -101,6 +108,7 @@ CXChildVisitResult TUIndexer::visitor(
 {
     return static_cast<TUIndexer*>(data)->visitor(cursor, parent);
 }
+#endif
 
 struct SourceFileInfo {
     std::string path;
@@ -109,47 +117,41 @@ struct SourceFileInfo {
     std::vector<std::string> extraArgs;
 };
 
-static indexdb::Index *newIndex()
+static bool stringEndsWith(const std::string &text, const std::string &ending)
 {
-    indexdb::Index *index = new indexdb::Index;
-
-    index->addStringTable("path");
-    index->addStringTable("kind");
-    index->addStringTable("usr");
-
-    std::vector<std::string> refColumns;
-    refColumns.push_back("usr");
-    refColumns.push_back("path");
-    refColumns.push_back(""); // line
-    refColumns.push_back(""); // column
-    refColumns.push_back("kind");
-    index->addTable("ref", refColumns);
-
-    std::vector<std::string> locColumns;
-    locColumns.push_back("path");
-    locColumns.push_back(""); // line
-    locColumns.push_back(""); // column
-    locColumns.push_back("usr");
-    index->addTable("loc", locColumns);
-
-    return index;
+    return text.size() >= ending.size() &&
+            text.rfind(ending) == text.size() - ending.size();
 }
 
 indexdb::Index *indexSourceFile(SourceFileInfo sfi)
 {
-    std::vector<char*> args;
+    std::vector<std::string> argv;
+
+    bool isCXX = stringEndsWith(sfi.path, ".cc") ||
+            stringEndsWith(sfi.path, ".cpp") ||
+            stringEndsWith(sfi.path, ".cxx") ||
+            stringEndsWith(sfi.path, ".c++") ||
+            stringEndsWith(sfi.path, ".C");
+
+    argv.push_back(isCXX ? kDriverPath"++" : kDriverPath);
+    argv.push_back("-c");
+    argv.push_back(sfi.path);
     for (auto define : sfi.defines) {
-        std::string arg = "-D" + define;
-        args.push_back(strdup(arg.c_str()));
+        argv.push_back("-D" + define);
     }
     for (auto include : sfi.includes) {
-        std::string arg = "-I" + include;
-        args.push_back(strdup(arg.c_str()));
+        argv.push_back("-I" + include);
     }
     for (auto arg : sfi.extraArgs) {
-        args.push_back(strdup(arg.c_str()));
+        argv.push_back(arg);
     }
 
+    indexdb::Index *index = indexer::newIndex();
+    indexer::indexTranslationUnit(argv, index);
+    index->setReadOnly();
+    return index;
+
+#if 0
     CXIndex cxindex = clang_createIndex(0, 0);
     CXTranslationUnit tu = clang_parseTranslationUnit(
                 cxindex,
@@ -187,11 +189,10 @@ indexdb::Index *indexSourceFile(SourceFileInfo sfi)
     clang_disposeTranslationUnit(tu);
     clang_disposeIndex(cxindex);
 
-    for (char *arg : args) {
+    for (char *arg : argv) {
         free(arg);
     }
-
-    return indexer.index;
+#endif
 }
 
 static std::vector<std::string> readJsonStringList(const Json::Value &json)

@@ -8,11 +8,13 @@
 
 namespace indexer {
 
+class IndexBuilder;
+
 class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
 {
 public:
-    ASTIndexer(clang::SourceManager *pSM) :
-        m_pSM(pSM), m_thisContext(0), m_childContext(0)
+    ASTIndexer(clang::SourceManager *pSM, IndexBuilder &builder) :
+        m_pSM(pSM), m_builder(builder), m_thisContext(0), m_childContext(0)
     {
     }
 
@@ -36,6 +38,7 @@ private:
     typedef unsigned int Context;
 
     clang::SourceManager *m_pSM;
+    IndexBuilder &m_builder;
     Context m_thisContext;
     Context m_childContext;
 

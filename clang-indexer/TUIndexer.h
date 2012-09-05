@@ -4,9 +4,13 @@
 #include <string>
 #include <vector>
 
+namespace indexdb {
+    class Index;
+}
+
 namespace indexer {
 
-void indexTranslationUnit(const std::vector<std::string> &argv);
+void indexTranslationUnit(const std::vector<std::string> &argv, indexdb::Index *index);
 
 } // namespace indexer
 

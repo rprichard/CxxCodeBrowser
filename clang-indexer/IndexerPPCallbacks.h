@@ -9,10 +9,17 @@
 
 namespace indexer {
 
-struct IndexerPPCallbacks : clang::PPCallbacks
+class IndexBuilder;
+
+class IndexerPPCallbacks : public clang::PPCallbacks
 {
-    clang::SourceManager *pSM;
-    IndexerPPCallbacks(clang::SourceManager *pSM) : pSM(pSM) {}
+public:
+    IndexerPPCallbacks(clang::SourceManager *pSM, IndexBuilder &builder) :
+        m_pSM(pSM), m_builder(builder)
+    {
+    }
+
+private:
     virtual void MacroExpands(const clang::Token &macroNameTok,
                               const clang::MacroInfo *MI,
                               clang::SourceRange Range);
@@ -21,6 +28,9 @@ struct IndexerPPCallbacks : clang::PPCallbacks
     virtual void Defined(const clang::Token &macroNameTok);
     virtual void Ifdef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
     virtual void Ifndef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
+
+    clang::SourceManager *m_pSM;
+    IndexBuilder &m_builder;
 };
 
 } // namespace indexer

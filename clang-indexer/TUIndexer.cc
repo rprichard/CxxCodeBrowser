@@ -16,15 +16,27 @@
 #include <string>
 #include <vector>
 
+#include "../libindexdb/IndexDb.h"
 #include "ASTIndexer.h"
+#include "IndexBuilder.h"
 #include "IndexerPPCallbacks.h"
 
 namespace indexer {
 
-struct IndexerASTConsumer : clang::ASTConsumer {
-    clang::SourceManager *pSM;
+class IndexerASTConsumer : public clang::ASTConsumer {
+public:
+    IndexerASTConsumer(
+            clang::SourceManager *pSM,
+            IndexBuilder &builder) :
+        m_pSM(pSM), m_builder(builder)
+    {
+    }
 
+private:
     virtual bool HandleTopLevelDecl(clang::DeclGroupRef declGroup);
+
+    clang::SourceManager *m_pSM;
+    IndexBuilder &m_builder;
 };
 
 bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
@@ -33,39 +45,44 @@ bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
         std::cerr << "=====HandleTopLevelDecl" << std::endl;
         clang::Decl *decl = *i;
 
-        ASTIndexer iv(pSM);
+        ASTIndexer iv(m_pSM, m_builder);
         iv.indexDecl(decl);
     }
     return true;
 }
 
-struct IndexerAction : clang::ASTFrontendAction {
+class IndexerAction : public clang::ASTFrontendAction {
+public:
+    IndexerAction(IndexBuilder &builder) : m_builder(builder) {}
+
+private:
     virtual clang::ASTConsumer *CreateASTConsumer(
             clang::CompilerInstance &ci,
             llvm::StringRef inFile) {
-        IndexerASTConsumer *astConsumer = new IndexerASTConsumer;
-        astConsumer->pSM = &ci.getSourceManager();
+        IndexerASTConsumer *astConsumer =
+                new IndexerASTConsumer(&ci.getSourceManager(), m_builder);
         return astConsumer;
     }
+
     virtual bool BeginSourceFileAction(clang::CompilerInstance &ci,
                                        llvm::StringRef filename) {
         ci.getDiagnostics().setClient(new clang::IgnoringDiagConsumer);
-        ci.getPreprocessor().addPPCallbacks(new IndexerPPCallbacks(&ci.getSourceManager()));
+        ci.getPreprocessor().addPPCallbacks(
+                    new IndexerPPCallbacks(&ci.getSourceManager(), m_builder));
         return true;
     }
+
+    IndexBuilder &m_builder;
 };
 
-void indexTranslationUnit(const std::vector<std::string> &argv)
+void indexTranslationUnit(
+        const std::vector<std::string> &argv,
+        indexdb::Index *index)
 {
-    /*
-    std::vector<std::string> argv;
-    argv.push_back("/home/rprichard/llvm-install-dbg/bin/clang++");
-    argv.push_back("-c");
-    argv.push_back("-std=c++11");
-    argv.push_back("test.cc");
-    */
+    IndexBuilder builder(index);
+
     llvm::OwningPtr<clang::FileManager> fm(new clang::FileManager(clang::FileSystemOptions()));
-    llvm::OwningPtr<IndexerAction> action(new IndexerAction);
+    llvm::OwningPtr<IndexerAction> action(new IndexerAction(builder));
     clang::tooling::ToolInvocation ti(argv, action.take(), fm.get());
     ti.run();
 }
