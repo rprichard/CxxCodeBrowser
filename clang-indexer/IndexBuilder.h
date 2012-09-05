@@ -9,6 +9,8 @@ namespace indexdb {
 
 namespace indexer {
 
+class Location;
+
 // Creates a new indexdb::Index with empty tables.
 indexdb::Index *newIndex();
 
@@ -16,6 +18,7 @@ class IndexBuilder
 {
 public:
     IndexBuilder(indexdb::Index *index);
+    void recordRef(const char *usr, const Location &loc, const char *kind);
 
 private:
     // The IndexBuilder instance does not own m_index.

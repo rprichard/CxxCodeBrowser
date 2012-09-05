@@ -8,28 +8,36 @@
 
 namespace indexer {
 
-void IndexerPPCallbacks::MacroExpands(const clang::Token &macroNameTok,
-                                 const clang::MacroInfo *mi,
-                                 clang::SourceRange range)
+void IndexerPPCallbacks::MacroExpands(
+        const clang::Token &macroNameToken,
+        const clang::MacroInfo *mi,
+        clang::SourceRange range)
 {
-    Location loc = convertLocation(m_pSM, range.getBegin());
-    std::cerr << loc.toString() << ": expand "
-              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
+    recordReference(macroNameToken, /*range.getBegin(),*/ "Expansion");
 }
 
-void IndexerPPCallbacks::MacroDefined(const clang::Token &macroNameTok,
-                                 const clang::MacroInfo *MI)
+void IndexerPPCallbacks::MacroDefined(
+        const clang::Token &macroNameToken,
+        const clang::MacroInfo *mi)
 {
-    Location loc = convertLocation(m_pSM, MI->getDefinitionLoc());
-    std::cerr << loc.toString() << ": #define "
-              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
+    recordReference(macroNameToken, /*mi->getDefinitionLoc(),*/ "Definition");
 }
 
-void IndexerPPCallbacks::Defined(const clang::Token &macroNameTok)
+void IndexerPPCallbacks::Defined(const clang::Token &macroNameToken)
 {
-    Location loc = convertLocation(m_pSM, macroNameTok.getLocation());
-    std::cerr << loc.toString() << ": defined(): "
-              << macroNameTok.getIdentifierInfo()->getName().str() << std::endl;
+    recordReference(macroNameToken, /*macroNameToken.getLocation(),*/ "Defined-Test");
+}
+
+void IndexerPPCallbacks::recordReference(
+        const clang::Token &macroNameToken,
+        //clang::SourceLocation location,
+        const char *kind)
+{
+    std::string usr = "c:macro@";
+    llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
+    usr.append(macroName.data(), macroName.size());
+    Location loc = convertLocation(m_pSM, macroNameToken.getLocation() /*, location*/);
+    m_builder.recordRef(usr.c_str(), loc, kind);
 }
 
 } // namespace indexer

@@ -42,9 +42,7 @@ private:
 bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
 {
     for (clang::DeclGroupRef::iterator i = declGroup.begin(); i != declGroup.end(); ++i) {
-        std::cerr << "=====HandleTopLevelDecl" << std::endl;
         clang::Decl *decl = *i;
-
         ASTIndexer iv(m_pSM, m_builder);
         iv.indexDecl(decl);
     }

@@ -11,7 +11,7 @@ SOURCES += \
     TUIndexer.cc \
     IndexBuilder.cc
 
-LIBS += -lclang
+#LIBS += -lclang
 CONFIG += link_pkgconfig
 PKGCONFIG += jsoncpp
 

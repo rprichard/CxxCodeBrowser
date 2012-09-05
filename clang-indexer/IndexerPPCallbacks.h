@@ -20,14 +20,19 @@ public:
     }
 
 private:
-    virtual void MacroExpands(const clang::Token &macroNameTok,
-                              const clang::MacroInfo *MI,
-                              clang::SourceRange Range);
-    virtual void MacroDefined(const clang::Token &macroNameTok,
-                              const clang::MacroInfo *MI);
-    virtual void Defined(const clang::Token &macroNameTok);
-    virtual void Ifdef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
-    virtual void Ifndef(clang::SourceLocation Loc, const clang::Token &macroNameTok) { Defined(macroNameTok); }
+    virtual void MacroExpands(const clang::Token &macroNameToken,
+                              const clang::MacroInfo *mi,
+                              clang::SourceRange range);
+    virtual void MacroDefined(const clang::Token &macroNameToken,
+                              const clang::MacroInfo *mi);
+    virtual void Defined(const clang::Token &macroNameToken);
+    virtual void Ifdef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
+    virtual void Ifndef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
+
+    void recordReference(
+            const clang::Token &macroNameToken,
+            //clang::SourceLocation location,
+            const char *kind);
 
     clang::SourceManager *m_pSM;
     IndexBuilder &m_builder;

@@ -1,6 +1,7 @@
 #include "IndexBuilder.h"
 
 #include "../libindexdb/IndexDb.h"
+#include "Location.h"
 
 namespace indexer {
 
@@ -37,6 +38,32 @@ IndexBuilder::IndexBuilder(indexdb::Index *index) : m_index(index)
     m_usrStringTable = m_index->stringTable("usr");
     m_refTable = m_index->table("ref");
     m_locTable = m_index->table("loc");
+}
+
+void IndexBuilder::recordRef(const char *usr, const Location &loc, const char *kind)
+{
+    indexdb::ID fileID = m_pathStringTable->insert(loc.filename);
+    indexdb::ID kindID = m_kindStringTable->insert(kind);
+    indexdb::ID usrID = m_usrStringTable->insert(usr);
+
+    {
+        indexdb::Row refRow(5);
+        refRow[0] = usrID;
+        refRow[1] = fileID;
+        refRow[2] = loc.line;
+        refRow[3] = loc.column;
+        refRow[4] = kindID;
+        m_refTable->add(refRow);
+    }
+
+    {
+        indexdb::Row locRow(4);
+        locRow[0] = fileID;
+        locRow[1] = loc.line;
+        locRow[2] = loc.column;
+        locRow[3] = usrID;
+        m_locTable->add(locRow);
+    }
 }
 
 } // namespace indexer

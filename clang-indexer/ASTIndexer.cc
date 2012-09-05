@@ -387,7 +387,10 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
 void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind)
 {
     std::string name = d->getDeclName().getAsString();
-    std::cerr << loc.toString() << "," << kind << ": " << name << std::endl;
+    //std::cerr << loc.toString() << "," << kind << ": " << name << std::endl;
+
+    // TODO: Use a usr.  The identifier by itself is not good enough.
+    m_builder.recordRef(name.c_str(), loc, kind);
 }
 
 } // namespace indexer
