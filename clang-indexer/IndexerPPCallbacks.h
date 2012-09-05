@@ -29,10 +29,7 @@ private:
     virtual void Ifdef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
     virtual void Ifndef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
 
-    void recordReference(
-            const clang::Token &macroNameToken,
-            //clang::SourceLocation location,
-            const char *kind);
+    void recordReference(const clang::Token &macroNameToken, const char *kind);
 
     clang::SourceManager *m_pSM;
     IndexBuilder &m_builder;

@@ -13,30 +13,29 @@ void IndexerPPCallbacks::MacroExpands(
         const clang::MacroInfo *mi,
         clang::SourceRange range)
 {
-    recordReference(macroNameToken, /*range.getBegin(),*/ "Expansion");
+    recordReference(macroNameToken, "Expansion");
 }
 
 void IndexerPPCallbacks::MacroDefined(
         const clang::Token &macroNameToken,
         const clang::MacroInfo *mi)
 {
-    recordReference(macroNameToken, /*mi->getDefinitionLoc(),*/ "Definition");
+    recordReference(macroNameToken, "Definition");
 }
 
 void IndexerPPCallbacks::Defined(const clang::Token &macroNameToken)
 {
-    recordReference(macroNameToken, /*macroNameToken.getLocation(),*/ "Defined-Test");
+    recordReference(macroNameToken, "Defined-Test");
 }
 
 void IndexerPPCallbacks::recordReference(
         const clang::Token &macroNameToken,
-        //clang::SourceLocation location,
         const char *kind)
 {
     std::string usr = "c:macro@";
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
     usr.append(macroName.data(), macroName.size());
-    Location loc = convertLocation(m_pSM, macroNameToken.getLocation() /*, location*/);
+    Location loc = convertLocation(m_pSM, macroNameToken.getLocation());
     m_builder.recordRef(usr.c_str(), loc, kind);
 }
 
