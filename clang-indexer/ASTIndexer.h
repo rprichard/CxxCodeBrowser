@@ -2,6 +2,7 @@
 #define INDEXER_ASTINDEXER_H
 
 #include <clang/AST/RecursiveASTVisitor.h>
+#include <clang/Basic/SourceLocation.h>
 #include <clang/Basic/SourceManager.h>
 
 #include "Location.h"
@@ -9,13 +10,13 @@
 namespace indexer {
 
 class IndexBuilder;
+class IndexerContext;
 
 class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
 {
 public:
-    ASTIndexer(clang::SourceManager *pSM, IndexBuilder &builder) :
-        m_pSM(pSM),
-        m_builder(builder),
+    ASTIndexer(IndexerContext &indexerContext) :
+        m_indexerContext(indexerContext),
         m_thisContext(0),
         m_childContext(0),
         m_typeContext("Reference")
@@ -41,8 +42,7 @@ private:
 
     typedef unsigned int Context;
 
-    clang::SourceManager *m_pSM;
-    IndexBuilder &m_builder;
+    IndexerContext &m_indexerContext;
     Context m_thisContext;
     Context m_childContext;
     const char *m_typeContext;
@@ -81,7 +81,7 @@ private:
     // Expression reference recording
     bool VisitMemberExpr(clang::MemberExpr *e);
     bool VisitDeclRefExpr(clang::DeclRefExpr *e);
-    void RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context);
+    void RecordDeclRefExpr(clang::NamedDecl *d, clang::SourceLocation loc, clang::Expr *e, Context context);
 
     // NestedNameSpecifier handling
     bool TraverseNestedNameSpecifierLoc(clang::NestedNameSpecifierLoc qualifier);
@@ -92,7 +92,7 @@ private:
     bool VisitTypeLoc(clang::TypeLoc tl);
 
     // Reference recording
-    void RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind);
+    void RecordDeclRef(clang::NamedDecl *d, clang::SourceLocation loc, const char *kind);
 };
 
 } // namespace indexer

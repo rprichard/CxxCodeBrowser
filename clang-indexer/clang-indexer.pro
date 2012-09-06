@@ -10,7 +10,8 @@ SOURCES += \
     IndexerPPCallbacks.cc \
     TUIndexer.cc \
     IndexBuilder.cc \
-    USRGenerator.cc
+    USRGenerator.cc \
+    IndexerContext.cc
 
 #LIBS += -lclang
 CONFIG += link_pkgconfig
@@ -31,6 +32,7 @@ HEADERS += \
     IndexerPPCallbacks.h \
     TUIndexer.h \
     IndexBuilder.h \
-    USRGenerator.h
+    USRGenerator.h \
+    IndexerContext.h
 
 include(../clang.pri)

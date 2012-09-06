@@ -54,7 +54,7 @@ indexdb::Index *indexSourceFile(SourceFileInfo sfi)
     }
 
     indexdb::Index *index = indexer::newIndex();
-    indexer::indexTranslationUnit(argv, index);
+    indexer::indexTranslationUnit(argv, *index);
     index->setReadOnly();
     return index;
 }

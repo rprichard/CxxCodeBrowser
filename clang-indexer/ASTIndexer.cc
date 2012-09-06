@@ -6,6 +6,7 @@
 #include <string>
 
 #include "IndexBuilder.h"
+#include "IndexerContext.h"
 #include "Switcher.h"
 #include "USRGenerator.h"
 
@@ -215,7 +216,7 @@ bool ASTIndexer::TraverseConstructorInitializer(clang::CXXCtorInitializer *init)
 {
     if (init->getMember() != NULL) {
         RecordDeclRef(init->getMember(),
-                      convertLocation(m_pSM, init->getMemberLocation()),
+                      init->getMemberLocation(),
                       "Initialized");
     }
 
@@ -232,7 +233,7 @@ bool ASTIndexer::VisitMemberExpr(clang::MemberExpr *e)
 {
     RecordDeclRefExpr(
                 e->getMemberDecl(),
-                convertLocation(m_pSM, e->getMemberLoc()),
+                e->getMemberLoc(),
                 e,
                 m_thisContext);
 
@@ -260,13 +261,13 @@ bool ASTIndexer::VisitDeclRefExpr(clang::DeclRefExpr *e)
 {
     RecordDeclRefExpr(
                 e->getDecl(),
-                convertLocation(m_pSM, e->getLocation()),
+                e->getLocation(),
                 e,
                 m_thisContext);
     return true;
 }
 
-void ASTIndexer::RecordDeclRefExpr(clang::NamedDecl *d, const Location &loc, clang::Expr *e, Context context)
+void ASTIndexer::RecordDeclRefExpr(clang::NamedDecl *d, clang::SourceLocation loc, clang::Expr *e, Context context)
 {
     if (llvm::isa<clang::FunctionDecl>(*d)) {
         // XXX: This code seems sloppy, but I suspect it will work well enough.
@@ -302,12 +303,12 @@ bool ASTIndexer::TraverseNestedNameSpecifierLoc(
         switch (nns->getKind()) {
         case clang::NestedNameSpecifier::Namespace:
             RecordDeclRef(nns->getAsNamespace(),
-                          convertLocation(m_pSM, qualifier.getLocalBeginLoc()),
+                          qualifier.getLocalBeginLoc(),
                           "Qualifier");
             break;
         case clang::NestedNameSpecifier::NamespaceAlias:
             RecordDeclRef(nns->getAsNamespaceAlias(),
-                          convertLocation(m_pSM, qualifier.getLocalBeginLoc()),
+                          qualifier.getLocalBeginLoc(),
                           "Qualifier");
             break;
         case clang::NestedNameSpecifier::TypeSpec:
@@ -316,7 +317,7 @@ bool ASTIndexer::TraverseNestedNameSpecifierLoc(
                 const clang::RecordType *rt = nns->getAsType()->getAs<clang::RecordType>();
                 if (rt != NULL) {
                     RecordDeclRef(rt->getDecl(),
-                                  convertLocation(m_pSM, qualifier.getLocalBeginLoc()),
+                                  qualifier.getLocalBeginLoc(),
                                   "Qualifier");
                 }
             }
@@ -368,7 +369,7 @@ bool ASTIndexer::TraverseCXXRecordDecl(clang::CXXRecordDecl *d)
 bool ASTIndexer::VisitDecl(clang::Decl *d)
 {
     if (clang::NamedDecl *nd = llvm::dyn_cast<clang::NamedDecl>(d)) {
-        Location loc = convertLocation(m_pSM, nd->getLocation());
+        clang::SourceLocation loc = nd->getLocation();
         if (clang::FunctionDecl *fd = llvm::dyn_cast<clang::FunctionDecl>(d)) {
             const char *kind;
             kind = fd->isThisDeclarationADefinition() ? "Definition" : "Declaration";
@@ -404,12 +405,12 @@ bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
     if (llvm::isa<clang::TagTypeLoc>(tl)) {
         clang::TagTypeLoc &ttl = *llvm::cast<clang::TagTypeLoc>(&tl);
         RecordDeclRef(ttl.getDecl(),
-                      convertLocation(m_pSM, tl.getBeginLoc()),
+                      tl.getBeginLoc(),
                       m_typeContext);
     } else if (llvm::isa<clang::TypedefTypeLoc>(tl)) {
         clang::TypedefTypeLoc &ttl = *llvm::cast<clang::TypedefTypeLoc>(&tl);
         RecordDeclRef(ttl.getTypedefNameDecl(),
-                      convertLocation(m_pSM, tl.getBeginLoc()),
+                      tl.getBeginLoc(),
                       m_typeContext);
     }
 
@@ -420,12 +421,14 @@ bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
 ///////////////////////////////////////////////////////////////////////////////
 // Reference recording
 
-void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind)
+void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, clang::SourceLocation loc, const char *kind)
 {
+    Location convertedLoc =
+            m_indexerContext.getLocationConverter().convert(loc);
     llvm::SmallString<128> usr;
     if (getDeclCursorUSR(d, usr))
         return;
-    m_builder.recordRef(usr.c_str(), loc, kind);
+    m_indexerContext.getIndexBuilder().recordRef(usr.c_str(), convertedLoc, kind);
 }
 
 } // namespace indexer

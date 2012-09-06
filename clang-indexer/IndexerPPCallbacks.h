@@ -9,15 +9,12 @@
 
 namespace indexer {
 
-class IndexBuilder;
+class IndexerContext;
 
 class IndexerPPCallbacks : public clang::PPCallbacks
 {
 public:
-    IndexerPPCallbacks(clang::SourceManager *pSM, IndexBuilder &builder) :
-        m_pSM(pSM), m_builder(builder)
-    {
-    }
+    IndexerPPCallbacks(IndexerContext &context) : m_context(context) {}
 
 private:
     virtual void MacroExpands(const clang::Token &macroNameToken,
@@ -31,8 +28,7 @@ private:
 
     void recordReference(const clang::Token &macroNameToken, const char *kind);
 
-    clang::SourceManager *m_pSM;
-    IndexBuilder &m_builder;
+    IndexerContext &m_context;
 };
 
 } // namespace indexer

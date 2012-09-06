@@ -31,25 +31,24 @@ indexdb::Index *newIndex()
     return index;
 }
 
-IndexBuilder::IndexBuilder(indexdb::Index *index) : m_index(index)
+IndexBuilder::IndexBuilder(indexdb::Index &index) : m_index(index)
 {
-    m_pathStringTable = m_index->stringTable("path");
-    m_kindStringTable = m_index->stringTable("kind");
-    m_usrStringTable = m_index->stringTable("usr");
-    m_refTable = m_index->table("ref");
-    m_locTable = m_index->table("loc");
+    m_pathStringTable = m_index.stringTable("path");
+    m_kindStringTable = m_index.stringTable("kind");
+    m_usrStringTable = m_index.stringTable("usr");
+    m_refTable = m_index.table("ref");
+    m_locTable = m_index.table("loc");
 }
 
 void IndexBuilder::recordRef(const char *usr, const Location &loc, const char *kind)
 {
-    indexdb::ID fileID = m_pathStringTable->insert(loc.filename);
     indexdb::ID kindID = m_kindStringTable->insert(kind);
     indexdb::ID usrID = m_usrStringTable->insert(usr);
 
     {
         indexdb::Row refRow(5);
         refRow[0] = usrID;
-        refRow[1] = fileID;
+        refRow[1] = loc.fileID;
         refRow[2] = loc.line;
         refRow[3] = loc.column;
         refRow[4] = kindID;
@@ -58,7 +57,7 @@ void IndexBuilder::recordRef(const char *usr, const Location &loc, const char *k
 
     {
         indexdb::Row locRow(4);
-        locRow[0] = fileID;
+        locRow[0] = loc.fileID;
         locRow[1] = loc.line;
         locRow[2] = loc.column;
         locRow[3] = usrID;

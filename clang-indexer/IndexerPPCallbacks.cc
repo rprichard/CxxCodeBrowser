@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "IndexBuilder.h"
+#include "IndexerContext.h"
 #include "Location.h"
 
 namespace indexer {
@@ -35,8 +36,9 @@ void IndexerPPCallbacks::recordReference(
     std::string usr = "c:macro@";
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
     usr.append(macroName.data(), macroName.size());
-    Location loc = convertLocation(m_pSM, macroNameToken.getLocation());
-    m_builder.recordRef(usr.c_str(), loc, kind);
+    Location loc = m_context.getLocationConverter().convert(
+                macroNameToken.getLocation());
+    m_context.getIndexBuilder().recordRef(usr.c_str(), loc, kind);
 }
 
 } // namespace indexer

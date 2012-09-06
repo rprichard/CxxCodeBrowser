@@ -19,31 +19,26 @@
 #include "../libindexdb/IndexDb.h"
 #include "ASTIndexer.h"
 #include "IndexBuilder.h"
+#include "IndexerContext.h"
 #include "IndexerPPCallbacks.h"
 
 namespace indexer {
 
 class IndexerASTConsumer : public clang::ASTConsumer {
 public:
-    IndexerASTConsumer(
-            clang::SourceManager *pSM,
-            IndexBuilder &builder) :
-        m_pSM(pSM), m_builder(builder)
-    {
-    }
+    IndexerASTConsumer(IndexerContext &context) : m_context(context) {}
 
 private:
     virtual bool HandleTopLevelDecl(clang::DeclGroupRef declGroup);
 
-    clang::SourceManager *m_pSM;
-    IndexBuilder &m_builder;
+    IndexerContext m_context;
 };
 
 bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
 {
     for (clang::DeclGroupRef::iterator i = declGroup.begin(); i != declGroup.end(); ++i) {
         clang::Decl *decl = *i;
-        ASTIndexer iv(m_pSM, m_builder);
+        ASTIndexer iv(m_context);
         iv.indexDecl(decl);
     }
     return true;
@@ -51,36 +46,47 @@ bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
 
 class IndexerAction : public clang::ASTFrontendAction {
 public:
-    IndexerAction(IndexBuilder &builder) : m_builder(builder) {}
+    IndexerAction(indexdb::Index &index) :
+        m_index(index), m_context(NULL)
+    {
+    }
+
+    ~IndexerAction()
+    {
+        delete m_context;
+    }
 
 private:
+    IndexerContext &getContext(clang::CompilerInstance &ci) {
+        if (m_context == NULL)
+            m_context = new IndexerContext(ci.getSourceManager(), m_index);
+        return *m_context;
+    }
+
     virtual clang::ASTConsumer *CreateASTConsumer(
             clang::CompilerInstance &ci,
             llvm::StringRef inFile) {
-        IndexerASTConsumer *astConsumer =
-                new IndexerASTConsumer(&ci.getSourceManager(), m_builder);
-        return astConsumer;
+        return new IndexerASTConsumer(getContext(ci));
     }
 
     virtual bool BeginSourceFileAction(clang::CompilerInstance &ci,
                                        llvm::StringRef filename) {
         ci.getDiagnostics().setClient(new clang::IgnoringDiagConsumer);
         ci.getPreprocessor().addPPCallbacks(
-                    new IndexerPPCallbacks(&ci.getSourceManager(), m_builder));
+                    new IndexerPPCallbacks(getContext(ci)));
         return true;
     }
 
-    IndexBuilder &m_builder;
+    indexdb::Index &m_index;
+    IndexerContext *m_context;
 };
 
 void indexTranslationUnit(
         const std::vector<std::string> &argv,
-        indexdb::Index *index)
+        indexdb::Index &index)
 {
-    IndexBuilder builder(index);
-
     llvm::OwningPtr<clang::FileManager> fm(new clang::FileManager(clang::FileSystemOptions()));
-    llvm::OwningPtr<IndexerAction> action(new IndexerAction(builder));
+    llvm::OwningPtr<IndexerAction> action(new IndexerAction(index));
     clang::tooling::ToolInvocation ti(argv, action.take(), fm.get());
     ti.run();
 }
