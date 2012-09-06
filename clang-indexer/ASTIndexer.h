@@ -14,7 +14,11 @@ class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
 {
 public:
     ASTIndexer(clang::SourceManager *pSM, IndexBuilder &builder) :
-        m_pSM(pSM), m_builder(builder), m_thisContext(0), m_childContext(0)
+        m_pSM(pSM),
+        m_builder(builder),
+        m_thisContext(0),
+        m_childContext(0),
+        m_typeContext("Reference")
     {
     }
 
@@ -41,6 +45,7 @@ private:
     IndexBuilder &m_builder;
     Context m_thisContext;
     Context m_childContext;
+    const char *m_typeContext;
 
     // Misc routines
     bool shouldUseDataRecursionFor(clang::Stmt *s) const;
@@ -81,8 +86,10 @@ private:
     // NestedNameSpecifier handling
     bool TraverseNestedNameSpecifierLoc(clang::NestedNameSpecifierLoc qualifier);
 
-    // Declaration handling
+    // Declaration and TypeLoc handling
+    bool TraverseCXXRecordDecl(clang::CXXRecordDecl *d);
     bool VisitDecl(clang::Decl *d);
+    bool VisitTypeLoc(clang::TypeLoc tl);
 
     // Reference recording
     void RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind);

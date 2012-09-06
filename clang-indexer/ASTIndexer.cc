@@ -327,7 +327,39 @@ bool ASTIndexer::TraverseNestedNameSpecifierLoc(
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// Declaration handling
+// Declaration and TypeLoc handling
+
+// Overriding TraverseCXXRecordDecl lets us mark the base-class references
+// with the "Base-Class" kind.
+bool ASTIndexer::TraverseCXXRecordDecl(clang::CXXRecordDecl *d)
+{
+    // Traverse qualifiers on the record decl.
+    TraverseNestedNameSpecifierLoc(d->getQualifierLoc());
+
+    // Visit the TagDecl to record its ref.
+    WalkUpFromCXXRecordDecl(d);
+
+    // Traverse base classes.
+    if (d->isThisDeclarationADefinition()) {
+        for (clang::CXXRecordDecl::base_class_iterator it = d->bases_begin();
+                it != d->bases_end();
+                ++it) {
+            clang::CXXBaseSpecifier *baseSpecifier = it;
+            Switcher<const char*> sw(m_typeContext, "Base-Class");
+            TraverseTypeLoc(baseSpecifier->getTypeSourceInfo()->getTypeLoc());
+        }
+    }
+
+    // Traverse children.
+    for (clang::DeclContext::decl_iterator it = d->decls_begin(),
+            itEnd = d->decls_end(); it != itEnd; ++it) {
+        // BlockDecls are traversed through BlockExprs.
+        if (!llvm::isa<clang::BlockDecl>(*it))
+            TraverseDecl(*it);
+    }
+
+    return true;
+}
 
 bool ASTIndexer::VisitDecl(clang::Decl *d)
 {
@@ -345,34 +377,6 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
                 kind = "Definition";
             }
             RecordDeclRef(nd, loc, kind);
-        } else if (clang::CXXRecordDecl *rd = llvm::dyn_cast<clang::CXXRecordDecl>(d)) {
-            const char *kind = "Declaration";
-            if (rd->isThisDeclarationADefinition()) {
-                kind = "Definition";
-                // Record base classes.
-
-                // XXX: This code is ugly.  It needs to be refactored at least.
-                // Maybe all type references should be caught using
-                // VisitTypeLoc.
-
-                for (clang::CXXRecordDecl::base_class_iterator it = rd->bases_begin(); it != rd->bases_end(); ++it) {
-                    clang::CXXBaseSpecifier *bs = it;
-                    const clang::RecordType *baseType = bs->getType().getTypePtr()->getAs<clang::RecordType>();
-                    if (baseType) {
-                        clang::TypeLoc baseClangTypeLoc = bs->getTypeSourceInfo()->getTypeLoc();
-                        clang::SourceLocation baseClangLoc = baseClangTypeLoc.getBeginLoc();
-                        if (baseClangTypeLoc.getTypeLocClass() == clang::TypeLoc::Elaborated) {
-                            clang::ElaboratedTypeLoc &elaboratedTypeLoc = *llvm::cast<clang::ElaboratedTypeLoc>(&baseClangTypeLoc);
-                            baseClangLoc = elaboratedTypeLoc.getNamedTypeLoc().getBeginLoc();
-                        }
-                        RecordDeclRef(
-                                    baseType->getDecl(),
-                                    convertLocation(m_pSM, baseClangLoc),
-                                    "Base-Class");
-                    }
-                }
-            }
-            RecordDeclRef(nd, loc, kind);
         } else if (clang::TagDecl *td = llvm::dyn_cast<clang::TagDecl>(d)) {
             // TODO: Handle the C++11 fixed underlying type of enumeration
             // declarations.
@@ -386,6 +390,23 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
         } else {
             RecordDeclRef(nd, loc, "Declaration");
         }
+    }
+
+    return true;
+}
+
+bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
+{
+    if (llvm::isa<clang::TagTypeLoc>(tl)) {
+        clang::TagTypeLoc &ttl = *llvm::cast<clang::TagTypeLoc>(&tl);
+        RecordDeclRef(ttl.getDecl(),
+                      convertLocation(m_pSM, tl.getBeginLoc()),
+                      m_typeContext);
+    } else if (llvm::isa<clang::TypedefTypeLoc>(tl)) {
+        clang::TypedefTypeLoc &ttl = *llvm::cast<clang::TypedefTypeLoc>(&tl);
+        RecordDeclRef(ttl.getTypedefNameDecl(),
+                      convertLocation(m_pSM, tl.getBeginLoc()),
+                      m_typeContext);
     }
 
     return true;
