@@ -28,6 +28,8 @@ namespace indexer {
 // actually the same type, I would think that an xref on one should show both.
 
 // TODO: Unary ++ and --
+// TODO: templates
+// TODO: For a namespace alias "namespace A = B", record B.
 
 ///////////////////////////////////////////////////////////////////////////////
 // Misc routines
