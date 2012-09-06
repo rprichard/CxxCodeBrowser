@@ -120,7 +120,7 @@ def extractSourceFile(command):
                                      arg[2:])))
             elif arg[1] == "D":
                 outputDefines.append(arg[2:])
-            elif arg == "-include":
+            elif arg in ["-include", "-isysroot"]:
                 # Keep this and next argument.
                 assert len(args) >= 1
                 outputExtraArgs.append(arg)
@@ -128,6 +128,11 @@ def extractSourceFile(command):
                     os.path.realpath(
                         os.path.join(command.cwd,
                                      args.pop(0))))
+            elif arg == "-arch":
+                # Keep this and next argument.
+                assert len(args) >= 1
+                outputExtraArgs.append(arg)
+                outputExtraArgs.append(args.pop(0))
             elif arg in ["-MF", "-MT", "-MQ", "--param"]:
                 # Discard this and next argument.
                 assert len(args) >= 1
