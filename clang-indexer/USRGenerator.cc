@@ -1,5 +1,7 @@
 // This file is copied from Clang 3.1's CIndexUSR.cpp.
 
+#include "USRGenerator.h"
+
 //===- CIndexUSR.cpp - Clang-C Source Indexing Library --------------------===//
 //
 //                     The LLVM Compiler Infrastructure
@@ -13,9 +15,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CIndexer.h"
-#include "CXCursor.h"
-#include "CXString.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclVisitor.h"
 #include "clang/Frontend/ASTUnit.h"
@@ -23,8 +22,9 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 
+namespace indexer {
+
 using namespace clang;
-using namespace clang::cxstring;
 
 //===----------------------------------------------------------------------===//
 // USR generation.
@@ -797,7 +797,7 @@ static inline StringRef extractUSRSuffix(StringRef s) {
   return s.startswith("c:") ? s.substr(2) : "";
 }
 
-bool cxcursor::getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf) {
+bool getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf) {
   // Don't generate USRs for things with invalid locations.
   if (!D || D->getLocStart().isInvalid())
     return true;
@@ -836,99 +836,4 @@ bool cxcursor::getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf) {
   return false;
 }
 
-extern "C" {
-
-CXString clang_getCursorUSR(CXCursor C) {
-  const CXCursorKind &K = clang_getCursorKind(C);
-
-  if (clang_isDeclaration(K)) {
-    Decl *D = cxcursor::getCursorDecl(C);
-    if (!D)
-      return createCXString("");
-
-    CXTranslationUnit TU = cxcursor::getCursorTU(C);
-    if (!TU)
-      return createCXString("");
-
-    CXStringBuf *buf = cxstring::getCXStringBuf(TU);
-    if (!buf)
-      return createCXString("");
-
-    bool Ignore = cxcursor::getDeclCursorUSR(D, buf->Data);
-    if (Ignore) {
-      disposeCXStringBuf(buf);
-      return createCXString("");
-    }
-
-    // Return the C-string, but don't make a copy since it is already in
-    // the string buffer.
-    buf->Data.push_back('\0');
-    return createCXString(buf);
-  }
-
-  if (K == CXCursor_MacroDefinition) {
-    CXTranslationUnit TU = cxcursor::getCursorTU(C);
-    if (!TU)
-      return createCXString("");
-
-    CXStringBuf *buf = cxstring::getCXStringBuf(TU);
-    if (!buf)
-      return createCXString("");
-
-    {
-      USRGenerator UG(&cxcursor::getCursorASTUnit(C)->getASTContext(),
-                      &buf->Data);
-      UG << "macro@"
-        << cxcursor::getCursorMacroDefinition(C)->getName()->getNameStart();
-    }
-    buf->Data.push_back('\0');
-    return createCXString(buf);
-  }
-
-  return createCXString("");
-}
-
-CXString clang_constructUSR_ObjCIvar(const char *name, CXString classUSR) {
-  USRGenerator UG;
-  UG << extractUSRSuffix(clang_getCString(classUSR));
-  UG->GenObjCIvar(name);
-  return createCXString(UG.str(), true);
-}
-
-CXString clang_constructUSR_ObjCMethod(const char *name,
-                                       unsigned isInstanceMethod,
-                                       CXString classUSR) {
-  USRGenerator UG;
-  UG << extractUSRSuffix(clang_getCString(classUSR));
-  UG->GenObjCMethod(name, isInstanceMethod);
-  return createCXString(UG.str(), true);
-}
-
-CXString clang_constructUSR_ObjCClass(const char *name) {
-  USRGenerator UG;
-  UG->GenObjCClass(name);
-  return createCXString(UG.str(), true);
-}
-
-CXString clang_constructUSR_ObjCProtocol(const char *name) {
-  USRGenerator UG;
-  UG->GenObjCProtocol(name);
-  return createCXString(UG.str(), true);
-}
-
-CXString clang_constructUSR_ObjCCategory(const char *class_name,
-                                         const char *category_name) {
-  USRGenerator UG;
-  UG->GenObjCCategory(class_name, category_name);
-  return createCXString(UG.str(), true);
-}
-
-CXString clang_constructUSR_ObjCProperty(const char *property,
-                                         CXString classUSR) {
-  USRGenerator UG;
-  UG << extractUSRSuffix(clang_getCString(classUSR));
-  UG->GenObjCProperty(property);
-  return createCXString(UG.str(), true);
-}
-
-} // end extern "C"
+} // namespace indexer

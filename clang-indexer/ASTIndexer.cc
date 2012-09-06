@@ -1,11 +1,13 @@
 #include "ASTIndexer.h"
 
 #include <iostream>
+#include <llvm/ADT/SmallString.h>
 #include <llvm/Support/Casting.h>
 #include <string>
 
 #include "IndexBuilder.h"
 #include "Switcher.h"
+#include "USRGenerator.h"
 
 namespace indexer {
 
@@ -420,10 +422,10 @@ bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
 
 void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, const Location &loc, const char *kind)
 {
-    std::string name = d->getDeclName().getAsString();
-
-    // TODO: Use a usr.  The identifier by itself is not good enough.
-    m_builder.recordRef(name.c_str(), loc, kind);
+    llvm::SmallString<128> usr;
+    if (getDeclCursorUSR(d, usr))
+        return;
+    m_builder.recordRef(usr.c_str(), loc, kind);
 }
 
 } // namespace indexer
