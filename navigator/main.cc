@@ -1,10 +1,13 @@
 #include <QtGui/QApplication>
+#include <QTextCodec>
 #include "MainWindow.h"
 #include "Project.h"
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+
+    QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));
 
     Nav::theProject = new Nav::Project("index");
 
