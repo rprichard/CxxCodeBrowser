@@ -1,6 +1,6 @@
 /* C++ code produced by gperf version 3.0.3 */
 /* Command-line: gperf --language=C++ --enum --class-name=Directives --output-file=CXXSyntaxHighlighterDirectives.h  */
-/* Computed positions: -k'1,3' */
+/* Computed positions: -k'2,4' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
       && ('%' == 37) && ('&' == 38) && ('\'' == 39) && ('(' == 40) \
@@ -29,7 +29,7 @@
 #error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gnu-gperf@gnu.org>."
 #endif
 
-/* maximum key range = 19, duplicates = 0 */
+/* maximum key range = 23, duplicates = 0 */
 
 class Directives
 {
@@ -44,43 +44,43 @@ Directives::hash (register const char *str, register unsigned int len)
 {
   static unsigned char asso_values[] =
     {
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23,  5, 23,  0,
-       0,  0,  0, 23, 23,  5, 23, 23, 10, 23,
-       0, 23,  5, 23, 10,  0, 23, 15, 23,  5,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23, 23, 23, 23, 23,
-      23, 23, 23, 23, 23, 23
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 15, 27, 27,
+       5,  0, 15, 10, 27,  5, 27, 27,  0,  5,
+       0,  5, 27, 27,  5, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27, 27, 27, 27, 27,
+      27, 27, 27, 27, 27, 27
     };
   register int hval = len;
 
   switch (hval)
     {
       default:
-        hval += asso_values[(unsigned char)str[2]];
+        hval += asso_values[(unsigned char)str[3]];
       /*FALLTHROUGH*/
+      case 3:
       case 2:
-      case 1:
-        hval += asso_values[(unsigned char)str[0]];
+        hval += asso_values[(unsigned char)str[1]];
         break;
     }
   return hval;
@@ -91,34 +91,36 @@ Directives::in_word_set (register const char *str, register unsigned int len)
 {
   enum
     {
-      TOTAL_KEYWORDS = 14,
+      TOTAL_KEYWORDS = 15,
       MIN_WORD_LENGTH = 2,
       MAX_WORD_LENGTH = 12,
       MIN_HASH_VALUE = 4,
-      MAX_HASH_VALUE = 22
+      MAX_HASH_VALUE = 26
     };
 
   static const char * wordlist[] =
     {
       "", "", "", "",
       "else",
+      "undef",
+      "",
+      "include",
+      "",
+      "line",
       "endif",
       "define",
+      "include_next",
+      "", "",
+      "error",
+      "import",
       "if",
       "",
       "elif",
       "ifdef",
-      "ifndef",
-      "include",
-      "",
-      "line",
-      "error",
       "pragma",
-      "include_next",
-      "", "",
-      "undef",
-      "",
-      "warning"
+      "warning",
+      "", "", "",
+      "ifndef"
     };
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)

@@ -41,50 +41,58 @@ QVector<Kind> highlight(const QString &content)
     char text[32];
     char *pText;
 
+    const char *includeDirective =
+            Directives::in_word_set("include", strlen("include"));
+    const char *includeNextDirective =
+            Directives::in_word_set("include_next", strlen("include_next"));
+    const char *importDirective =
+            Directives::in_word_set("import", strlen("import"));
+
 #define CH(i) p[i].unicode()
+#define ADVANCE(KIND) do { *k++ = KIND; p++; } while(0)
 
 START_OF_LINE:
     if (CH(0) == '#') {
+        // Handle a preprocessor directive.
         preprocStart = k;
-        *k++ = KindDefault;
-        p++;
+        ADVANCE(KindDefault);
         while (CH(0) == ' ' || CH(0) == '\t') {
-            *k++ = KindDefault;
-            p++;
+            ADVANCE(KindDefault);
         }
         pText = text;
-        while (isAlpha(p[0])) {
+        while (isAlpha(p[0]) || CH(0) == '_') {
             if (pText < text + sizeof(text) - 1)
                 *pText++ = static_cast<char>(CH(0));
-            *k++ = KindDefault;
-            p++;
+            ADVANCE(KindDefault);
         }
         unsigned int length = pText - text;
         *pText++ = '\0';
-        if (Directives::in_word_set(text, length)) {
+        const char *directive = Directives::in_word_set(text, length);
+        if (directive != NULL) {
             // Go back and highlight the directive.
             for (Kind *k2 = preprocStart; k2 != k; ++k2)
                 *k2 = KindDirective;
-        }
 
-        // Handle #include <foo>: skip whitespace then jump to the QUOTED
-        // state if the next character is a '<'.  Otherwise go to DEFAULT like
-        // normal.
-        while (CH(0) == ' ' || CH(0) == '\t') {
-            *k++ = KindDefault;
-            p++;
-        }
-        if (CH(0) == '<') {
-            *k++ = KindQuoted;
-            p++;
-            quoteChar = '>';
-            goto QUOTED;
+            // Handle #include <foo>.  Skip whitespace then jump to the QUOTED
+            // state if the next character is a '<'.  Otherwise go to DEFAULT
+            // like normal.
+            if (directive == includeDirective ||
+                    directive == includeNextDirective ||
+                    directive == importDirective) {
+                while (CH(0) == ' ' || CH(0) == '\t') {
+                    ADVANCE(KindDefault);
+                }
+                if (CH(0) == '<') {
+                    ADVANCE(KindQuoted);
+                    quoteChar = '>';
+                    goto QUOTED;
+                }
+            }
         }
 
         goto DEFAULT;
     } else if (CH(0) == ' ' || CH(0) == '\t' || CH(0) == '\n') {
-        *k++ = KindDefault;
-        p++;
+        ADVANCE(KindDefault);
         goto START_OF_LINE;
     } else if (p[0].isNull()) {
         goto END;
@@ -95,20 +103,17 @@ START_OF_LINE:
 DEFAULT:
     if (CH(0) == '/') {
         if (CH(1) == '*') {
-            *k++ = KindComment;
-            *k++ = KindComment;
-            p += 2;
+            ADVANCE(KindComment);
+            ADVANCE(KindComment);
             goto BLOCK_COMMENT;
         } else if (CH(1) == '/') {
-            *k++ = KindComment;
-            *k++ = KindComment;
-            p += 2;
+            ADVANCE(KindComment);
+            ADVANCE(KindComment);
             goto LINE_COMMENT;
         }
     } else if (CH(0) == '\'' || CH(0) == '"') {
         quoteChar = CH(0);
-        *k++ = KindQuoted;
-        p++;
+        ADVANCE(KindQuoted);
         goto QUOTED;
     } else if (isDigit(p[0]) || (CH(0) == '.' && isDigit(p[1]))) {
         goto PP_NUMBER;
@@ -116,76 +121,65 @@ DEFAULT:
         pText = text;
         goto TEXT;
     } else if (CH(0) == '\\' && CH(1) == '\n') {
-        *k++ = KindDefault;
-        p++;
+        ADVANCE(KindDefault);
         goto DEFAULT;
     } else if (CH(0) == '\n') {
-        *k++ = KindDefault;
-        p++;
+        ADVANCE(KindDefault);
         goto START_OF_LINE;
     } else if (p[0].isNull()) {
         goto END;
     } else {
-        *k++ = KindDefault;
-        p++;
+        ADVANCE(KindDefault);
         goto DEFAULT;
     }
 
 BLOCK_COMMENT:
     if (CH(0) == '*' && CH(1) == '/') {
-        *k++ = KindComment;
-        *k++ = KindComment;
-        p += 2;
+        ADVANCE(KindComment);
+        ADVANCE(KindComment);
         goto DEFAULT;
     } else if (p[0].isNull()) {
         goto END;
     } else {
-        *k++ = KindComment;
-        p++;
+        ADVANCE(KindComment);
         goto BLOCK_COMMENT;
     }
 
 LINE_COMMENT:
     if (CH(0) == '\n' && CH(-1) != '\\') {
-        *k++ = KindComment;
-        p++;
+        // XXX: GCC/Clang allow whitespace between the backslash and newline.
+        ADVANCE(KindComment);
         goto START_OF_LINE;
     } else if (p[0].isNull()) {
         goto END;
     } else {
-        *k++ = KindComment;
-        p++;
+        ADVANCE(KindComment);
         goto LINE_COMMENT;
     }
 
 QUOTED:
     if (CH(0) == '\\' && CH(1) != '\0') {
-        *k++ = KindQuoted;
-        *k++ = KindQuoted;
-        p += 2;
+        ADVANCE(KindQuoted);
+        ADVANCE(KindQuoted);
         goto QUOTED;
     } else if (CH(0) == quoteChar) {
-        *k++ = KindQuoted;
-        p++;
+        ADVANCE(KindQuoted);
         goto DEFAULT;
     } else if (p[0].isNull()) {
         goto END;
     } else {
-        *k++ = KindQuoted;
-        p++;
+        ADVANCE(KindQuoted);
         goto QUOTED;
     }
 
 PP_NUMBER:
     // Convoluted example: 0x1._E+.12 is a single preprocessor number.
     if ((CH(0) == 'e' || CH(0) == 'E') && (CH(1) == '+' || CH(1) == '-')) {
-        *k++ = KindNumber;
-        *k++ = KindNumber;
-        p += 2;
+        ADVANCE(KindNumber);
+        ADVANCE(KindNumber);
         goto PP_NUMBER;
     } else if (isAlnum(p[0]) || CH(0) == '_' || CH(0) == '.') {
-        *k++ = KindNumber;
-        p++;
+        ADVANCE(KindNumber);
         goto PP_NUMBER;
     } else {
         goto DEFAULT;
@@ -198,8 +192,7 @@ TEXT:
             // be too long to match a keyword anyway.
             *pText++ = static_cast<char>(CH(0));
         }
-        *k++ = KindDefault;
-        p++;
+        ADVANCE(KindDefault);
         goto TEXT;
     } else {
         // Check if the identifier matches a keyword, and if it does, go back
@@ -214,6 +207,7 @@ TEXT:
     }
 
 #undef CH
+#undef ADVANCE
 
 END:
     assert(p == content.data() + content.size());

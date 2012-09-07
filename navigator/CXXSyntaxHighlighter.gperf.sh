@@ -18,6 +18,7 @@ error
 pragma
 warning
 include_next
+import
 EOF
 }
 
