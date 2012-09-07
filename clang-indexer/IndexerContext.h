@@ -18,9 +18,9 @@ class IndexerContext
 {
 public:
     IndexerContext(clang::SourceManager &sourceManager, indexdb::Index &index);
-    clang::SourceManager &getSourceManager() { return m_sourceManager; }
-    IndexBuilder &getIndexBuilder() { return m_indexBuilder; }
-    LocationConverter &getLocationConverter() { return m_locationConverter; }
+    clang::SourceManager &sourceManager() { return m_sourceManager; }
+    IndexBuilder &indexBuilder() { return m_indexBuilder; }
+    LocationConverter &locationConverter() { return m_locationConverter; }
 
 private:
     clang::SourceManager &m_sourceManager;

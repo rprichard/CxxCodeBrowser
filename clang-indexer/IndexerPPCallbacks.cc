@@ -36,9 +36,9 @@ void IndexerPPCallbacks::recordReference(
     std::string usr = "c:macro@";
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
     usr.append(macroName.data(), macroName.size());
-    Location loc = m_context.getLocationConverter().convert(
+    Location loc = m_context.locationConverter().convert(
                 macroNameToken.getLocation());
-    m_context.getIndexBuilder().recordRef(usr.c_str(), loc, kind);
+    m_context.indexBuilder().recordRef(usr.c_str(), loc, kind);
 }
 
 } // namespace indexer

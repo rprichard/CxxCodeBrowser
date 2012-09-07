@@ -424,11 +424,11 @@ bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
 void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, clang::SourceLocation loc, const char *kind)
 {
     Location convertedLoc =
-            m_indexerContext.getLocationConverter().convert(loc);
+            m_indexerContext.locationConverter().convert(loc);
     llvm::SmallString<128> usr;
     if (getDeclCursorUSR(d, usr))
         return;
-    m_indexerContext.getIndexBuilder().recordRef(usr.c_str(), convertedLoc, kind);
+    m_indexerContext.indexBuilder().recordRef(usr.c_str(), convertedLoc, kind);
 }
 
 } // namespace indexer
