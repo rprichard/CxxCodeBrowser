@@ -28,7 +28,7 @@ private:
     QString m_path;
     bool m_loaded;
     QString m_content;
-    std::vector<std::pair<int, int> > m_lines;
+    std::vector<int> m_lines;
 };
 
 } // namespace Nav

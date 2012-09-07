@@ -25,28 +25,38 @@ void File::ensureLoaded()
     if (!qfile.open(QFile::ReadOnly)) {
         m_content = "Error: cannot open " + m_path;
     } else {
-        m_content = qfile.readAll();
+        // Read the file and canonicalize CRLF and CR line endings to LF.
+        char *buf = new char[qfile.size() + 1];
+        qfile.read(buf, qfile.size());
+        buf[qfile.size()] = '\0';
+        char *d = buf, *s = buf;
+        while (*s != '\0') {
+            if (*s == '\r') {
+                *(d++) = '\n';
+                ++s;
+                if (*s == '\n')
+                    ++s;
+            } else {
+                *(d++) = *(s++);
+            }
+        }
+        *(d++) = '\0';
+        m_content = buf;
+        delete [] buf;
     }
 
+    // Identify where each line begins.
     QChar *data = m_content.data();
-    const QChar charCR = '\r';
     const QChar charNL = '\n';
-
     int lineStart = 0;
-
-    for (int i = 0; ; ) {
-        if (data[i] == charCR || data[i] == charNL) {
-            m_lines.push_back(std::make_pair(lineStart, i - lineStart));
-            if (data[i] == charCR && data[i + 1] == charNL)
-                i++;
-            i++;
-            lineStart = i;
+    for (int i = 0; ; i++) {
+        if (data[i] == charNL) {
+            m_lines.push_back(lineStart);
+            lineStart = i + 1;
         } else if (data[i].isNull()) {
             if (i > lineStart)
-                m_lines.push_back(std::make_pair(lineStart, i - lineStart));
+                m_lines.push_back(lineStart);
             break;
-        } else {
-            i++;
         }
     }
 
@@ -70,7 +80,7 @@ int File::lineStart(int line)
 {
     ensureLoaded();
     assert(line < lineCount());
-    return m_lines[line].first;
+    return m_lines[line];
 }
 
 // 0-based line number
@@ -78,7 +88,18 @@ int File::lineLength(int line)
 {
     ensureLoaded();
     assert(line < lineCount());
-    return m_lines[line].second;
+
+    int startPos = lineStart(line);
+    int endPos;
+    if (line + 1 < lineCount())
+        endPos = lineStart(line + 1);
+    else
+        endPos = m_content.size();
+
+    if (startPos < endPos && m_content[endPos - 1] == QChar('\n'))
+        --endPos;
+
+    return endPos - startPos;
 }
 
 // 0-based line number
