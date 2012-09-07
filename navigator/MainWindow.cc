@@ -32,19 +32,21 @@ MainWindow::MainWindow(QWidget *parent) :
     font.setPointSize(8);
     font.setStyleStrategy(QFont::ForceIntegerMetrics);
     ui->sourceWidget->setFont(font);
-    ui->commandWidget->setFont(font);
+    //ui->commandWidget->setFont(font);
     QFontMetrics fontMetrics(ui->sourceWidget->font());
     int fontWidth = fontMetrics.width(' ');
     ui->sourceWidget->setTabStopWidth(fontWidth * 8);
 
+    /*
     // Make the command pane as small as allowed.
     QList<int> newSizes;
     newSizes << height();
     newSizes << 1;
     ui->splitter->setSizes(newSizes);
+    */
 
     connect(ui->action_File_List, SIGNAL(triggered()), this, SLOT(actionViewFileList()));
-    connect(ui->commandWidget, SIGNAL(commandEntered(QString)), SLOT(actionCommand(QString)));
+    //connect(ui->commandWidget, SIGNAL(commandEntered(QString)), SLOT(actionCommand(QString)));
 
     // Register Ctrl+Q.
     QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
