@@ -16,7 +16,8 @@ SOURCES += \
     ReportFileList.cc \
     ReportRefList.cc \
     TreeReport.cc \
-    TreeReportWindow.cc
+    TreeReportWindow.cc \
+    CXXSyntaxHighlighter.cc
 
 HEADERS += \
     Misc.h \
@@ -30,7 +31,10 @@ HEADERS += \
     ReportFileList.h \
     ReportRefList.h \
     TreeReport.h \
-    TreeReportWindow.h
+    TreeReportWindow.h \
+    CXXSyntaxHighlighter.h \
+    CXXSyntaxHighlighterDirectives.h \
+    CXXSyntaxHighlighterKeywords.h
 
 FORMS += \
     MainWindow.ui \
