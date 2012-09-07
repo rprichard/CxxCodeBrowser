@@ -16,19 +16,49 @@ class File
 public:
     File(const QString &path);
     QString path();
-    QString content();
-    int lineCount();
-    int lineStart(int line);
-    int lineLength(int line);
-    QStringRef lineContent(int line);
+
+    QString content() {
+        ensureLoaded();
+        return m_content;
+    }
+
+    int lineCount() {
+        ensureLoaded();
+        return m_lines.size();
+    }
+
+    // 0-based line number
+    int lineStart(int line) {
+        ensureLoaded();
+        assert(line < lineCount());
+        return m_lines[line].first;
+    }
+
+    // 0-based line number
+    int lineLength(int line) {
+        ensureLoaded();
+        assert(line < lineCount());
+        return m_lines[line].second;
+    }
+
+    // 0-based line number
+    QStringRef lineContent(int line) {
+        ensureLoaded();
+        return QStringRef(&m_content, lineStart(line), lineLength(line));
+    }
 
 private:
-    void ensureLoaded();
+    void loadFile();
+
+    void ensureLoaded() {
+        if (!m_loaded)
+            loadFile();
+    }
 
     QString m_path;
     bool m_loaded;
     QString m_content;
-    std::vector<int> m_lines;
+    std::vector<std::pair<int, int> > m_lines;
 };
 
 } // namespace Nav

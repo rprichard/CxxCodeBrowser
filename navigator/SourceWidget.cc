@@ -1,16 +1,20 @@
 #include "SourceWidget.h"
+
 #include <QDebug>
 #include <QTime>
 #include <QMenu>
 #include <QPainter>
 #include <QLabel>
 #include <QTextBlock>
+#include <cassert>
+
 #include "Misc.h"
 #include "File.h"
 #include "Project.h"
 #include "ReportRefList.h"
 #include "TreeReportWindow.h"
-#include <assert.h>
+
+#include "CXXSyntaxHighlighter.h"
 
 namespace Nav {
 
@@ -23,23 +27,25 @@ const int kExtraLineSpacingPx = 2;
 // SourceWidgetView
 
 // Measure the size of the line after expanding tab stops.
-static int measureLineLength(const QStringRef &data, int tabStopSize)
+static int measureLineLength(const QString &data, int start, int size, int tabStopSize)
 {
     int pos = 0;
-    const QChar charTab = '\t';
-    for (int i = 0; i < data.size(); ++i) {
-        if (data.at(i) == charTab)
+    for (int i = start; i < start + size; ++i) {
+        if (data[i].unicode() == '\t')
             pos = (pos + tabStopSize) / tabStopSize * tabStopSize;
         else
-            ++pos;
+            pos++;
     }
     return pos;
 }
 
 SourceWidgetView::SourceWidgetView(Project &project, File &file) :
-    m_project(project), m_file(file)
+    m_project(project),
+    m_file(file)
 {
     setBackgroundRole(QPalette::NoRole);
+
+    m_syntaxColoring = CXXSyntaxHighlighter::highlight(file.content());
 
     // Configure the widgets to use a small monospace font.  Force characters
     // to have an integral width for simplicity.
@@ -52,10 +58,14 @@ SourceWidgetView::SourceWidgetView(Project &project, File &file) :
 
     // Measure the longest line.
     int maxLength = 0;
-    for (int i = 0; i < file.lineCount(); ++i) {
+    const QString &content = file.content();
+    for (int i = 0, lineCount = file.lineCount(); i < lineCount; ++i) {
         maxLength = std::max(
                     maxLength,
-                    measureLineLength(file.lineContent(i), kTabStopSize));
+                    measureLineLength(content,
+                                      file.lineStart(i),
+                                      file.lineLength(i),
+                                      kTabStopSize));
     }
     m_maxLineCount = maxLength;
 }
@@ -77,23 +87,57 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
     textOption.setTabStop(fontMetrics.width(' ') * kTabStopSize);
 
     for (int line = line1; line <= line2; ++line) {
+        int lineStart = m_file.lineStart(line);
         QString lineContent = m_file.lineContent(line).toString();
 
-#if 0
+        // TODO: handle tab stops
+
+        int x = kMarginPx;
         QString oneChar(QChar('\0'));
         for (int column = 0; column < lineContent.size(); ++column) {
             oneChar[0] = lineContent[column];
+            CXXSyntaxHighlighter::Kind kind = m_syntaxColoring[lineStart + column];
+            Qt::GlobalColor color;
+            switch (kind) {
+            case CXXSyntaxHighlighter::KindComment:
+                color = Qt::darkGreen;
+                break;
+            case CXXSyntaxHighlighter::KindQuoted:
+                color = Qt::darkGreen;
+                break;
+            case CXXSyntaxHighlighter::KindNumber:
+                color = Qt::darkBlue;
+                break;
+            case CXXSyntaxHighlighter::KindKeyword:
+                color = Qt::darkYellow;
+                break;
+            case CXXSyntaxHighlighter::KindDirective:
+                color = Qt::darkBlue;
+                break;
+            default:
+                color = Qt::black;
+                break;
+            }
+            painter.setPen(QColor(color));
 
+            /*
             QRectF bounding(
                         kMarginPx + column * charWidth,
                         kMarginPx + line * lineSpacing,
                         fontMetrics.width(' ') + 1,
                         fontMetrics.height() + 1);
-            painter.drawText(bounding, oneChar, textOption);
+            */
+            painter.drawText(
+                        x,
+                        kMarginPx + lineAscent + line * lineSpacing,
+                        oneChar);
+
+            x += fontMetrics.width(oneChar[0]);
+
+            //painter.drawText(bounding, oneChar, textOption);
 
         }
-#endif
-#if 1
+#if 0
         QRectF bounding(
                     kMarginPx,
                     kMarginPx + line * lineSpacing,
@@ -109,7 +153,7 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
 #endif
     }
 
-    qDebug() << t.elapsed();
+    //qDebug() << t.elapsed();
 
     QWidget::paintEvent(event);
 }

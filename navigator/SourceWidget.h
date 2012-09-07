@@ -5,10 +5,12 @@
 #include <QPlainTextEdit>
 #include <QScrollArea>
 
+#include "CXXSyntaxHighlighter.h"
+
 namespace Nav {
 
-class Project;
 class File;
+class Project;
 
 class SourceWidgetView : public QWidget
 {
@@ -25,8 +27,7 @@ private:
     Project &m_project;
     File &m_file;
     QList<std::pair<int, int> > m_linePosition;
-    QString m_syntaxColor;
-
+    QVector<CXXSyntaxHighlighter::Kind> m_syntaxColoring;
     int m_maxLineCount;
 };
 
