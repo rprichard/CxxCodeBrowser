@@ -1,6 +1,8 @@
 #include "File.h"
 #include <QString>
 #include <QFile>
+#include <cstdlib>
+#include <cstring>
 
 namespace Nav {
 
@@ -24,22 +26,31 @@ void File::ensureLoaded()
         m_content = "Error: cannot open " + m_path;
     } else {
         m_content = qfile.readAll();
-        QChar *data = m_content.data();
-        int lineStart = 0;
-        for (int i = 0; i < m_content.size(); ) {
-            if (data[i] == '\r' || data[i] == '\n') {
-                m_lines.push_back(std::make_pair(lineStart, i));
-                if (data[i] == '\r' && data[i + 1] == '\n')
-                    i++;
-                i++;
-                lineStart = i;
-            } else {
-                i++;
-            }
-        }
-        if (m_content.size() > lineStart)
-            m_lines.push_back(std::make_pair(lineStart, m_content.size()));
     }
+
+    QChar *data = m_content.data();
+    const QChar charCR = '\r';
+    const QChar charNL = '\n';
+
+    int lineStart = 0;
+
+    for (int i = 0; ; ) {
+        if (data[i] == charCR || data[i] == charNL) {
+            m_lines.push_back(std::make_pair(lineStart, i - lineStart));
+            if (data[i] == charCR && data[i + 1] == charNL)
+                i++;
+            i++;
+            lineStart = i;
+        } else if (data[i].isNull()) {
+            if (i > lineStart)
+                m_lines.push_back(std::make_pair(lineStart, i - lineStart));
+            break;
+        } else {
+            i++;
+        }
+    }
+
+    m_loaded = true;
 }
 
 QString File::content()
@@ -54,12 +65,27 @@ int File::lineCount()
     return m_lines.size();
 }
 
-// 1-based line index
+// 0-based line number
+int File::lineStart(int line)
+{
+    ensureLoaded();
+    assert(line < lineCount());
+    return m_lines[line].first;
+}
+
+// 0-based line number
+int File::lineLength(int line)
+{
+    ensureLoaded();
+    assert(line < lineCount());
+    return m_lines[line].second;
+}
+
+// 0-based line number
 QStringRef File::lineContent(int line)
 {
-    Q_ASSERT(line >= 1 && line <= m_lines.size());
-    auto range = m_lines[line - 1];
-    return m_content.midRef(range.first, range.second - range.first);
+    ensureLoaded();
+    return QStringRef(&m_content, lineStart(line), lineLength(line));
 }
 
 } // namespace Nav

@@ -1,33 +1,168 @@
 #include "SourceWidget.h"
 #include <QDebug>
+#include <QTime>
 #include <QMenu>
+#include <QPainter>
+#include <QLabel>
 #include <QTextBlock>
 #include "Misc.h"
 #include "File.h"
 #include "Project.h"
 #include "ReportRefList.h"
 #include "TreeReportWindow.h"
+#include <assert.h>
 
 namespace Nav {
 
-SourceWidget::SourceWidget(QWidget *parent) :
-    QPlainTextEdit(parent),
-    m_file(NULL)
+const int kTabStopSize = 8;
+const int kMarginPx = 2;
+const int kExtraLineSpacingPx = 2;
+
+
+///////////////////////////////////////////////////////////////////////////////
+// SourceWidgetView
+
+// Measure the size of the line after expanding tab stops.
+static int measureLineLength(const QStringRef &data, int tabStopSize)
 {
+    int pos = 0;
+    const QChar charTab = '\t';
+    for (int i = 0; i < data.size(); ++i) {
+        if (data.at(i) == charTab)
+            pos = (pos + tabStopSize) / tabStopSize * tabStopSize;
+        else
+            ++pos;
+    }
+    return pos;
+}
+
+SourceWidgetView::SourceWidgetView(Project &project, File &file) :
+    m_project(project), m_file(file)
+{
+    setBackgroundRole(QPalette::NoRole);
+
+    // Configure the widgets to use a small monospace font.  Force characters
+    // to have an integral width for simplicity.
+    QFont font;
+    font.setFamily("Monospace");
+    font.setPointSize(8);
+    font.setStyleStrategy(QFont::ForceIntegerMetrics);
+    setFont(font);
+    QFontMetrics fontMetrics(font);
+
+    // Measure the longest line.
+    int maxLength = 0;
+    for (int i = 0; i < file.lineCount(); ++i) {
+        maxLength = std::max(
+                    maxLength,
+                    measureLineLength(file.lineContent(i), kTabStopSize));
+    }
+    m_maxLineCount = maxLength;
+}
+
+void SourceWidgetView::paintEvent(QPaintEvent *event)
+{
+    QTime t;
+    t.start();
+
+    QFontMetrics fontMetrics(font());
+    int lineAscent = fontMetrics.ascent() + kMarginPx;
+    int lineSpacing = fontMetrics.lineSpacing() + kExtraLineSpacingPx;
+    int charWidth = fontMetrics.width(' ');
+    QPainter painter(this);
+    int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
+    int line2 = std::min(event->rect().bottom() / lineSpacing + 2, m_file.lineCount() - 1);
+    // TODO: Consider restricting the painting horizontally too.
+    QTextOption textOption;
+    textOption.setTabStop(fontMetrics.width(' ') * kTabStopSize);
+
+    for (int line = line1; line <= line2; ++line) {
+        QString lineContent = m_file.lineContent(line).toString();
+
+#if 0
+        QString oneChar(QChar('\0'));
+        for (int column = 0; column < lineContent.size(); ++column) {
+            oneChar[0] = lineContent[column];
+
+            QRectF bounding(
+                        kMarginPx + column * charWidth,
+                        kMarginPx + line * lineSpacing,
+                        fontMetrics.width(' ') + 1,
+                        fontMetrics.height() + 1);
+            painter.drawText(bounding, oneChar, textOption);
+
+        }
+#endif
+#if 1
+        QRectF bounding(
+                    kMarginPx,
+                    kMarginPx + line * lineSpacing,
+                    fontMetrics.width(' ') * measureLineLength(lineContent.midRef(0), kTabStopSize) + 1,
+                    fontMetrics.height() + 1);
+        painter.drawText(bounding, lineContent, textOption);
+#endif
+#if 0
+        painter.drawText(
+                    kMarginPx,
+                         kMarginPx + lineAscent + line * lineSpacing,
+                         QString(lineStdString.c_str()));
+#endif
+    }
+
+    qDebug() << t.elapsed();
+
+    QWidget::paintEvent(event);
+}
+
+QSize SourceWidgetView::sizeHint() const
+{
+    QFontMetrics fontMetrics(font());
+    return QSize(m_maxLineCount * fontMetrics.width(' ') + kMarginPx * 2,
+                 m_file.lineCount() * fontMetrics.height() +
+                 (m_file.lineCount() - 1) * (fontMetrics.leading() + kExtraLineSpacingPx) +
+                 kMarginPx * 2);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// SourceWidget
+
+SourceWidget::SourceWidget(Project &project, File &file, QWidget *parent) :
+    QScrollArea(parent),
+    m_project(project)
+{
+    setWidget(new SourceWidgetView(project, file));
+
+    setBackgroundRole(QPalette::Base);
+
+
+
+#if 0
     setWordWrapMode(QTextOption::NoWrap);
     setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     setTextInteractionFlags(Qt::NoTextInteraction);
     setReadOnly(true);
+#endif
 }
 
-void SourceWidget::setFile(File *file)
+void SourceWidget::setFile(File &file)
 {
-    if (m_file != file) {
-        m_file = file;
-        setPlainText(file->content());
+    if (&this->file() != &file) {
+        // The Qt documentation says that we must call show() here if the
+        // scroll area is visible, which it presumably is.  However, I don't
+        // know whether to call show() before or after setting it as the widget
+        // and it's visible even if I don't call show(), so don't bother.
+        setWidget(new SourceWidgetView(m_project, file));
     }
 }
 
+SourceWidgetView &SourceWidget::sourceWidgetView()
+{
+    return *qobject_cast<SourceWidgetView*>(widget());
+}
+
+
+#if 0
 void SourceWidget::mousePressEvent(QMouseEvent *event)
 {
     QTextCursor cursor = cursorForPosition(event->pos());
@@ -135,16 +270,19 @@ QTextCursor SourceWidget::findEnclosingIdentifier(QTextCursor pt)
     pt.setPosition(pt.block().position() + last + 1, QTextCursor::KeepAnchor);
     return pt;
 }
+#endif
 
 // Line and column indices are 1-based.
 void SourceWidget::selectIdentifier(int line, int column)
 {
+#if 0
     // TODO: Do tab stops affect the column?
     QTextCursor c(document());
     c.movePosition(QTextCursor::Down, QTextCursor::MoveAnchor, line - 1);
     c.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, column - 1);
     c = findEnclosingIdentifier(c);
     setTextCursor(c);
+#endif
 }
 
 } // namespace Nav

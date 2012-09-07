@@ -6,6 +6,7 @@
 #include "TreeReportWindow.h"
 #include "ReportFileList.h"
 #include "ReportRefList.h"
+#include "SourceWidget.h"
 #include <QDebug>
 #include <QFile>
 #include <QFont>
@@ -18,11 +19,13 @@ namespace Nav {
 
 MainWindow *theMainWindow;
 
-MainWindow::MainWindow(QWidget *parent) :
+MainWindow::MainWindow(Project &project, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    m_sourceWidget = new SourceWidget(project, project.fileManager()->file("<initial>"));
+    ui->verticalLayout->addWidget(m_sourceWidget);
 
     // Configure the widgets to use a small monospace font.  If we
     // don't force integer metrics, then the font may have a fractional
@@ -31,11 +34,11 @@ MainWindow::MainWindow(QWidget *parent) :
     font.setFamily("Monospace");
     font.setPointSize(8);
     font.setStyleStrategy(QFont::ForceIntegerMetrics);
-    ui->sourceWidget->setFont(font);
+    //ui->sourceWidget->setFont(font);
     //ui->commandWidget->setFont(font);
-    QFontMetrics fontMetrics(ui->sourceWidget->font());
-    int fontWidth = fontMetrics.width(' ');
-    ui->sourceWidget->setTabStopWidth(fontWidth * 8);
+    //QFontMetrics fontMetrics(ui->sourceWidget->font());
+    //int fontWidth = fontMetrics.width(' ');
+    //ui->sourceWidget->setTabStopWidth(fontWidth * 8);
 
     /*
     // Make the command pane as small as allowed.
@@ -61,12 +64,12 @@ MainWindow::~MainWindow()
 void MainWindow::showFile(const QString &path)
 {
     Nav::File &newFile = Nav::theProject->fileManager()->file(path);
-    ui->sourceWidget->setFile(&newFile);
+    m_sourceWidget->setFile(newFile);
 }
 
 void MainWindow::selectIdentifier(int line, int column)
 {
-    ui->sourceWidget->selectIdentifier(line, column);
+    //ui->sourceWidget->selectIdentifier(line, column);
 }
 
 void MainWindow::actionViewFileList()

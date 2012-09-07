@@ -1,21 +1,50 @@
 #ifndef NAV_SOURCEWIDGET_H
 #define NAV_SOURCEWIDGET_H
 
+#include <QList>
 #include <QPlainTextEdit>
+#include <QScrollArea>
 
 namespace Nav {
 
+class Project;
 class File;
 
-class SourceWidget : public QPlainTextEdit
+class SourceWidgetView : public QWidget
 {
     Q_OBJECT
 public:
-    explicit SourceWidget(QWidget *parent = 0);
-    void setFile(File *file);
-    File *file() { return m_file; }
+    SourceWidgetView(Project &project, File &file);
+    File &file() { return m_file; }
+
+protected:
+    void paintEvent(QPaintEvent *event);
+    QSize sizeHint() const;
+
+private:
+    Project &m_project;
+    File &m_file;
+    QList<std::pair<int, int> > m_linePosition;
+    QString m_syntaxColor;
+
+    int m_maxLineCount;
+};
+
+class SourceWidget : public QScrollArea
+{
+    Q_OBJECT
+public:
+    explicit SourceWidget(Project &project, File &file, QWidget *parent = 0);
+    void setFile(File &file);
+    File &file() { return sourceWidgetView().file(); }
+
+private:
+    SourceWidgetView &sourceWidgetView();
+
+public:
     void selectIdentifier(int line, int column);
 
+#if 0
 private slots:
     void actionCrossReferences();
 
@@ -27,8 +56,9 @@ private:
     void contextMenuEvent(QContextMenuEvent *e);
     void clearSelection();
     QTextCursor findEnclosingIdentifier(QTextCursor pt);
+#endif
 
-    File *m_file;
+    Project &m_project;
 };
 
 } // namespace Nav

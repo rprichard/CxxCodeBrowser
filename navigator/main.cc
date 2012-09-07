@@ -8,7 +8,7 @@ int main(int argc, char *argv[])
 
     Nav::theProject = new Nav::Project("index");
 
-    Nav::theMainWindow = new Nav::MainWindow();
+    Nav::theMainWindow = new Nav::MainWindow(*Nav::theProject);
     Nav::theMainWindow->show();
 
     return a.exec();

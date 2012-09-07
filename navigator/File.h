@@ -4,6 +4,9 @@
 #include "Misc.h"
 #include <QList>
 #include <QString>
+#include <cassert>
+#include <string>
+#include <vector>
 #include <utility>
 
 namespace Nav {
@@ -15,15 +18,17 @@ public:
     QString path();
     QString content();
     int lineCount();
+    int lineStart(int line);
+    int lineLength(int line);
     QStringRef lineContent(int line);
 
 private:
     void ensureLoaded();
 
     QString m_path;
-    QString m_content;
     bool m_loaded;
-    QList<std::pair<int, int> > m_lines;
+    QString m_content;
+    std::vector<std::pair<int, int> > m_lines;
 };
 
 } // namespace Nav

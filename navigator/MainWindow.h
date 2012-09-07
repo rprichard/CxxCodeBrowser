@@ -10,6 +10,9 @@ class MainWindow;
 }
 
 class MainWindow;
+class SourceWidget;
+class Project;
+class File;
 
 extern MainWindow *theMainWindow;
 
@@ -18,7 +21,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    explicit MainWindow(QWidget *parent = 0);
+    explicit MainWindow(Project &project, QWidget *parent = 0);
     ~MainWindow();
     void showFile(const QString &path);
     void selectIdentifier(int line, int column);
@@ -32,6 +35,7 @@ protected:
 
 private:
     Ui::MainWindow *ui;
+    SourceWidget *m_sourceWidget;
 };
 
 } // namespace Nav
