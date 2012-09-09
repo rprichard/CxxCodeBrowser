@@ -110,6 +110,9 @@ DEFAULT:
             ADVANCE(KindComment);
             ADVANCE(KindComment);
             goto LINE_COMMENT;
+        } else {
+            ADVANCE(KindDefault);
+            goto DEFAULT;
         }
     } else if (CH(0) == '\'' || CH(0) == '"') {
         quoteChar = CH(0);
