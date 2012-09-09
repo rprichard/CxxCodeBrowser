@@ -24,7 +24,7 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    m_sourceWidget = new SourceWidget(project, project.fileManager()->file("<initial>"));
+    m_sourceWidget = new SourceWidget(project);
     ui->verticalLayout->addWidget(m_sourceWidget);
 
     // Configure the widgets to use a small monospace font.  If we
@@ -64,7 +64,7 @@ MainWindow::~MainWindow()
 void MainWindow::showFile(const QString &path)
 {
     Nav::File &newFile = Nav::theProject->fileManager()->file(path);
-    m_sourceWidget->setFile(newFile);
+    m_sourceWidget->setFile(&newFile);
 }
 
 void MainWindow::selectIdentifier(int line, int column)

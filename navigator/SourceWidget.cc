@@ -6,6 +6,7 @@
 #include <QPainter>
 #include <QLabel>
 #include <QTextBlock>
+#include <QScrollBar>
 #include <cassert>
 
 #include "Misc.h"
@@ -19,12 +20,20 @@
 namespace Nav {
 
 const int kTabStopSize = 8;
-const int kMarginPx = 2;
-const int kExtraLineSpacingPx = 2;
 
+// Sometimes the line spacing is smaller than the height, which makes the text
+// cramped.  When this happens, use the height instead.  (I think Qt already
+// does this -- look for QTextLayout and a negative leading()).
+static int effectiveLineSpacing(QFontMetrics &fm)
+{
+    return std::max(fm.height(), fm.lineSpacing());
+}
 
-///////////////////////////////////////////////////////////////////////////////
-// SourceWidgetView
+static inline QSize marginsToSize(const QMargins &margins)
+{
+    return QSize(margins.left() + margins.right(),
+                 margins.top() + margins.bottom());
+}
 
 // Measure the size of the line after expanding tab stops.
 static int measureLineLength(const QString &data, int start, int size, int tabStopSize)
@@ -39,13 +48,160 @@ static int measureLineLength(const QString &data, int start, int size, int tabSt
     return pos;
 }
 
-SourceWidgetView::SourceWidgetView(Project &project, File &file) :
+
+///////////////////////////////////////////////////////////////////////////////
+// SourceWidgetLineArea
+
+QSize SourceWidgetLineArea::sizeHint() const
+{
+    QFontMetrics fm = fontMetrics();
+    return QSize(fm.width('9') * QString::number(m_lineCount).size(),
+                 fm.height() * std::max(1, m_lineCount)) +
+            marginsToSize(m_margins);
+}
+
+void SourceWidgetLineArea::paintEvent(QPaintEvent *event)
+{
+    QPainter p(this);
+    QFontMetrics fm = fontMetrics();
+    const int ch = effectiveLineSpacing(fm);
+    const int cw = fm.width('9');
+    const int ca = fm.ascent();
+    const int line1 = std::max(0, event->rect().top() / ch - 2);
+    const int line2 = std::min(m_lineCount - 1, event->rect().bottom() / ch + 2);
+    const int thisWidth = width();
+
+    p.setPen(QColor(Qt::darkGray));
+    for (int line = line1; line <= line2; ++line) {
+        QString text = QString::number(line + 1);
+        p.drawText(thisWidth - (text.size() * cw) - m_margins.right(),
+                   ch * line + ca + m_margins.top(),
+                   text);
+    }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// SourceWidgetView
+
+SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
+    m_margins(margins),
     m_project(project),
-    m_file(file)
+    m_file(NULL)
 {
     setBackgroundRole(QPalette::NoRole);
+}
 
-    m_syntaxColoring = CXXSyntaxHighlighter::highlight(file.content());
+void SourceWidgetView::setFile(File *file)
+{
+    m_file = file;
+    m_syntaxColoring.clear();
+    m_maxLineLength = 0;
+
+    if (m_file != NULL) {
+        m_syntaxColoring = CXXSyntaxHighlighter::highlight(m_file->content());
+
+        // Measure the longest line.
+        int maxLength = 0;
+        const QString &content = m_file->content();
+        for (int i = 0, lineCount = m_file->lineCount(); i < lineCount; ++i) {
+            maxLength = std::max(
+                        maxLength,
+                        measureLineLength(content,
+                                          m_file->lineStart(i),
+                                          m_file->lineLength(i),
+                                          kTabStopSize));
+        }
+
+        m_maxLineLength = maxLength;
+    }
+
+    updateGeometry();
+    update();
+}
+
+void SourceWidgetView::paintEvent(QPaintEvent *event)
+{
+    if (m_file != NULL) {
+        QFontMetrics fontMetrics(font());
+        const int ascent = fontMetrics.ascent() + m_margins.top();
+        const int lineSpacing = effectiveLineSpacing(fontMetrics);
+        QPainter painter(this);
+        int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
+        int line2 = std::min(event->rect().bottom() / lineSpacing + 2, m_file->lineCount() - 1);
+        // TODO: Consider restricting the painting horizontally too.
+        QTextOption textOption;
+        textOption.setTabStop(fontMetrics.width(' ') * kTabStopSize);
+
+        for (int line = line1; line <= line2; ++line) {
+            int lineStart = m_file->lineStart(line);
+            QString lineContent = m_file->lineContent(line).toString();
+
+            // TODO: handle tab stops
+
+            int x = m_margins.left();
+            QString oneChar(QChar('\0'));
+            for (int column = 0; column < lineContent.size(); ++column) {
+                oneChar[0] = lineContent[column];
+                CXXSyntaxHighlighter::Kind kind = m_syntaxColoring[lineStart + column];
+                Qt::GlobalColor color;
+                switch (kind) {
+                case CXXSyntaxHighlighter::KindComment:
+                    color = Qt::darkGreen;
+                    break;
+                case CXXSyntaxHighlighter::KindQuoted:
+                    color = Qt::darkGreen;
+                    break;
+                case CXXSyntaxHighlighter::KindNumber:
+                    color = Qt::darkBlue;
+                    break;
+                case CXXSyntaxHighlighter::KindKeyword:
+                    color = Qt::darkYellow;
+                    break;
+                case CXXSyntaxHighlighter::KindDirective:
+                    color = Qt::darkBlue;
+                    break;
+                default:
+                    color = Qt::black;
+                    break;
+                }
+                painter.setPen(QColor(color));
+                painter.drawText(
+                            x,
+                            ascent + line * lineSpacing,
+                            oneChar);
+                x += fontMetrics.width(oneChar[0]);
+            }
+        }
+    }
+
+    QWidget::paintEvent(event);
+}
+
+QSize SourceWidgetView::sizeHint() const
+{
+    if (m_file == NULL)
+        return marginsToSize(m_margins);
+    QFontMetrics fontMetrics(font());
+    return QSize(m_maxLineLength * fontMetrics.width(' '),
+                 m_file->lineCount() * effectiveLineSpacing(fontMetrics)) +
+            marginsToSize(m_margins);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// SourceWidget
+
+SourceWidget::SourceWidget(Project &project, QWidget *parent) :
+    QScrollArea(parent),
+    m_project(project)
+{
+    setWidgetResizable(true);
+    setWidget(new SourceWidgetView(QMargins(4, 4, 4, 4), project));
+    setBackgroundRole(QPalette::Base);
+    setViewportMargins(30, 0, 0, 0);
+    m_lineArea = new SourceWidgetLineArea(QMargins(4, 5, 4, 4), this);
+    connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(scrollBarValueChanged()));
 
     // Configure the widgets to use a small monospace font.  Force characters
     // to have an integral width for simplicity.
@@ -53,133 +209,10 @@ SourceWidgetView::SourceWidgetView(Project &project, File &file) :
     font.setFamily("Monospace");
     font.setPointSize(8);
     font.setStyleStrategy(QFont::ForceIntegerMetrics);
-    setFont(font);
-    QFontMetrics fontMetrics(font);
+    widget()->setFont(font);
+    m_lineArea->setFont(font);
 
-    // Measure the longest line.
-    int maxLength = 0;
-    const QString &content = file.content();
-    for (int i = 0, lineCount = file.lineCount(); i < lineCount; ++i) {
-        maxLength = std::max(
-                    maxLength,
-                    measureLineLength(content,
-                                      file.lineStart(i),
-                                      file.lineLength(i),
-                                      kTabStopSize));
-    }
-    m_maxLineCount = maxLength;
-}
-
-void SourceWidgetView::paintEvent(QPaintEvent *event)
-{
-    QTime t;
-    t.start();
-
-    QFontMetrics fontMetrics(font());
-    int lineAscent = fontMetrics.ascent() + kMarginPx;
-    int lineSpacing = fontMetrics.lineSpacing() + kExtraLineSpacingPx;
-    int charWidth = fontMetrics.width(' ');
-    QPainter painter(this);
-    int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
-    int line2 = std::min(event->rect().bottom() / lineSpacing + 2, m_file.lineCount() - 1);
-    // TODO: Consider restricting the painting horizontally too.
-    QTextOption textOption;
-    textOption.setTabStop(fontMetrics.width(' ') * kTabStopSize);
-
-    for (int line = line1; line <= line2; ++line) {
-        int lineStart = m_file.lineStart(line);
-        QString lineContent = m_file.lineContent(line).toString();
-
-        // TODO: handle tab stops
-
-        int x = kMarginPx;
-        QString oneChar(QChar('\0'));
-        for (int column = 0; column < lineContent.size(); ++column) {
-            oneChar[0] = lineContent[column];
-            CXXSyntaxHighlighter::Kind kind = m_syntaxColoring[lineStart + column];
-            Qt::GlobalColor color;
-            switch (kind) {
-            case CXXSyntaxHighlighter::KindComment:
-                color = Qt::darkGreen;
-                break;
-            case CXXSyntaxHighlighter::KindQuoted:
-                color = Qt::darkGreen;
-                break;
-            case CXXSyntaxHighlighter::KindNumber:
-                color = Qt::darkBlue;
-                break;
-            case CXXSyntaxHighlighter::KindKeyword:
-                color = Qt::darkYellow;
-                break;
-            case CXXSyntaxHighlighter::KindDirective:
-                color = Qt::darkBlue;
-                break;
-            default:
-                color = Qt::black;
-                break;
-            }
-            painter.setPen(QColor(color));
-
-            /*
-            QRectF bounding(
-                        kMarginPx + column * charWidth,
-                        kMarginPx + line * lineSpacing,
-                        fontMetrics.width(' ') + 1,
-                        fontMetrics.height() + 1);
-            */
-            painter.drawText(
-                        x,
-                        kMarginPx + lineAscent + line * lineSpacing,
-                        oneChar);
-
-            x += fontMetrics.width(oneChar[0]);
-
-            //painter.drawText(bounding, oneChar, textOption);
-
-        }
-#if 0
-        QRectF bounding(
-                    kMarginPx,
-                    kMarginPx + line * lineSpacing,
-                    fontMetrics.width(' ') * measureLineLength(lineContent.midRef(0), kTabStopSize) + 1,
-                    fontMetrics.height() + 1);
-        painter.drawText(bounding, lineContent, textOption);
-#endif
-#if 0
-        painter.drawText(
-                    kMarginPx,
-                         kMarginPx + lineAscent + line * lineSpacing,
-                         QString(lineStdString.c_str()));
-#endif
-    }
-
-    //qDebug() << t.elapsed();
-
-    QWidget::paintEvent(event);
-}
-
-QSize SourceWidgetView::sizeHint() const
-{
-    QFontMetrics fontMetrics(font());
-    return QSize(m_maxLineCount * fontMetrics.width(' ') + kMarginPx * 2,
-                 m_file.lineCount() * fontMetrics.height() +
-                 (m_file.lineCount() - 1) * (fontMetrics.leading() + kExtraLineSpacingPx) +
-                 kMarginPx * 2);
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
-// SourceWidget
-
-SourceWidget::SourceWidget(Project &project, File &file, QWidget *parent) :
-    QScrollArea(parent),
-    m_project(project)
-{
-    setWidget(new SourceWidgetView(project, file));
-
-    setBackgroundRole(QPalette::Base);
-
-
+    layoutLineArea();
 
 #if 0
     setWordWrapMode(QTextOption::NoWrap);
@@ -189,14 +222,13 @@ SourceWidget::SourceWidget(Project &project, File &file, QWidget *parent) :
 #endif
 }
 
-void SourceWidget::setFile(File &file)
+void SourceWidget::setFile(File *file)
 {
-    if (&this->file() != &file) {
-        // The Qt documentation says that we must call show() here if the
-        // scroll area is visible, which it presumably is.  However, I don't
-        // know whether to call show() before or after setting it as the widget
-        // and it's visible even if I don't call show(), so don't bother.
-        setWidget(new SourceWidgetView(m_project, file));
+    if (this->file() != file) {
+        sourceWidgetView().setFile(file);
+        m_lineArea->setLineCount(file != NULL ? file->lineCount() : 0);
+        verticalScrollBar()->setValue(0);
+        layoutLineArea();
     }
 }
 
@@ -205,6 +237,50 @@ SourceWidgetView &SourceWidget::sourceWidgetView()
     return *qobject_cast<SourceWidgetView*>(widget());
 }
 
+#if 0
+QSize SourceWidget::lineAreaSizeHint()
+{
+    if (file() == NULL)
+        return QSize();
+    QFontMetrics fontMetrics(m_lineArea->font());
+    int lineCount = file()->lineCount();
+    int digits = QString::number(lineCount).length();
+    return QSize(fontMetrics.width('9') * digits,
+                 lineCount * fontMetrics.height() +
+                 (lineCount - 1) * (fontMetrics.leading() + kExtraLineSpacingPx) +
+                 kMarginPx * 2);
+}
+
+void SourceWidget::lineAreaPaintEvent(QPaintEvent *event)
+{
+    if (file() != NULL) {
+        QFontMetrics metrics(m_lineArea->font());
+        int lineCount = file()->lineCount();
+        QPainter painter(m_lineArea);
+        for (int i = 0; i < lineCount; ++i) {
+            painter.drawText(0,
+                             20 +      i * (metrics.lineSpacing() + kExtraLineSpacingPx),
+                             QString::number(i + 1));
+        }
+    }
+}
+#endif
+
+void SourceWidget::layoutLineArea(void)
+{
+    QSize lineAreaSizeHint = m_lineArea->sizeHint();
+    m_lineArea->setGeometry(
+                0,
+                -verticalScrollBar()->value(),
+                lineAreaSizeHint.width(),
+                lineAreaSizeHint.height());
+    setViewportMargins(lineAreaSizeHint.width(), 0, 0, 0);
+}
+
+void SourceWidget::scrollBarValueChanged()
+{
+    layoutLineArea();
+}
 
 #if 0
 void SourceWidget::mousePressEvent(QMouseEvent *event)
