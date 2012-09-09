@@ -120,57 +120,59 @@ void SourceWidgetView::setFile(File *file)
     update();
 }
 
+static Qt::GlobalColor colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind)
+{
+    switch (kind) {
+    case CXXSyntaxHighlighter::KindComment:
+    case CXXSyntaxHighlighter::KindQuoted:
+        return Qt::darkGreen;
+    case CXXSyntaxHighlighter::KindNumber:
+    case CXXSyntaxHighlighter::KindDirective:
+        return Qt::darkBlue;
+    case CXXSyntaxHighlighter::KindKeyword:
+        return Qt::darkYellow;
+    default:
+        return Qt::black;
+    }
+}
+
 void SourceWidgetView::paintEvent(QPaintEvent *event)
 {
     if (m_file != NULL) {
         QFontMetrics fontMetrics(font());
-        const int ascent = fontMetrics.ascent() + m_margins.top();
+        const int firstBaseline = fontMetrics.ascent() + m_margins.top();
         const int lineSpacing = effectiveLineSpacing(fontMetrics);
         QPainter painter(this);
         int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
         int line2 = std::min(event->rect().bottom() / lineSpacing + 2, m_file->lineCount() - 1);
-        // TODO: Consider restricting the painting horizontally too.
-        QTextOption textOption;
-        textOption.setTabStop(fontMetrics.width(' ') * kTabStopSize);
+        // XXX: Consider restricting the painting horizontally too.
+        // XXX: Support characters outside the Unicode BMP (i.e. UTF-16 surrogate pairs).
+        Qt::GlobalColor currentColor = Qt::black;
+        painter.setPen(QColor(currentColor));
+        int tabStopPx = fontMetrics.width(' ') * kTabStopSize;
 
         for (int line = line1; line <= line2; ++line) {
             int lineStart = m_file->lineStart(line);
             QString lineContent = m_file->lineContent(line).toString();
-
-            // TODO: handle tab stops
-
-            int x = m_margins.left();
+            int x = 0;
             QString oneChar(QChar('\0'));
             for (int column = 0; column < lineContent.size(); ++column) {
                 oneChar[0] = lineContent[column];
                 CXXSyntaxHighlighter::Kind kind = m_syntaxColoring[lineStart + column];
-                Qt::GlobalColor color;
-                switch (kind) {
-                case CXXSyntaxHighlighter::KindComment:
-                    color = Qt::darkGreen;
-                    break;
-                case CXXSyntaxHighlighter::KindQuoted:
-                    color = Qt::darkGreen;
-                    break;
-                case CXXSyntaxHighlighter::KindNumber:
-                    color = Qt::darkBlue;
-                    break;
-                case CXXSyntaxHighlighter::KindKeyword:
-                    color = Qt::darkYellow;
-                    break;
-                case CXXSyntaxHighlighter::KindDirective:
-                    color = Qt::darkBlue;
-                    break;
-                default:
-                    color = Qt::black;
-                    break;
+                Qt::GlobalColor color = colorForSyntaxKind(kind);
+                if (color != currentColor) {
+                    painter.setPen(QColor(color));
+                    currentColor = color;
                 }
-                painter.setPen(QColor(color));
-                painter.drawText(
-                            x,
-                            ascent + line * lineSpacing,
-                            oneChar);
-                x += fontMetrics.width(oneChar[0]);
+                if (oneChar[0] == '\t') {
+                    x = (x + tabStopPx) / tabStopPx * tabStopPx;
+                } else {
+                    painter.drawText(
+                                x + m_margins.left(),
+                                firstBaseline + line * lineSpacing,
+                                oneChar);
+                    x += fontMetrics.width(oneChar[0]);
+                }
             }
         }
     }
