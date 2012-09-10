@@ -44,20 +44,6 @@ struct FileLocation {
                 column < file.lineLength(line);
     }
 
-#if 0
-    // XXX: Are these methods really needed?
-    bool isEol(File &file) const {
-        return line >= 0 &&
-                line < m_file.lineCount() &&
-                column == m_file.lineLength(line);
-    }
-
-    bool isEof(File &file) const {
-        return line == m_file.lineCount() &&
-                column == 0;
-    }
-#endif
-
     FileOffset toOffset(File &file) const {
         if (line < 0)
             return ~0;
@@ -201,20 +187,6 @@ private:
 
 private slots:
     void layoutSourceWidget(void);
-
-#if 0
-private slots:
-    void actionCrossReferences();
-
-private:
-    void mousePressEvent(QMouseEvent *event);
-    void mouseReleaseEvent(QMouseEvent *event);
-    void mouseDoubleClickEvent(QMouseEvent *event);
-    void mouseMoveEvent(QMouseEvent *event);
-    void contextMenuEvent(QContextMenuEvent *e);
-    void clearSelection();
-    QTextCursor findEnclosingIdentifier(QTextCursor pt);
-#endif
 
 private:
     SourceWidgetLineArea *m_lineArea;

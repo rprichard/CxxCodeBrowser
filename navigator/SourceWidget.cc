@@ -9,13 +9,12 @@
 #include <QScrollBar>
 #include <cassert>
 
-#include "Misc.h"
+#include "CXXSyntaxHighlighter.h"
 #include "File.h"
+#include "Misc.h"
 #include "Project.h"
 #include "ReportRefList.h"
 #include "TreeReportWindow.h"
-
-#include "CXXSyntaxHighlighter.h"
 
 namespace Nav {
 
