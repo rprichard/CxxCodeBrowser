@@ -1,3 +1,22 @@
+There's a persistent problem where one location expands to many locations.
+Typically the problem happens with templates, but it can also happen with
+macros:
+    #define INITIALIZE_PASS(passName, arg, name, cfg, analysis) \
+      static void* initialize##passName##PassOnce(PassRegistry &Registry) { \
+        PassInfo *PI = new PassInfo(name, arg, & passName ::ID, \
+          PassInfo::NormalCtor_t(callDefaultCtor< passName >), cfg, analysis); \
+        Registry.registerPass(*PI, true); \
+        return PI; \
+      } \
+      void llvm::initialize##passName##Pass(PassRegistry &Registry) { \
+        CALL_ONCE_INITIALIZATION(initialize##passName##PassOnce) \
+      }
+Right-clicking "Registry" brings up a large context menu because each expansion
+of the INITIALIZE_PASS macro creates a new function, and the function name is
+part of the local variables' USRs.
+
+-------------------------------------------------------------------------------
+
 Experiment with indexing other large projects:
  * Linux kernel
  * X.org
