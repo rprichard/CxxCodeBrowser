@@ -69,7 +69,7 @@ void MainWindow::showFile(const QString &path)
 
 void MainWindow::selectIdentifier(int line, int column)
 {
-    //ui->sourceWidget->selectIdentifier(line, column);
+    m_sourceWidget->selectIdentifier(line, column);
 }
 
 void MainWindow::actionViewFileList()
