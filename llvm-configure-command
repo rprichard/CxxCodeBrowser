@@ -1,0 +1,1 @@
+../llvm/configure --disable-assertions --enable-optimized --enable-shared --prefix=/home/rprichard/llvm-3.1-configure-release-install
