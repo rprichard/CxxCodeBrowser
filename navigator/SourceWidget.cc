@@ -466,6 +466,16 @@ void SourceWidget::resizeEvent(QResizeEvent *event)
     QScrollArea::resizeEvent(event);
 }
 
+void SourceWidget::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_Home)
+        verticalScrollBar()->setValue(0);
+    else if (event->key() == Qt::Key_End)
+        verticalScrollBar()->setValue(verticalScrollBar()->maximum());
+    else
+        QScrollArea::keyPressEvent(event);
+}
+
 // Line and column indices are 1-based.
 void SourceWidget::selectIdentifier(int line, int column)
 {

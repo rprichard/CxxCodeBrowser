@@ -184,6 +184,7 @@ public:
 private:
     SourceWidgetView &sourceWidgetView();
     void resizeEvent(QResizeEvent *event);
+    void keyPressEvent(QKeyEvent *event);
 
 private slots:
     void layoutSourceWidget(void);
