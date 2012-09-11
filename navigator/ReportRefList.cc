@@ -22,7 +22,6 @@ QStringList ReportRefList::getColumns()
     QStringList result;
     result << "File";
     result << "Line";
-    result << "Column";
     result << "Type";
     return result;
 }
@@ -38,7 +37,6 @@ QList<QVariant> ReportRefList::getText(const Index &index)
     const Ref &ref = m_refList[index.row()];
     result << ref.file->path();
     result << ref.line;
-    result << ref.column;
     result << ref.kind;
     return result;
 }
