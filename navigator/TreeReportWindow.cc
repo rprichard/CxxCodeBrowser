@@ -50,7 +50,7 @@ TreeReportWindow::TreeReportWindow(TreeReport *treeReport, QWidget *parent) :
     // Do something better?
     // TODO: The rowCount() code won't work for trees.
     int preferredSize = ui->treeWidget->fontMetrics().height() * ui->treeWidget->model()->rowCount();
-    resize(width(), height() + preferredSize);
+    resize(600, height() + preferredSize);
 }
 
 QList<QTreeWidgetItem*> TreeReportWindow::createChildTreeWidgetItems(
