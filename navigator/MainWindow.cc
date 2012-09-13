@@ -15,6 +15,8 @@
 #include <QTimer>
 #include <QKeySequence>
 
+#include "GotoWindow.h"
+
 namespace Nav {
 
 MainWindow *theMainWindow;
@@ -52,8 +54,12 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     //connect(ui->commandWidget, SIGNAL(commandEntered(QString)), SLOT(actionCommand(QString)));
 
     // Register Ctrl+Q.
-    QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
+    QShortcut *shortcut;
+    shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
     connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
+
+    shortcut = new QShortcut(QKeySequence("Ctrl+S"), this);
+    connect(shortcut, SIGNAL(activated()), this, SLOT(actionOpenGotoWindow()));
 }
 
 MainWindow::~MainWindow()
@@ -67,9 +73,19 @@ void MainWindow::showFile(const QString &path)
     m_sourceWidget->setFile(&newFile);
 }
 
+// Line and column indices are 1-based.
 void MainWindow::selectIdentifier(int line, int column)
 {
     m_sourceWidget->selectIdentifier(line, column);
+}
+
+void MainWindow::navigateToSomeDefinitionOfSymbol(const QString &symbol)
+{
+    Ref ref = theProject->findSingleDefinitionOfSymbol(symbol);
+    if (ref.file == NULL)
+        return;
+    showFile(ref.file->path());
+    selectIdentifier(ref.line, ref.column);
 }
 
 void MainWindow::actionViewFileList()
@@ -77,6 +93,12 @@ void MainWindow::actionViewFileList()
     ReportFileList *r = new ReportFileList(theProject);
     TreeReportWindow *tw = new TreeReportWindow(r);
     tw->show();
+}
+
+void MainWindow::actionOpenGotoWindow()
+{
+    GotoWindow *gw = new GotoWindow(*Nav::theProject);
+    gw->show();
 }
 
 void MainWindow::actionCommand(const QString &commandIn)

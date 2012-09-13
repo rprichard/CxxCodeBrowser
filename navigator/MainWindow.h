@@ -25,9 +25,11 @@ public:
     ~MainWindow();
     void showFile(const QString &path);
     void selectIdentifier(int line, int column);
+    void navigateToSomeDefinitionOfSymbol(const QString &symbol);
 
 private slots:
     void actionViewFileList();
+    void actionOpenGotoWindow();
     void actionCommand(const QString &command);
 
 protected:

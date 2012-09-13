@@ -88,15 +88,14 @@ QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
     return result;
 }
 
-QStringList Project::queryAllSymbols()
+void Project::queryAllSymbols(std::vector<const char*> &output)
 {
-    QStringList result;
     indexdb::StringTable *symbolTable = m_index->stringTable("usr");
-    for (uint32_t i = 0; i < symbolTable->size(); ++i) {
+    output.resize(symbolTable->size());
+    for (uint32_t i = 0, iEnd = symbolTable->size(); i < iEnd; ++i) {
         const char *symbol = symbolTable->item(i);
-        result << symbol;
+        output[i] = symbol;
     }
-    return result;
 }
 
 QList<File*> Project::queryAllFiles()
@@ -111,6 +110,38 @@ QList<File*> Project::queryAllFiles()
         }
     }
     return result;
+}
+
+// Finds the only definition ref (or declaration ref) of the symbol.  If there
+// isn't a single such ref, return NULL.
+Ref Project::findSingleDefinitionOfSymbol(const QString &symbol)
+{
+    int declCount = 0;
+    int defnCount = 0;
+    Ref decl;
+    Ref defn;
+    QList<Ref> refs = theProject->queryReferencesOfSymbol(symbol);
+    for (const Ref &ref : refs) {
+        if (declCount < 2 && ref.kind == "Declaration") {
+            declCount++;
+            decl = ref;
+        }
+        if (defnCount < 2 && ref.kind == "Definition") {
+            defnCount++;
+            defn = ref;
+        }
+    }
+    if (defnCount == 1) {
+        return defn;
+    } else if (defnCount == 0 && declCount == 1) {
+        return decl;
+    } else {
+        Ref ret;
+        ret.file = NULL;
+        ret.line = 0;
+        ret.column = 0;
+        return ret;
+    }
 }
 
 } // namespace Nav

@@ -1,6 +1,7 @@
 #ifndef NAV_MISC_H
 #define NAV_MISC_H
 
+class QFontMetrics;
 class QMouseEvent;
 class QPlainTextEdit;
 
@@ -14,6 +15,8 @@ template <typename T> void deleteAll(T &t) {
 void hackDisableDragAndDropByClearingSelection(
         QPlainTextEdit *editor,
         QMouseEvent *event);
+
+int effectiveLineSpacing(const QFontMetrics &fm);
 
 } // namespace Nav
 

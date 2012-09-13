@@ -17,7 +17,8 @@ SOURCES += \
     ReportRefList.cc \
     TreeReport.cc \
     TreeReportWindow.cc \
-    CXXSyntaxHighlighter.cc
+    CXXSyntaxHighlighter.cc \
+    GotoWindow.cc
 
 HEADERS += \
     Misc.h \
@@ -34,7 +35,8 @@ HEADERS += \
     TreeReportWindow.h \
     CXXSyntaxHighlighter.h \
     CXXSyntaxHighlighterDirectives.h \
-    CXXSyntaxHighlighterKeywords.h
+    CXXSyntaxHighlighterKeywords.h \
+    GotoWindow.h
 
 FORMS += \
     MainWindow.ui \
@@ -42,6 +44,10 @@ FORMS += \
 
 PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
 LIBS +=           $${OUT_PWD}/../libindexdb/libindexdb.a
+
+# TODO: Don't use path to /home/rprichard.
+LIBS += -l/home/rprichard/re2/obj/libre2.a
+INCLUDEPATH += /home/rprichard/re2
 
 target.path = /
 INSTALLS += target

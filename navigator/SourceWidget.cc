@@ -20,14 +20,6 @@ namespace Nav {
 
 const int kTabStopSize = 8;
 
-// Sometimes the line spacing is smaller than the height, which makes the text
-// cramped.  When this happens, use the height instead.  (I think Qt already
-// does this -- look for QTextLayout and a negative leading()).
-static int effectiveLineSpacing(const QFontMetrics &fm)
-{
-    return std::max(fm.height(), fm.lineSpacing());
-}
-
 static inline QSize marginsToSize(const QMargins &margins)
 {
     return QSize(margins.left() + margins.right(),
