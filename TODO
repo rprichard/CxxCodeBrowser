@@ -1,3 +1,25 @@
+Indexer problems:
+
+// The bar ref is marked as a Call:
+foo.bar.method()
+// The final second ref is marked Call:
+thing(thing &other) : second(other.second)
+// The final second ref is marked Other:
+llvm::StringRef StubSizeStr = Comma.second
+// There is no definition/declaration of "second" for std::pair<llvm::StringRef, llvm::StringRef>
+
+-------------------------------------------------------------------------------
+
+A parameter identifier in a function declaration (with no body) is not very
+useful:
+    void func(int foo);
+It probably doesn't need to be syntax-highlighted even.  It *might* make sense
+to cross-reference "foo" with the locations of the corresponding argument in
+every call.  Unless/if that's done, it would make sense to stop including
+parameter symbols in the index.
+
+-------------------------------------------------------------------------------
+
 There's a persistent problem where one location expands to many locations.
 Typically the problem happens with templates, but it can also happen with
 macros:
