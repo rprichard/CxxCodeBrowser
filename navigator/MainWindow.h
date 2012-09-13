@@ -9,10 +9,11 @@ namespace Ui {
 class MainWindow;
 }
 
-class MainWindow;
-class SourceWidget;
-class Project;
 class File;
+class MainWindow;
+class Project;
+class Ref;
+class SourceWidget;
 
 extern MainWindow *theMainWindow;
 
@@ -23,9 +24,8 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(Project &project, QWidget *parent = 0);
     ~MainWindow();
-    void showFile(const QString &path);
-    void selectIdentifier(int line, int column);
-    void navigateToSomeDefinitionOfSymbol(const QString &symbol);
+    void navigateToFile(File *file);
+    void navigateToRef(const Ref &ref);
 
 private slots:
     void actionViewFileList();

@@ -140,6 +140,7 @@ private slots:
     void navigateToItem(int index);
 
 private:
+    Project &m_project;
     PlaceholderLineEdit *m_editor;
     QScrollArea *m_scrollArea;
     GotoWindowResults *m_results;

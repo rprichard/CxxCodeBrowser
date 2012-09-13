@@ -34,7 +34,7 @@ QList<QVariant> ReportFileList::getText(const Index &index)
 
 void ReportFileList::select(const Index &index)
 {
-    theMainWindow->showFile(m_files[index.row()]->path());
+    theMainWindow->navigateToFile(m_files[index.row()]);
 }
 
 } // namespace Nav

@@ -67,25 +67,19 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::showFile(const QString &path)
+void MainWindow::navigateToFile(File *file)
 {
-    Nav::File &newFile = Nav::theProject->fileManager()->file(path);
-    m_sourceWidget->setFile(&newFile);
+    if (file == NULL)
+        return;
+    m_sourceWidget->setFile(file);
 }
 
-// Line and column indices are 1-based.
-void MainWindow::selectIdentifier(int line, int column)
+void MainWindow::navigateToRef(const Ref &ref)
 {
-    m_sourceWidget->selectIdentifier(line, column);
-}
-
-void MainWindow::navigateToSomeDefinitionOfSymbol(const QString &symbol)
-{
-    Ref ref = theProject->findSingleDefinitionOfSymbol(symbol);
     if (ref.file == NULL)
         return;
-    showFile(ref.file->path());
-    selectIdentifier(ref.line, ref.column);
+    m_sourceWidget->setFile(ref.file);
+    m_sourceWidget->selectIdentifier(ref.line, ref.column);
 }
 
 void MainWindow::actionViewFileList()

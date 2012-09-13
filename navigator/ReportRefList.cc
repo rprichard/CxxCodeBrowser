@@ -43,9 +43,7 @@ QList<QVariant> ReportRefList::getText(const Index &index)
 
 void ReportRefList::select(const Index &index)
 {
-    const Ref &ref = m_refList[index.row()];
-    theMainWindow->showFile(ref.file->path());
-    theMainWindow->selectIdentifier(ref.line, ref.column);
+    theMainWindow->navigateToRef(m_refList[index.row()]);
 }
 
 } // namespace Nav

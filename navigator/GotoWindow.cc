@@ -9,6 +9,7 @@
 #include "MainWindow.h"
 #include "Misc.h"
 #include "Project.h"
+#include "Ref.h"
 
 using re2::RE2;
 
@@ -345,7 +346,7 @@ void PlaceholderLineEdit::paintEvent(QPaintEvent *event)
 // GotoWindow
 
 GotoWindow::GotoWindow(Project &project, QWidget *parent) :
-    QWidget(parent), m_pendingFilteredSymbols(NULL)
+    QWidget(parent), m_project(project), m_pendingFilteredSymbols(NULL)
 {
     QFont newFont = font();
     newFont.setPointSize(9);
@@ -368,7 +369,7 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     m_scrollArea->setBackgroundRole(QPalette::Base);
 
     setWindowTitle("Go to symbol...");
-    project.queryAllSymbolsSorted(m_symbols);
+    m_project.queryAllSymbolsSorted(m_symbols);
     textChanged();
 }
 
@@ -492,8 +493,9 @@ void GotoWindow::navigateToItem(int index)
 
     // Lookup the (first?) definition of the symbol and navigate to it.
     // TODO: What about multiple definitions of the same symbol?
-    theMainWindow->navigateToSomeDefinitionOfSymbol(
-                m_results->filteredSymbols()->at(index));
+    theMainWindow->navigateToRef(
+                m_project.findSingleDefinitionOfSymbol(
+                        m_results->filteredSymbols()->at(index)));
 }
 
 } // namespace Nav

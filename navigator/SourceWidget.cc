@@ -343,8 +343,10 @@ void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
                         m_file,
                         identifierClicked.start.line + 1,
                         identifierClicked.start.column + 1);
-            if (symbols.size() == 1)
-                theMainWindow->navigateToSomeDefinitionOfSymbol(symbols[0]);
+            if (symbols.size() == 1) {
+                Ref ref = m_project.findSingleDefinitionOfSymbol(symbols[0]);
+                theMainWindow->navigateToRef(ref);
+            }
         }
     }
 }
