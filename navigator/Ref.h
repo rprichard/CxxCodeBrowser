@@ -11,8 +11,8 @@ struct Ref
 {
     QString symbol;
     File *file;
-    int line;
-    int column;
+    int line;           // 1-based
+    int column;         // 1-based
     QString kind;
 };
 
