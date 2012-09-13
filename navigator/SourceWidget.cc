@@ -343,7 +343,6 @@ void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
                         m_file,
                         identifierClicked.start.line + 1,
                         identifierClicked.start.column + 1);
-            qDebug() << symbols;
             if (symbols.size() == 1)
                 theMainWindow->navigateToSomeDefinitionOfSymbol(symbols[0]);
         }

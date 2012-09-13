@@ -1,8 +1,6 @@
 #include "GotoWindow.h"
 
-#include <QDebug>
 #include <QPainter>
-#include <QTime>
 #include <QVBoxLayout>
 #include <QtConcurrentRun>
 #include <cassert>
@@ -376,13 +374,8 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
             return strcmp(x, y) < 0;
         }
     };
-    QTime t;
-    t.start();
     project.queryAllSymbols(m_symbols);
-    qDebug() << "queried in " << t.elapsed();
-    t.start();
     std::sort(m_symbols.begin(), m_symbols.end(), ConstCharCompare());
-    qDebug() << "sorted in " << t.elapsed();
 
     textChanged();
 }
