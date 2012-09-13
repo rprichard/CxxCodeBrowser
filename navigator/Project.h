@@ -1,6 +1,7 @@
 #ifndef NAV_PROJECT_H
 #define NAV_PROJECT_H
 
+#include <QFuture>
 #include <QList>
 #include <QStringList>
 
@@ -26,11 +27,16 @@ public:
 
     QList<Ref> queryReferencesOfSymbol(const QString &symbol);
     QStringList querySymbolsAtLocation(File *file, int line, int column);
-    void queryAllSymbols(std::vector<const char*> &output);
+    void queryAllSymbolsSorted(std::vector<const char*> &output);
     QList<File*> queryAllFiles();
     Ref findSingleDefinitionOfSymbol(const QString &symbol);
 
 private:
+    void initSortedSymbols();
+
+private:
+    QFuture<void> m_sortedSymbolsInited;
+    std::vector<const char*> m_sortedSymbols;
     FileManager *m_fileManager;
     indexdb::Index *m_index;
 };

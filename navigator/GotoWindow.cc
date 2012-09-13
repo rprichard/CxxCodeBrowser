@@ -368,15 +368,7 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     m_scrollArea->setBackgroundRole(QPalette::Base);
 
     setWindowTitle("Go to symbol...");
-
-    struct ConstCharCompare {
-        bool operator()(const char *x, const char *y) {
-            return strcmp(x, y) < 0;
-        }
-    };
-    project.queryAllSymbols(m_symbols);
-    std::sort(m_symbols.begin(), m_symbols.end(), ConstCharCompare());
-
+    project.queryAllSymbolsSorted(m_symbols);
     textChanged();
 }
 

@@ -1,4 +1,7 @@
 #include "Project.h"
+
+#include <QtConcurrentRun>
+
 #include "FileManager.h"
 #include "File.h"
 #include "Misc.h"
@@ -13,10 +16,13 @@ Project::Project(const QString &path) :
     m_fileManager(new FileManager)
 {
     m_index = new indexdb::Index(path.toStdString());
+    m_sortedSymbolsInited =
+            QtConcurrent::run(this, &Project::initSortedSymbols);
 }
 
 Project::~Project()
 {
+    m_sortedSymbolsInited.waitForFinished();
     delete m_fileManager;
     delete m_index;
 }
@@ -88,14 +94,37 @@ QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
     return result;
 }
 
-void Project::queryAllSymbols(std::vector<const char*> &output)
+// Sorting the symbols is slow (e.g. 800ms for LLVM+Clang), so do it just once,
+// when the navigator starts up, and start doing it in the background when the
+// application starts.
+//
+// XXX: Consider sorting the symbols in the index instead.
+// XXX: It's probably possible to write a parallel_sort that would be a
+// drop-in replacement for std::sort.
+void Project::initSortedSymbols()
 {
     indexdb::StringTable *symbolTable = m_index->stringTable("usr");
-    output.resize(symbolTable->size());
+    m_sortedSymbols.resize(symbolTable->size());
     for (uint32_t i = 0, iEnd = symbolTable->size(); i < iEnd; ++i) {
         const char *symbol = symbolTable->item(i);
-        output[i] = symbol;
+        m_sortedSymbols[i] = symbol;
     }
+    struct ConstCharCompare {
+        bool operator()(const char *x, const char *y) {
+            return strcmp(x, y) < 0;
+        }
+    };
+    std::sort(m_sortedSymbols.begin(),
+              m_sortedSymbols.end(),
+              ConstCharCompare());
+}
+
+// XXX: This function could return a reference rather than copying the symbol
+// list.
+void Project::queryAllSymbolsSorted(std::vector<const char*> &output)
+{
+    m_sortedSymbolsInited.waitForFinished();
+    output = m_sortedSymbols;
 }
 
 QList<File*> Project::queryAllFiles()
