@@ -18,6 +18,9 @@ TreeReportWindow::TreeReportWindow(TreeReport *treeReport, QWidget *parent) :
     ui->setupUi(this);
 
     setWindowTitle(treeReport->getTitle());
+    QFont newFont = font();
+    newFont.setPointSize(9);
+    setFont(newFont);
 
     // Register Ctrl+Q.
     QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
