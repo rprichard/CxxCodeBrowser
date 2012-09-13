@@ -4,6 +4,7 @@ TEMPLATE = subdirs
 CONFIG += ordered
 
 SUBDIRS += libindexdb \
+           libre2 \
            navigator \
            clang-index-test \
            clang-indexer \

@@ -45,9 +45,9 @@ FORMS += \
 PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
 LIBS +=           $${OUT_PWD}/../libindexdb/libindexdb.a
 
-# TODO: Don't use path to /home/rprichard.
-LIBS += -l/home/rprichard/re2/obj/libre2.a
-INCLUDEPATH += /home/rprichard/re2
+PRE_TARGETDEPS += $${OUT_PWD}/../libre2/libre2.a
+LIBS +=           $${OUT_PWD}/../libre2/libre2.a
+INCLUDEPATH += ../libre2
 
 target.path = /
 INSTALLS += target
