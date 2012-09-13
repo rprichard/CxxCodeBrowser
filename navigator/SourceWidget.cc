@@ -15,6 +15,7 @@
 #include "Project.h"
 #include "ReportRefList.h"
 #include "TreeReportWindow.h"
+#include "MainWindow.h"
 
 namespace Nav {
 
@@ -332,10 +333,19 @@ void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
         m_selection = FileRange();
         update();
 
+        // Delay the event handling as long as possible.  Clicking a symbol is
+        // likely to cause a jump to another location, which will change the
+        // selection (and perhaps the file being displayed).
         if (!identifierClicked.isEmpty()) {
-            // TODO: Eventually, jump to the declaration/definition of the
-            // symbol.  We probably need to propagate information upwards
-            // somehow because jumping to a location affects navigation history.
+            // TODO: Is this behavior really ideal in the case that one
+            // location maps to multiple symbols?
+            QStringList symbols = theProject->querySymbolsAtLocation(
+                        m_file,
+                        identifierClicked.start.line + 1,
+                        identifierClicked.start.column + 1);
+            qDebug() << symbols;
+            if (symbols.size() == 1)
+                theMainWindow->navigateToSomeDefinitionOfSymbol(symbols[0]);
         }
     }
 }
