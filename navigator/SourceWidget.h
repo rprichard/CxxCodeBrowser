@@ -148,6 +148,11 @@ public:
     QSize sizeHint() const;
     QSize minimumSizeHint() const { return sizeHint(); }
 
+signals:
+    void goBack();
+    void goForward();
+    void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
+
 private:
     void paintEvent(QPaintEvent *event);
 
@@ -180,6 +185,14 @@ public:
     void setFile(File *file);
     File *file() { return sourceWidgetView().file(); }
     void selectIdentifier(int line, int column);
+    QPoint viewportOrigin();
+    void setViewportOrigin(const QPoint &pt);
+
+signals:
+    void fileChanged(File *file);
+    void goBack();
+    void goForward();
+    void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
 
 private:
     SourceWidgetView &sourceWidgetView();

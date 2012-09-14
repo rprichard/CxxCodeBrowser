@@ -353,8 +353,23 @@ void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
 
 void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
 {
-    if (!m_selection.isEmpty() &&
-            m_selection == findWordAtPoint(event->pos())) {
+    if (!m_selection.isEmpty()) {
+        if (m_selection != findWordAtPoint(event->pos()))
+            m_selection = FileRange();
+    }
+
+    if (m_selection.isEmpty()) {
+        QMenu *menu = new QMenu();
+        bool backEnabled = false;
+        bool forwardEnabled = false;
+        emit areBackAndForwardEnabled(backEnabled, forwardEnabled);
+        menu->addAction(QIcon::fromTheme("go-previous"), "Back",
+                        this, SIGNAL(goBack()))->setEnabled(backEnabled);
+        menu->addAction(QIcon::fromTheme("go-next"), "Forward",
+                        this, SIGNAL(goForward()))->setEnabled(forwardEnabled);
+        menu->exec(event->globalPos());
+        delete menu;
+    } else {
         QMenu *menu = new QMenu();
         int line = m_selection.start.line + 1;
         int column = m_selection.start.column + 1;
@@ -381,7 +396,7 @@ void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
         menu->exec(event->globalPos());
         delete menu;
     }
-    m_selection = FileRange();
+
     update();
 }
 
@@ -418,6 +433,12 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     widget()->setFont(font);
     m_lineArea->setFont(font);
 
+    connect(&sourceWidgetView(), SIGNAL(goBack()), SIGNAL(goBack()));
+    connect(&sourceWidgetView(), SIGNAL(goForward()), SIGNAL(goForward()));
+    connect(&sourceWidgetView(),
+            SIGNAL(areBackAndForwardEnabled(bool&,bool&)),
+            SIGNAL(areBackAndForwardEnabled(bool&,bool&)));
+
     layoutSourceWidget();
 }
 
@@ -428,6 +449,8 @@ void SourceWidget::setFile(File *file)
         sourceWidgetView().setFile(file);
         m_lineArea->setLineCount(file != NULL ? file->lineCount() : 0);
         layoutSourceWidget();
+
+        emit fileChanged(file);
     }
 }
 
@@ -487,6 +510,18 @@ void SourceWidget::selectIdentifier(int line, int column)
     w.setSelection(r);
     QPoint wordTopLeft = w.locationToPoint(r.start);
     ensureVisible(wordTopLeft.x(), wordTopLeft.y());
+}
+
+QPoint SourceWidget::viewportOrigin()
+{
+    return QPoint(horizontalScrollBar()->value(),
+                  verticalScrollBar()->value());
+}
+
+void SourceWidget::setViewportOrigin(const QPoint &pt)
+{
+    horizontalScrollBar()->setValue(pt.x());
+    verticalScrollBar()->setValue(pt.y());
 }
 
 } // namespace Nav

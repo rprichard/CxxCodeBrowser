@@ -19,7 +19,8 @@ SOURCES += \
     TreeReportWindow.cc \
     CXXSyntaxHighlighter.cc \
     GotoWindow.cc \
-    TextWidthCalculator.cc
+    TextWidthCalculator.cc \
+    History.cc
 
 HEADERS += \
     Misc.h \
@@ -38,7 +39,8 @@ HEADERS += \
     CXXSyntaxHighlighterDirectives.h \
     CXXSyntaxHighlighterKeywords.h \
     GotoWindow.h \
-    TextWidthCalculator.h
+    TextWidthCalculator.h \
+    History.h
 
 FORMS += \
     MainWindow.ui \

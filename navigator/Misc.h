@@ -18,6 +18,8 @@ void hackDisableDragAndDropByClearingSelection(
 
 int effectiveLineSpacing(const QFontMetrics &fm);
 
+void hackSwitchIconThemeToTheOneWithIcons();
+
 } // namespace Nav
 
 #endif // NAV_MISC_H
