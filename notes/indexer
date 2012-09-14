@@ -1,0 +1,68 @@
+Find more user-friendly symbol names than USRs.
+
+ - Do USRs go away entirely?  Is there a one-to-one or a one-to-many
+   relationship between a USR and a user-friendly name?  If USRs are still
+   present, then will their existence make navigator behavior magical/opaque?
+
+Template arguments
+
+ - Instead of recording a std::vector<Foo*, std::allocator<Foo*>>, we can
+   record one of:
+    - std::vector
+    - std::vector<Foo*>
+   I'm not aware of a downside to omitting template arguments that match the
+   default.  I'm not sure it's really feasible.  Omitting the template arguments
+   entirely has the advantage of reducing the number of symbols at a single
+   source point (but it doesn't solve the problem -- consider preprocessor
+   usage).  It means that I could xref on std::vector::push_back to see all uses
+   of that method regardless of the contained type.
+
+Ref ranges
+
+ - For refs, try to get range info (start+stop) rather than just a location.
+   This is needed for C++ destructors because "~ Foo" is not an identifier, but
+   we'd probably like the whole thing to be treated like one.  (Actually, can
+   there be comments in there?)
+
+Highlighting
+
+ - For highlighting, we want to differentiate between kinds of symbols:
+    - types
+    - members
+    - local variables
+
+Bugs (bad ref kinds)
+
+ - For "class A : T<A>" we record A as a Base-Class.  It should be something
+   else, maybe just Reference.
+ - See notes/misc for more.
+
+Special buffers (scratch space, built-in macros)
+
+ - I keep seeing references to "<scratch space>" and "<built-in>".  They ought
+   to go away.  Maybe some of the scratch space references have something to
+   do with the preprocessor and with the way the indexer deals with macros
+   and source locations.
+
+ - For "<built-in>" (and command-line -D/-U args?), the ideal fix probably goes
+   like this.  We'd have a special table ("builtins") mapping USRs for built-in
+   macro definitions to a string with the expanded tokens.  Then at some point,
+   we'd read this table and turn it into a special buffer.  Something like this:
+      /*built-in*/ FOO => 1
+      /*built-in*/ FOO => 0
+      /*cmd-line*/ FOO => 1
+      /*cmd-line*/ FOO => undef
+      /*built-in*/ #define BAR 1
+      /*built-in*/ #define BAZ 1
+   We could do this transformation right before writing the completed index
+   file, or we could do in the navigator itself.  Each line in the special
+   buffer implies one extra ref.  (I assume the values themselves don't refer
+   to other macros, but I don't know that for sure.)  If the transformation is
+   done at index time, then we can create the refs then, but we need to store
+   the buffer in the index ("special-buffers" table, with one column mapping
+   "<built-in>" to the content?).  If the transformation is done at run-time,
+   then the navigator will have to augment the ref query to add in the built-in
+   refs.
+
+   DECISION: I think the transformation should be done at index-time so as to
+   keep more C/C++-specific code out of the navigator.

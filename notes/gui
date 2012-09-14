@@ -1,0 +1,98 @@
+HISTORY
+-------
+
+ - Try to reduce the number of history entries.
+    - Certain kinds of successive location changes could be collapsed into a
+      single navigation.  (e.g. searching with the GotoWindow, selecting files,
+      selecting refs.)
+    - Moving to a different position could mutate the history entry rather
+      than create a new entry.  (e.g. If I navigate to a function definition,
+      then scroll up, we want to record the position I scrolled to and forget
+      the position I jumped to.)  -- But what if I scroll to a totally
+      different part of the file?
+    - I suspect getting this aspect of history right is going to require some
+      careful thinking about what users expect Back/Forward to take them to.
+    - I think good Back/Forward behavior requires that users can predict/control
+      what the buttons do.
+    - CRAZY IDEA: Show a "history bar" at the top of the window:
+          [File1.cc] >> [File2.cc] >> [File3.cc]
+      Highlight the current entry.  Clicking an entry brings you to that entry.
+      As you scroll, the current entry changes.
+      Pro: Makes it really obvious what's going on with the history.
+      Con: Is it worth the real-estate?
+      Navigating with GotoWindow would create a new "temp" history entry.
+      Dismissing the dialog would destroy the "temp" entry and send the user
+      back.
+
+ - Figure out the relationship between the History, History::Location,
+   MainWindow, and SourceWidget classes.  Details:
+    - History::Location cannot be called {File,Source}Location because that
+      suggests line and column.  History::Location is really a GUI location.
+      Maybe it could be a child of SourceWidget.
+    - The toolbar Back/Forward buttons need Enabled bits pushed to them.
+    - The context menu Back/Forward buttons can pull Enabled bits.
+    - Idea:
+       - Consolidate more navigation policy in the History class.  The History
+         class needs to know when the SourceWidget location changes due to the
+         user scrolling.  It should also know, for each jump, which window
+         (or at least what kind of window) initiated the jump.
+       - The history window can have a "historyChanged" signal that the
+         MainWindow uses to update its Back/Forward toolbar buttons.
+    - Wait: shouldn't pressing Escape in the GotoWindow send the user back to
+      where they came from?  I think this is going to be a general problem with
+      search features.
+
+
+FILE NAVIGATION
+---------------
+
+ - The ReportFileList is too limited.  It's bad at browing files and getting to
+   a specific file.
+
+IDEA: Have a tree to the left of the SourceWidget showing:
+ (1) All files in the project root directory
+ (2) A sparse tree of all files outside the tree that are part of the index
+ - Autoexpand and autocollapse directories when a file is shown, but keep track
+   of directories that the user has manually expanded.  Clear that directory if
+   the user manually collapses it.
+ - Clicking anywhere on the directory name should toggle it.
+ - The current SourceWidget file and the selected file are always matched.  A
+   directory is never selected, and the tree never has keyboard focus.
+
+IDEA: Make ReportFileList hierarchical.
+IDEA: Need a way to filter/fuzzy-search for files/directories.
+IDEA: Create a GotoWindow-variant that works with files instead of symbols.
+
+
+SYMBOL NAVIGATION
+-----------------
+
+ - We need a fast replacement for "xref <symbol>".  My original idea was that
+   Ctrl+X would bring up a "Cross-reference symbol..." popup instead of a
+   "Go to symbol..." popup.  (Maybe if one of the popups is open, you could
+   switch it to the other by hitting Ctrl+S/Ctrl+X?)
+
+ - If there are multiple definitions of one symbol, there needs to be some way
+   to navigate to each of them.  For example, we might want to expand c:@F@main
+   into each definition of c:@F@main.
+
+   PROBLEM: If there is one definition of c:@F@main, then we ignore any
+   declarations.  If the definition is gone, though, are we supposed to show all
+   the declarations?  That's really inconsistent.  What if there is no
+   definition but one declaration?
+
+   PROBLEM: It makes no sense to show things like namespace declarations.  Same
+   goes for forward declarations of classes.  Local variables and parameters
+   probably shouldn't be in the GotoWindow either.
+
+   IDEA: Maybe we severely restrict the kinds of symbols you can goto.  We only
+   want to goto things that are likely to be defined in one place:
+    - Function definitions (i.e. bodies)
+    - Class/struct/union definitions
+    - Members
+    - Variable definitions (excluding params, locals, and mere declarations)
+
+   IDEA: Maybe the above class of things is expanded into refs, while other
+   symbols are not expanded.  In GotoWindow, hitting Enter on a ref shows you
+   the symbol.  Hitting Enter on a mere symbol shows the cross-reference window.
+   Hitting Shift-Enter always shows the cross-reference window?
