@@ -1,6 +1,7 @@
 #include "GotoWindow.h"
 
 #include <QPainter>
+#include <QScrollBar>
 #include <QVBoxLayout>
 #include <QtConcurrentRun>
 #include <cassert>
@@ -10,6 +11,7 @@
 #include "Misc.h"
 #include "Project.h"
 #include "Ref.h"
+#include "TextWidthCalculator.h"
 
 using re2::RE2;
 
@@ -25,19 +27,21 @@ static QString convertFilterIntoRegex(const QString &filter)
     QStringList words = filter.split(QRegExp("[^A-Za-z0-9_*]+"), QString::SkipEmptyParts);
     QString regex;
 
-    for (QString word : words) {
-        regex += ".*";
-        regex += "\\b";
-        for (QChar ch : word) {
-            if (ch.unicode() == '*') {
-                regex += "\\w*";
-            } else {
-                regex += ch;
+    if (words.size() > 0) {
+        for (QString word : words) {
+            regex += ".*";
+            regex += "\\b";
+            for (QChar ch : word) {
+                if (ch.unicode() == '*') {
+                    regex += "\\w*";
+                } else {
+                    regex += ch;
+                }
             }
+            regex += "\\b";
         }
-        regex += "\\b";
+        regex += "$";
     }
-    regex += "$";
     return regex;
 }
 
@@ -46,9 +50,13 @@ static QString convertFilterIntoRegex(const QString &filter)
 // FilteredSymbols
 
 FilteredSymbols::FilteredSymbols(
+        TextWidthCalculator &textWidthCalculator,
         std::vector<const char*> &symbols,
         const QString &regex) :
-    m_symbols(symbols), m_regex(regex), m_state(NotStarted)
+    m_textWidthCalculator(textWidthCalculator),
+    m_symbols(symbols),
+    m_regex(regex),
+    m_state(NotStarted)
 {
     // Split up the symbols to allow parallelized filtering.  Each batch
     // corresponds to one QtConcurrent::run call, which is run on a Qt-managed
@@ -105,22 +113,37 @@ void FilteredSymbols::cancel()
 
 void FilteredSymbols::filterBatchThread(QString regex, Batch *batch)
 {
-    batch->filteredCount = 0;
-    RE2::Options options;
-    options.set_case_sensitive(true);
-    re2::RE2 pattern(regex.toStdString(), options);
-    if (!pattern.ok())
-        return;
-    int *filtered = batch->filtered;
-    int filteredCount = 0;
-    for (int i = batch->start; i < batch->stop; ++i) {
+    batch->maxTextWidth = 0;
+    if (regex == "") {
+        batch->filteredCount = batch->stop - batch->start;
+        for (int i = batch->start; i < batch->stop; ++i)
+            batch->filtered[i - batch->start] = i;
+    } else {
+        batch->filteredCount = 0;
+        RE2::Options options;
+        options.set_case_sensitive(true);
+        re2::RE2 pattern(regex.toStdString(), options);
+        if (!pattern.ok())
+            return;
+        int *filtered = batch->filtered;
+        int filteredCount = 0;
+        for (int i = batch->start; i < batch->stop; ++i) {
+            if (batch->cancelFlag)
+                return;
+            const char *s = (*batch->symbols)[i];
+            if (pattern.Match(s, 0, strlen(s), RE2::UNANCHORED, NULL, 0))
+                filtered[filteredCount++] = i;
+        }
+        batch->filteredCount = filteredCount;
+    }
+
+    for (int i = 0; i < batch->filteredCount; ++i) {
         if (batch->cancelFlag)
             return;
-        const char *s = (*batch->symbols)[i];
-        if (pattern.Match(s, 0, strlen(s), RE2::UNANCHORED, NULL, 0))
-            filtered[filteredCount++] = i;
+        batch->maxTextWidth = std::max(
+                    batch->maxTextWidth,
+                    m_textWidthCalculator.calculate((*batch->symbols)[batch->filtered[i]]));
     }
-    batch->filteredCount = filteredCount;
 }
 
 void FilteredSymbols::batchFinished()
@@ -131,7 +154,7 @@ void FilteredSymbols::batchFinished()
                 return;
         }
         m_state = Done;
-        emit done();
+        emit done(this);
     }
 }
 
@@ -170,6 +193,27 @@ int FilteredSymbols::filteredIndexToFullIndex(int index) const
     return 0;
 }
 
+int FilteredSymbols::maxTextWidth() const
+{
+    assert(m_state == Done);
+    int result = 0;
+    for (const Batch *batch : m_batches)
+        result = std::max(result, batch->maxTextWidth);
+    return result;
+
+}
+
+void FilteredSymbols::waitForFinished()
+{
+    assert(m_state != NotStarted);
+    if (m_state == Started) {
+        for (Batch *batch : m_batches)
+            batch->future.waitForFinished();
+        m_state = Done;
+        emit done(this);
+    }
+}
+
 const char *FilteredSymbols::at(int index) const
 {
     assert(m_state == Done);
@@ -183,7 +227,6 @@ const char *FilteredSymbols::at(int index) const
 GotoWindowResults::GotoWindowResults(QWidget *parent) :
     QWidget(parent),
     m_symbols(NULL),
-    m_widthHint(1),
     m_selectedIndex(-1),
     m_mouseDownIndex(-1)
 {
@@ -209,7 +252,6 @@ void GotoWindowResults::setFilteredSymbols(FilteredSymbols *symbols)
     }
     delete m_symbols;
     m_symbols = symbols;
-    m_widthHint = 0;
     if (m_symbols == NULL) {
         m_selectedIndex = -1;
     } else {
@@ -250,12 +292,13 @@ QSize GotoWindowResults::sizeHint() const
 {
     if (m_symbols == NULL)
         return QSize();
-    return QSize(m_widthHint, itemHeight() * m_symbols->size());
+    return QSize(m_symbols->maxTextWidth() +
+                        m_itemMargins.left() + m_itemMargins.right(),
+                 itemHeight() * m_symbols->size());
 }
 
 void GotoWindowResults::paintEvent(QPaintEvent *event)
 {
-    int newWidthHint = m_widthHint;
     if (m_symbols != NULL) {
         const int firstBaseline = fontMetrics().ascent();
         const int itemHeight = this->itemHeight();
@@ -265,27 +308,23 @@ void GotoWindowResults::paintEvent(QPaintEvent *event)
         QPainter p(this);
         for (int item = item1; item <= item2; ++item) {
             if (item == m_selectedIndex) {
-                // Draw a selection background.
-                p.fillRect(0, item * itemHeight, width(), itemHeight,
-                           palette().color(QPalette::Highlight));
+                // Draw the selection background.
+                QStyleOptionViewItemV4 option;
+                option.rect = QRect(0, item * itemHeight, width(), itemHeight);
+                option.state |= QStyle::State_Selected;
+                style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, &p, this);
+
+                // Use the selection text color.
                 p.setPen(palette().color(QPalette::HighlightedText));
             } else {
+                // Use the default text color.
                 p.setPen(palette().color(QPalette::Text));
             }
             p.drawText(m_itemMargins.left(), firstBaseline + item * itemHeight,
                        m_symbols->at(item));
-            newWidthHint = std::max(newWidthHint,
-                                    fontMetrics().width(m_symbols->at(item)) +
-                                    m_itemMargins.left() +
-                                    m_itemMargins.right());
         }
     }
     QWidget::paintEvent(event);
-
-    if (newWidthHint > m_widthHint) {
-        m_widthHint = newWidthHint;
-        updateGeometry();
-    }
 }
 
 int GotoWindowResults::indexAtPoint(QPoint pt)
@@ -350,6 +389,7 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
 {
     QFont newFont = font();
     newFont.setPointSize(9);
+    newFont.setKerning(true);
     setFont(newFont);
 
     new QVBoxLayout(this);
@@ -364,13 +404,20 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     connect(m_results, SIGNAL(selectionChanged(int)), SLOT(resultsSelectionChanged(int)));
     connect(m_results, SIGNAL(itemClicked(int)), SLOT(navigateToItem(int)));
 
-    m_scrollArea->setWidgetResizable(true);
+    m_scrollArea->setWidgetResizable(false);
     m_scrollArea->setFocusPolicy(Qt::NoFocus);
     m_scrollArea->setBackgroundRole(QPalette::Base);
 
     setWindowTitle("Go to symbol...");
     m_project.queryAllSymbolsSorted(m_symbols);
+
+    // Imitate user input in the search box, but block until the GUI is
+    // updated.
     textChanged();
+    assert(m_pendingFilteredSymbols != NULL);
+    m_pendingFilteredSymbols->waitForFinished();
+    assert(m_pendingFilteredSymbols == NULL);
+    //symbolFilteringDone(m_pendingFilteredSymbols);
 }
 
 GotoWindow::~GotoWindow()
@@ -433,37 +480,48 @@ void GotoWindow::keyPressEvent(QKeyEvent *event)
     }
 }
 
+void GotoWindow::resizeResultsWidget()
+{
+    // As in the SourceWidget, call resize manually instead of setting the
+    // widgetResizable property because we may need to scroll the window
+    // immediately afterwards.
+    QSize sizeHint = m_results->sizeHint();
+    sizeHint = sizeHint.expandedTo(m_scrollArea->viewport()->size());
+    m_results->resize(sizeHint);
+}
+
+void GotoWindow::resizeEvent(QResizeEvent *event)
+{
+    resizeResultsWidget();
+}
+
 void GotoWindow::textChanged()
 {
     if (m_pendingFilteredSymbols != NULL)
         delete m_pendingFilteredSymbols;
     m_pendingFilteredSymbols =
-            new FilteredSymbols(m_symbols,
-                                convertFilterIntoRegex(m_editor->text()));
+            new FilteredSymbols(
+                theMainWindow->getCachedTextWidthCalculator(font()),
+                m_symbols,
+                convertFilterIntoRegex(m_editor->text()));
     connect(m_pendingFilteredSymbols,
-            SIGNAL(done()),
-            SLOT(symbolFilteringDone()));
+            SIGNAL(done(FilteredSymbols*)),
+            SLOT(symbolFilteringDone(FilteredSymbols*)));
     m_pendingFilteredSymbols->start();
 }
 
-void GotoWindow::symbolFilteringDone()
+void GotoWindow::symbolFilteringDone(FilteredSymbols *filteredSymbols)
 {
-    if (m_pendingFilteredSymbols != NULL) {
+    if (m_pendingFilteredSymbols == filteredSymbols) {
         m_results->setFilteredSymbols(m_pendingFilteredSymbols);
         m_pendingFilteredSymbols = NULL;
 
-        // Here I'm going to try setting QScrollArea's widgetResizable property
-        // to true and *also* calling resize early so I can scroll to the
-        // bottom of the widget.  I'm doing this because the results window
-        // expands its width in its paint event handler, and Qt will then
-        // automatically resize the results window if widgetResizable is true.
-        QSize sizeHint = m_results->sizeHint();
-        sizeHint = sizeHint.expandedTo(m_scrollArea->viewport()->size());
-        m_results->resize(sizeHint);
+        resizeResultsWidget();
 
+        int x = m_scrollArea->horizontalScrollBar()->value();
         int y = std::max(0, m_results->selectedIndex() *
                             m_results->itemHeight());
-        m_scrollArea->ensureVisible(0, y);
+        m_scrollArea->ensureVisible(x, y);
 
         // Changing the filteredSymbols property can alter the unfiltered index
         // without altering the filtered index, in which case there is no
@@ -479,9 +537,10 @@ void GotoWindow::resultsSelectionChanged(int index)
         return;
 
     // Scroll the selected index into range.
+    int x = m_scrollArea->horizontalScrollBar()->value();
     int y = m_results->selectedIndex() * m_results->itemHeight();
-    m_scrollArea->ensureVisible(0, y, 0, 0);
-    m_scrollArea->ensureVisible(0, y + m_results->itemHeight(), 0, 0);
+    m_scrollArea->ensureVisible(x, y, 0, 0);
+    m_scrollArea->ensureVisible(x, y + m_results->itemHeight(), 0, 0);
 
     navigateToItem(index);
 }

@@ -1,7 +1,6 @@
 #include "TreeReportWindow.h"
 #include "ui_TreeReportWindow.h"
 #include "TreeReport.h"
-#include <QDebug>
 #include <QKeySequence>
 #include <QShortcut>
 #include <QStringList>
@@ -26,22 +25,25 @@ TreeReportWindow::TreeReportWindow(TreeReport *treeReport, QWidget *parent) :
     QShortcut *shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
     connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
 
+    // TODO: Try using a model to speed this code up.  Sometimes I show
+    // cross-references for the llvm namespace, and it's really slow.
+
     // Populate the tree widget.
     ui->treeWidget->setHeaderLabels(treeReport->getColumns());
     ui->treeWidget->addTopLevelItems(
                 createChildTreeWidgetItems(TreeReport::Index()));
 
     // Fixup the column widths.
+    int totalWidth = 0;
     for (int i = 0; i < ui->treeWidget->columnCount(); ++i) {
         ui->treeWidget->resizeColumnToContents(i);
         ui->treeWidget->setColumnWidth(
-                    i, ui->treeWidget->columnWidth(i) + 10);
+                    i, ui->treeWidget->columnWidth(i) + 20);
+        ui->treeWidget->header()->setResizeMode(QHeaderView::Fixed);
+        ui->treeWidget->header()->setMovable(false);
+        totalWidth += ui->treeWidget->columnWidth(i);
     }
 
-    // Sort the tree view arbitrarily.
-    for (int i = 0; i < ui->treeWidget->columnCount(); ++i) {
-        ui->treeWidget->sortByColumn(i, Qt::AscendingOrder);
-    }
     ui->treeWidget->sortByColumn(0, Qt::AscendingOrder);
     ui->treeWidget->setSortingEnabled(true);
 
@@ -49,8 +51,10 @@ TreeReportWindow::TreeReportWindow(TreeReport *treeReport, QWidget *parent) :
     // widget row height.  That's not quite right, but it seems to work OK.
     // Do something better?
     // TODO: The rowCount() code won't work for trees.
+
     int preferredSize = ui->treeWidget->fontMetrics().height() * ui->treeWidget->model()->rowCount();
-    resize(600, height() + preferredSize);
+    int preferredWidth = std::max(600, 30 + totalWidth);
+    resize(preferredWidth, height() + preferredSize);
 }
 
 QList<QTreeWidgetItem*> TreeReportWindow::createChildTreeWidgetItems(

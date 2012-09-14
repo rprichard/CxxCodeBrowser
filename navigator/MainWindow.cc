@@ -64,6 +64,7 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    qDeleteAll(m_textWidthCalculatorCache);
     delete ui;
 }
 
@@ -80,6 +81,15 @@ void MainWindow::navigateToRef(const Ref &ref)
         return;
     m_sourceWidget->setFile(ref.file);
     m_sourceWidget->selectIdentifier(ref.line, ref.column);
+}
+
+TextWidthCalculator &MainWindow::getCachedTextWidthCalculator(const QFont &font)
+{
+    if (!m_textWidthCalculatorCache.contains(font)) {
+        m_textWidthCalculatorCache[font] =
+                new TextWidthCalculator(QFontMetricsF(font));
+    }
+    return *m_textWidthCalculatorCache[font];
 }
 
 void MainWindow::actionViewFileList()

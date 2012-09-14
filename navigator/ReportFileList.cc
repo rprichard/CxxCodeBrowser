@@ -7,7 +7,13 @@ namespace Nav {
 
 ReportFileList::ReportFileList(Project *project) : m_project(project)
 {
+    struct FilePtrLessThan {
+        bool operator()(File *x, File *y) const {
+            return x->path() < y->path();
+        }
+    };
     m_files = m_project->queryAllFiles();
+    qSort(m_files.begin(), m_files.end(), FilePtrLessThan());
 }
 
 QString ReportFileList::getTitle()

@@ -10,6 +10,7 @@ ReportRefList::ReportRefList(Project *project, const QString &symbol) :
     m_symbol(symbol)
 {
     m_refList = project->queryReferencesOfSymbol(symbol);
+    qSort(m_refList.begin(), m_refList.end());
 }
 
 QString ReportRefList::getTitle()

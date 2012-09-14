@@ -1,13 +1,16 @@
 #ifndef NAV_GOTOWINDOW_H
 #define NAV_GOTOWINDOW_H
 
-#include <QWidget>
-#include <QLineEdit>
-#include <QTableView>
-#include <QScrollArea>
-#include <QPaintEvent>
+#include <QFontMetricsF>
 #include <QFutureWatcher>
+#include <QLineEdit>
+#include <QPaintEvent>
+#include <QScrollArea>
+#include <QTableView>
+#include <QWidget>
 #include <vector>
+
+#include "TextWidthCalculator.h"
 
 
 namespace re2 {
@@ -25,7 +28,10 @@ class Project;
 class FilteredSymbols : public QObject {
     Q_OBJECT
 public:
-    FilteredSymbols(std::vector<const char*> &symbols, const QString &regex);
+    FilteredSymbols(
+            TextWidthCalculator &textWidthCalculator,
+            std::vector<const char*> &symbols,
+            const QString &regex);
     virtual ~FilteredSymbols();
     void start();
     void cancel();
@@ -33,9 +39,11 @@ public:
     const char *at(int index) const;
     int findFilteredIndex(int fullIndex) const;
     int filteredIndexToFullIndex(int index) const;
+    int maxTextWidth() const;
+    void waitForFinished();
 
 signals:
-    void done();
+    void done(FilteredSymbols *filteredSymbols);
 
 private:
     struct Batch {
@@ -47,6 +55,7 @@ private:
         int *filtered;
         int filteredCount;
         volatile bool cancelFlag;
+        int maxTextWidth;
     };
     void filterBatchThread(QString regex, Batch *batch);
 
@@ -54,6 +63,7 @@ private slots:
     void batchFinished();
 
 private:
+    TextWidthCalculator &m_textWidthCalculator;
     std::vector<const char*> &m_symbols;
     std::vector<Batch*> m_batches;
     QString m_regex;
@@ -67,6 +77,8 @@ private:
 // XXX: If we don't add anything more substantial to the presentation of the
 // goto window results, then consider switching to a QListView with a custom
 // QAbstractListModel.
+// XXX: QListView will probably be too slow.  Consider that it will have to
+// measure the size of every string to size the viewport.
 class GotoWindowResults : public QWidget
 {
     Q_OBJECT
@@ -96,7 +108,6 @@ private:
 private:
     QMargins m_itemMargins;
     FilteredSymbols *m_symbols;
-    int m_widthHint;
     int m_selectedIndex;
     int m_mouseDownIndex;
 };
@@ -132,10 +143,12 @@ public:
 private:
     QSize sizeHint() const;
     void keyPressEvent(QKeyEvent *event);
+    void resizeResultsWidget();
+    void resizeEvent(QResizeEvent *event);
 
 private slots:
     void textChanged();
-    void symbolFilteringDone();
+    void symbolFilteringDone(FilteredSymbols *filteredSymbols);
     void resultsSelectionChanged(int index);
     void navigateToItem(int index);
 
@@ -144,8 +157,10 @@ private:
     PlaceholderLineEdit *m_editor;
     QScrollArea *m_scrollArea;
     GotoWindowResults *m_results;
+    std::vector<int> m_symbolTextWidths;
     std::vector<const char*> m_symbols;
     FilteredSymbols *m_pendingFilteredSymbols;
+    TextWidthCalculator *m_textWidthCalculator;
 };
 
 } // namespace Nav
