@@ -36,7 +36,6 @@ public:
 private slots:
     void actionViewFileList();
     void actionOpenGotoWindow();
-    void actionCommand(const QString &command);
 
 protected:
     void closeEvent(QCloseEvent *event);
