@@ -23,7 +23,7 @@ class Project
 public:
     Project(const QString &indexPath);
     ~Project();
-    FileManager *fileManager() { return m_fileManager; }
+    FileManager &fileManager() { return *m_fileManager; }
 
     QList<Ref> queryReferencesOfSymbol(const QString &symbol);
     QStringList querySymbolsAtLocation(File *file, int line, int column);

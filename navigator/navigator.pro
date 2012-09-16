@@ -20,7 +20,10 @@ SOURCES += \
     CXXSyntaxHighlighter.cc \
     GotoWindow.cc \
     TextWidthCalculator.cc \
-    History.cc
+    History.cc \
+    Folder.cc \
+    FolderItem.cc \
+    FolderWidget.cc
 
 HEADERS += \
     Misc.h \
@@ -40,7 +43,10 @@ HEADERS += \
     CXXSyntaxHighlighterKeywords.h \
     GotoWindow.h \
     TextWidthCalculator.h \
-    History.h
+    History.h \
+    Folder.h \
+    FolderItem.h \
+    FolderWidget.h
 
 FORMS += \
     MainWindow.ui \

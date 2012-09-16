@@ -3,6 +3,8 @@
 
 #include <QFont>
 #include <QFontMetrics>
+#include <map>
+#include <memory>
 
 namespace Nav {
 
@@ -16,10 +18,12 @@ public:
     explicit TextWidthCalculator(QFontMetricsF fontMetricsF);
     int calculate(const QString &text);
     int calculate(const char *text);
+    static TextWidthCalculator &getCachedTextWidthCalculator(const QFont &font);
 
 private:
     QFontMetricsF m_fontMetricsF;
     qreal m_asciiCharWidths[128][128];
+    static std::map<QFont, std::unique_ptr<TextWidthCalculator> > m_cache;
 };
 
 } // namespace Nav

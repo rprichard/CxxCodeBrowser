@@ -7,6 +7,9 @@
 
 namespace Nav {
 
+std::map<QFont, std::unique_ptr<TextWidthCalculator> >
+        TextWidthCalculator::m_cache;
+
 TextWidthCalculator::TextWidthCalculator(QFontMetricsF fontMetricsF) :
     m_fontMetricsF(fontMetricsF)
 {
@@ -56,6 +59,16 @@ int TextWidthCalculator::calculate(const char *text)
         prevChar = *p;
     }
     return qRound(width);
+}
+
+TextWidthCalculator &TextWidthCalculator::getCachedTextWidthCalculator(
+        const QFont &font)
+{
+    if (m_cache.find(font) == m_cache.end()) {
+        m_cache[font] = std::unique_ptr<TextWidthCalculator>(
+                    new TextWidthCalculator(QFontMetricsF(font)));
+    }
+    return *m_cache[font].get();
 }
 
 } // namespace Nav

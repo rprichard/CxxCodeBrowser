@@ -4,6 +4,8 @@
 #include <QFontMetricsF>
 #include <QMainWindow>
 #include <QMap>
+#include <QSplitter>
+#include <QTreeView>
 
 #include "History.h"
 #include "TextWidthCalculator.h"
@@ -15,6 +17,7 @@ class MainWindow;
 }
 
 class File;
+class FolderWidget;
 class MainWindow;
 class Project;
 class Ref;
@@ -32,7 +35,6 @@ public:
     History::Location currentLocation();
     void navigateToFile(File *file);
     void navigateToRef(const Ref &ref);
-    TextWidthCalculator &getCachedTextWidthCalculator(const QFont &font);
 
 private slots:
     void actionViewFileList();
@@ -40,15 +42,20 @@ private slots:
     void actionBack();
     void actionForward();
     void sourceWidgetFileChanged(File *file);
+    void folderWidgetSelectionChanged();
     void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
+    void actionCopyFilePath();
+    void actionRevealInSideBar();
+
 
 protected:
     void closeEvent(QCloseEvent *event);
 
 private:
     History m_history;
-    QMap<QFont, TextWidthCalculator*> m_textWidthCalculatorCache;
     Ui::MainWindow *ui;
+    QSplitter *m_splitter;
+    FolderWidget *m_folderWidget;
     SourceWidget *m_sourceWidget;
 };
 

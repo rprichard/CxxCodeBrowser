@@ -1,14 +1,22 @@
 #include "File.h"
+
 #include <QString>
 #include <QFile>
+#include <QFileInfo>
 #include <cstdlib>
 #include <cstring>
 
 namespace Nav {
 
-File::File(const QString &path) :
-    m_path(path), m_loaded(false)
+File::File(Folder *parent, const QString &path) :
+    m_parent(parent), m_path(path), m_loaded(false)
 {
+}
+
+QString File::title()
+{
+    QFileInfo fi(m_path);
+    return fi.fileName();
 }
 
 QString File::path()

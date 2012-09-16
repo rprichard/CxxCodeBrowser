@@ -1,22 +1,41 @@
 #ifndef NAV_FILEMANAGER_H
 #define NAV_FILEMANAGER_H
 
-#include <QHash>
+#include <QDir>
+#include <QMap>
 #include <QString>
 
 namespace Nav {
 
 class File;
+class Folder;
+class FolderItem;
 
 class FileManager
 {
 public:
-    FileManager();
+    FileManager(const QString &projectRootPath, const QList<QString> &indexPaths);
     ~FileManager();
     File &file(const QString &path);
+    QList<Folder*> roots();
 
 private:
-    QHash<QString, File*> fileMap;
+    File &file(Folder *folder, const QString &relativePath);
+    //Folder *walkDirectory(Folder *parent, const QDir &dir);
+
+private:
+    // Root folders.  These folders act like category headings in
+    // the hierarchical selected file pane.
+    Folder *m_categorySpecial;  // special buffers like <builtins>
+    Folder *m_categoryProject;
+    Folder *m_categoryOutside;
+
+    // The actual project and outside root folder.
+    Folder *m_dirProject;
+    Folder *m_dirFilesystem;
+
+    QMap<QString, File*> m_specialFiles;
+    QList<FolderItem*> m_allItems;
 };
 
 } // namespace Nav

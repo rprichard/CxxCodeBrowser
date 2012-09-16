@@ -1,13 +1,19 @@
 #include "MainWindow.h"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QFile>
 #include <QFont>
+#include <QHBoxLayout>
 #include <QKeySequence>
 #include <QShortcut>
+#include <QSplitter>
 #include <QString>
+#include <QTreeView>
 
 #include "File.h"
 #include "FileManager.h"
+#include "FolderWidget.h"
 #include "GotoWindow.h"
 #include "Project.h"
 #include "ReportFileList.h"
@@ -18,6 +24,8 @@
 
 namespace Nav {
 
+const int kDefaultSideBarSizePx = 300;
+
 MainWindow *theMainWindow;
 
 MainWindow::MainWindow(Project &project, QWidget *parent) :
@@ -26,7 +34,20 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
 {
     ui->setupUi(this);
     m_sourceWidget = new SourceWidget(project);
-    ui->verticalLayout->addWidget(m_sourceWidget);
+    //setLayout(new QHBoxLayout());
+    //layout()->addWidget(m_sourceWidget);
+
+    m_folderWidget = new FolderWidget(project.fileManager());
+    m_splitter = new QSplitter(Qt::Horizontal);
+    m_splitter->addWidget(m_folderWidget);
+    m_splitter->addWidget(m_sourceWidget);
+    setCentralWidget(m_splitter);
+    m_splitter->setStretchFactor(0, 0);
+    m_splitter->setStretchFactor(1, 1);
+    QList<int> sizes;
+    sizes << kDefaultSideBarSizePx;
+    sizes << 1;
+    m_splitter->setSizes(sizes);
 
     connect(ui->action_File_List, SIGNAL(triggered()), this, SLOT(actionViewFileList()));
     connect(m_sourceWidget,
@@ -35,8 +56,11 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     connect(m_sourceWidget,
             SIGNAL(areBackAndForwardEnabled(bool&,bool&)),
             SLOT(areBackAndForwardEnabled(bool&,bool&)));
+    connect(m_folderWidget, SIGNAL(selectionChanged()), SLOT(folderWidgetSelectionChanged()));
     connect(m_sourceWidget, SIGNAL(goBack()), SLOT(actionBack()));
     connect(m_sourceWidget, SIGNAL(goForward()), SLOT(actionForward()));
+    connect(m_sourceWidget, SIGNAL(copyFilePath()), SLOT(actionCopyFilePath()));
+    connect(m_sourceWidget, SIGNAL(revealInSideBar()), SLOT(actionRevealInSideBar()));
 
     // Keyboard shortcuts.
     QShortcut *shortcut;
@@ -55,7 +79,6 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
-    qDeleteAll(m_textWidthCalculatorCache);
     delete ui;
 }
 
@@ -83,15 +106,6 @@ void MainWindow::navigateToRef(const Ref &ref)
     m_sourceWidget->setFile(ref.file);
     m_sourceWidget->selectIdentifier(ref.line, ref.column);
     m_history.recordJump(loc, currentLocation());
-}
-
-TextWidthCalculator &MainWindow::getCachedTextWidthCalculator(const QFont &font)
-{
-    if (!m_textWidthCalculatorCache.contains(font)) {
-        m_textWidthCalculatorCache[font] =
-                new TextWidthCalculator(QFontMetricsF(font));
-    }
-    return *m_textWidthCalculatorCache[font];
 }
 
 void MainWindow::actionViewFileList()
@@ -130,6 +144,13 @@ void MainWindow::actionForward()
 void MainWindow::sourceWidgetFileChanged(File *file)
 {
     setWindowTitle(file->path() + " - Navigator");
+    m_folderWidget->selectFile(file);
+}
+
+void MainWindow::folderWidgetSelectionChanged()
+{
+    File *file = m_folderWidget->selectedFile();
+    navigateToFile(file);
 }
 
 void MainWindow::areBackAndForwardEnabled(
@@ -137,6 +158,27 @@ void MainWindow::areBackAndForwardEnabled(
 {
     backEnabled = m_history.canGoBack();
     forwardEnabled = m_history.canGoForward();
+}
+
+void MainWindow::actionCopyFilePath()
+{
+    File *file = m_sourceWidget->file();
+    if (file != NULL)
+        QApplication::clipboard()->setText(file->path());
+}
+
+void MainWindow::actionRevealInSideBar()
+{
+    File *file = m_sourceWidget->file();
+    if (file != NULL) {
+        if (m_splitter->sizes()[0] == 0) {
+            QList<int> sizes;
+            sizes << kDefaultSideBarSizePx;
+            sizes << 1;
+            m_splitter->setSizes(sizes);
+        }
+        m_folderWidget->ensureItemVisible(file);
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

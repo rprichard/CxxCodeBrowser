@@ -501,7 +501,7 @@ void GotoWindow::textChanged()
         delete m_pendingFilteredSymbols;
     m_pendingFilteredSymbols =
             new FilteredSymbols(
-                theMainWindow->getCachedTextWidthCalculator(font()),
+                TextWidthCalculator::getCachedTextWidthCalculator(font()),
                 m_symbols,
                 convertFilterIntoRegex(m_editor->text()));
     connect(m_pendingFilteredSymbols,

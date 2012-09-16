@@ -152,6 +152,8 @@ signals:
     void goBack();
     void goForward();
     void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
+    void copyFilePath();
+    void revealInSideBar();
 
 private:
     void paintEvent(QPaintEvent *event);
@@ -193,6 +195,8 @@ signals:
     void goBack();
     void goForward();
     void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
+    void copyFilePath();
+    void revealInSideBar();
 
 private:
     SourceWidgetView &sourceWidgetView();

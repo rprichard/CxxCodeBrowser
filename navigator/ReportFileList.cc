@@ -1,6 +1,7 @@
 #include "ReportFileList.h"
-#include "Project.h"
+
 #include "File.h"
+#include "Project.h"
 #include "MainWindow.h"
 
 namespace Nav {

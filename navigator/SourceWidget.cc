@@ -367,6 +367,8 @@ void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
                         this, SIGNAL(goBack()))->setEnabled(backEnabled);
         menu->addAction(QIcon::fromTheme("go-next"), "Forward",
                         this, SIGNAL(goForward()))->setEnabled(forwardEnabled);
+        menu->addAction("Copy File Path", this, SIGNAL(copyFilePath()));
+        menu->addAction("Reveal in Sidebar", this, SIGNAL(revealInSideBar()));
         menu->exec(event->globalPos());
         delete menu;
     } else {
@@ -438,6 +440,8 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     connect(&sourceWidgetView(),
             SIGNAL(areBackAndForwardEnabled(bool&,bool&)),
             SIGNAL(areBackAndForwardEnabled(bool&,bool&)));
+    connect(&sourceWidgetView(), SIGNAL(copyFilePath()), SIGNAL(copyFilePath()));
+    connect(&sourceWidgetView(), SIGNAL(revealInSideBar()), SIGNAL(revealInSideBar()));
 
     layoutSourceWidget();
 }

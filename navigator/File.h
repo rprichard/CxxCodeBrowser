@@ -1,21 +1,31 @@
 #ifndef NAV_FILE_H
 #define NAV_FILE_H
 
-#include "Misc.h"
 #include <QList>
 #include <QString>
 #include <cassert>
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
+
+#include "FolderItem.h"
+//#include "Misc.h"
 
 namespace Nav {
 
-class File
+class File : public FolderItem
 {
+    friend class FileManager;
+
+private:
+    File(Folder *parent, const QString &path);
+
 public:
-    File(const QString &path);
+    Folder *parent() { return m_parent; }
+    bool isFolder() { return false; }
+    File *asFile() { return this; }
     QString path();
+    QString title();
 
     QString content() {
         ensureLoaded();
@@ -55,6 +65,7 @@ private:
             loadFile();
     }
 
+    Folder *m_parent;
     QString m_path;
     bool m_loaded;
     QString m_content;

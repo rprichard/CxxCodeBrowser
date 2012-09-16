@@ -1,5 +1,6 @@
 #include "Project.h"
 
+#include <QFileInfo>
 #include <QtConcurrentRun>
 
 #include "FileManager.h"
@@ -12,12 +13,24 @@ namespace Nav {
 
 Project *theProject;
 
-Project::Project(const QString &path) :
-    m_fileManager(new FileManager)
+Project::Project(const QString &path)
 {
     m_index = new indexdb::Index(path.toStdString());
     m_sortedSymbolsInited =
             QtConcurrent::run(this, &Project::initSortedSymbols);
+
+    // Query all the paths, then use that to initialize the FileManager.
+    QList<QString> allPaths;
+    indexdb::StringTable *pathTable = m_index->stringTable("path");
+    for (uint32_t i = 0; i < pathTable->size(); ++i) {
+        const char *path = pathTable->item(i);
+        if (path[0] != '\0') {
+            allPaths.append(path);
+        }
+    }
+    m_fileManager = new FileManager(
+                QFileInfo(path).absolutePath(),
+                allPaths);
 }
 
 Project::~Project()
@@ -55,7 +68,7 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
         if (fileName[0] != '\0') {
             Ref ref;
             ref.symbol = symbol;
-            ref.file = &fileManager()->file(QString(fileName));
+            ref.file = &fileManager().file(QString(fileName));
             ref.line = line;
             ref.column = column;
             ref.kind = QString(kind);
