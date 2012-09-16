@@ -1,3 +1,9 @@
+includes
+
+ - At an #include (and include_next,import) directive, we need to record the
+   full path of the included file, and the source range of the filename.
+   (Can we say that the file is a symbol, then record a ref to it?)
+
 Find more user-friendly symbol names than USRs.
 
  - Do USRs go away entirely?  Is there a one-to-one or a one-to-many
