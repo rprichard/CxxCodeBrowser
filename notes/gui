@@ -42,6 +42,17 @@ HISTORY
       where they came from?  I think this is going to be a general problem with
       search features.
 
+ - BUG in history navigation:
+    - Size the window so it's very short.  Scroll to the bottom.  Navigate
+      somewhere else (anywhere).  Size the window so it's tall.  Now try to go
+      back.  You won't be able to go back to the exact window offset you left,
+      because the window is taller, and the SourceWidget does not (currently,
+      at least) allow scrolling past the end of the file.  If you try to go back
+      again, the window thinks you've scrolled up from the current history
+      entry, so it records another history entry and tries to return to (what
+      had been) the current history entry.  The effect is that the Back option
+      is always available, but pressing it seems to have no effect.
+
 
 FILE NAVIGATION
 ---------------
