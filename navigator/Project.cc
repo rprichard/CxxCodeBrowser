@@ -49,9 +49,7 @@ Project::Project(const QString &path)
     indexdb::StringTable *pathTable = m_index->stringTable("path");
     for (uint32_t i = 0; i < pathTable->size(); ++i) {
         const char *path = pathTable->item(i);
-        if (path[0] != '\0') {
-            allPaths.append(path);
-        }
+        allPaths.append(path);
     }
     m_fileManager = new FileManager(
                 QFileInfo(path).absolutePath(),
