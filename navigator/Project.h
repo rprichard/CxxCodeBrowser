@@ -7,6 +7,7 @@
 
 namespace indexdb {
     class Index;
+    class StringTable;
 }
 
 namespace Nav {
@@ -30,6 +31,11 @@ public:
     void queryAllSymbolsSorted(std::vector<const char*> &output);
     QList<File*> queryAllFiles();
     Ref findSingleDefinitionOfSymbol(const QString &symbol);
+    QList<Ref> queryAllSymbolDefinitions();
+
+    indexdb::StringTable &symbolTable() { return *m_symbolTable; }
+    indexdb::StringTable &pathTable() { return *m_pathTable; }
+    indexdb::StringTable &kindTable() { return *m_kindTable; }
 
 private:
     void initSortedSymbols();
@@ -39,6 +45,9 @@ private:
     std::vector<const char*> m_sortedSymbols;
     FileManager *m_fileManager;
     indexdb::Index *m_index;
+    indexdb::StringTable *m_symbolTable;
+    indexdb::StringTable *m_pathTable;
+    indexdb::StringTable *m_kindTable;
 };
 
 } // namespace Nav

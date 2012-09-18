@@ -1,5 +1,8 @@
 #include "Project.h"
 
+#include <QTime>
+#include <QDebug>
+
 #include <QFileInfo>
 #include <QtConcurrentRun>
 
@@ -16,6 +19,13 @@ Project *theProject;
 Project::Project(const QString &path)
 {
     m_index = new indexdb::Index(path.toStdString());
+    m_symbolTable = m_index->stringTable("usr");
+    m_pathTable = m_index->stringTable("path");
+    m_kindTable = m_index->stringTable("kind");
+    assert(m_symbolTable != NULL);
+    assert(m_pathTable != NULL);
+    assert(m_kindTable != NULL);
+
     m_sortedSymbolsInited =
             QtConcurrent::run(this, &Project::initSortedSymbols);
 
@@ -44,8 +54,7 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
 {
     QList<Ref> result;
 
-    indexdb::ID symbolID =
-        m_index->stringTable("usr")->id(symbol.toStdString().c_str());
+    indexdb::ID symbolID = m_symbolTable->id(symbol.toStdString().c_str());
     if (symbolID == indexdb::kInvalidID)
         return result;
 
@@ -60,20 +69,17 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
         if (rowLookup[0] != rowItem[0])
             break;
 
-        const char *fileName = m_index->stringTable("path")->item(rowItem[1]);
+        indexdb::ID fileID = rowItem[1];
         int line = rowItem[2];
         int column = rowItem[3];
-        const char *kind = m_index->stringTable("kind")->item(rowItem[4]);
+        indexdb::ID kindID = rowItem[4];
 
-        if (fileName[0] != '\0') {
-            Ref ref;
-            ref.symbol = symbol;
-            ref.file = &fileManager().file(QString(fileName));
-            ref.line = line;
-            ref.column = column;
-            ref.kind = QString(kind);
-            result << ref;
-        }
+        result << Ref(*this,
+                      symbolID,
+                      fileID,
+                      line,
+                      column,
+                      kindID);
     }
 
     return result;
@@ -164,11 +170,11 @@ Ref Project::findSingleDefinitionOfSymbol(const QString &symbol)
     Ref defn;
     QList<Ref> refs = theProject->queryReferencesOfSymbol(symbol);
     for (const Ref &ref : refs) {
-        if (declCount < 2 && ref.kind == "Declaration") {
+        if (declCount < 2 && ref.kind() == "Declaration") {
             declCount++;
             decl = ref;
         }
-        if (defnCount < 2 && ref.kind == "Definition") {
+        if (defnCount < 2 && ref.kind() == "Definition") {
             defnCount++;
             defn = ref;
         }
@@ -178,12 +184,33 @@ Ref Project::findSingleDefinitionOfSymbol(const QString &symbol)
     } else if (defnCount == 0 && declCount == 1) {
         return decl;
     } else {
-        Ref ret;
-        ret.file = NULL;
-        ret.line = 0;
-        ret.column = 0;
-        return ret;
+        return Ref();
     }
+}
+
+QList<Ref> Project::queryAllSymbolDefinitions()
+{
+    QList<Ref> result;
+
+    indexdb::ID defnKindID = m_kindTable->id("Definition");
+    indexdb::TableIterator itEnd = m_index->table("ref")->end();
+    indexdb::TableIterator it = m_index->table("ref")->begin();
+
+    for (; it != itEnd; ++it) {
+        indexdb::Row rowItem(5);
+        it.value(rowItem);
+        if (rowItem[4] != defnKindID)
+            continue;
+        indexdb::ID symbolID = rowItem[0];
+        indexdb::ID fileID = rowItem[1];
+        int line = rowItem[2];
+        int column = rowItem[3];
+        indexdb::ID kindID = rowItem[4];
+
+        result << Ref(*this, symbolID, fileID, line, column, kindID);
+    }
+
+    return result;
 }
 
 } // namespace Nav

@@ -36,9 +36,9 @@ QList<QVariant> ReportRefList::getText(const Index &index)
 {
     QList<QVariant> result;
     const Ref &ref = m_refList[index.row()];
-    result << ref.file->path();
-    result << ref.line;
-    result << ref.kind;
+    result << ref.file().path();
+    result << ref.line();
+    result << ref.kind();
     return result;
 }
 

@@ -100,11 +100,11 @@ void MainWindow::navigateToFile(File *file)
 
 void MainWindow::navigateToRef(const Ref &ref)
 {
-    if (ref.file == NULL)
+    if (ref.isNull())
         return;
     History::Location loc = currentLocation();
-    m_sourceWidget->setFile(ref.file);
-    m_sourceWidget->selectIdentifier(ref.line, ref.column);
+    m_sourceWidget->setFile(&ref.file());
+    m_sourceWidget->selectIdentifier(ref.line(), ref.column());
     m_history.recordJump(loc, currentLocation());
 }
 
