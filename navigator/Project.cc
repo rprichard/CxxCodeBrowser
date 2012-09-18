@@ -14,6 +14,21 @@
 
 namespace Nav {
 
+// loc table
+const int kLocColumns       = 4;
+const int kLocColumnFile    = 0;
+const int kLocColumnLine    = 1;
+const int kLocColumnColumn  = 2;
+const int kLocColumnSymbol  = 3;
+
+// ref table
+const int kRefColumns       = 5;
+const int kRefColumnSymbol  = 0;
+const int kRefColumnFile    = 1;
+const int kRefColumnLine    = 2;
+const int kRefColumnColumn  = 3;
+const int kRefColumnKind    = 4;
+
 Project *theProject;
 
 Project::Project(const QString &path)
@@ -59,20 +74,21 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
         return result;
 
     indexdb::Row rowLookup(1);
-    rowLookup[0] = symbolID;
+    assert(kRefColumnSymbol == 0);
+    rowLookup[kRefColumnSymbol] = symbolID;
 
+    indexdb::Row rowItem(kRefColumns);
     indexdb::TableIterator itEnd = m_index->table("ref")->end();
     indexdb::TableIterator it = m_index->table("ref")->lowerBound(rowLookup);
     for (; it != itEnd; ++it) {
-        indexdb::Row rowItem(5);
         it.value(rowItem);
-        if (rowLookup[0] != rowItem[0])
+        if (rowLookup[kRefColumnSymbol] != rowItem[kRefColumnSymbol])
             break;
 
-        indexdb::ID fileID = rowItem[1];
-        int line = rowItem[2];
-        int column = rowItem[3];
-        indexdb::ID kindID = rowItem[4];
+        indexdb::ID fileID = rowItem[kRefColumnFile];
+        int line = rowItem[kRefColumnLine];
+        int column = rowItem[kRefColumnColumn];
+        indexdb::ID kindID = rowItem[kRefColumnKind];
 
         result << Ref(*this,
                       symbolID,
@@ -94,20 +110,23 @@ QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
         return result;
 
     indexdb::Row rowLookup(3);
-    rowLookup[0] = fileID;
-    rowLookup[1] = line;
-    rowLookup[2] = column;
+    assert(kLocColumnFile < 3);
+    assert(kLocColumnLine < 3);
+    assert(kLocColumnColumn < 3);
+    rowLookup[kLocColumnFile] = fileID;
+    rowLookup[kLocColumnLine] = line;
+    rowLookup[kLocColumnColumn] = column;
 
     indexdb::TableIterator itEnd = m_index->table("loc")->end();
     indexdb::TableIterator it = m_index->table("loc")->lowerBound(rowLookup);
     for (; it != itEnd; ++it) {
-        indexdb::Row rowItem(4);
+        indexdb::Row rowItem(kLocColumns);
         it.value(rowItem);
-        if (rowLookup[0] != rowItem[0] ||
-                rowLookup[1] != rowItem[1] ||
-                rowLookup[2] != rowItem[2])
+        if (rowLookup[kLocColumnFile] != rowItem[kLocColumnFile] ||
+                rowLookup[kLocColumnLine] != rowItem[kLocColumnLine] ||
+                rowLookup[kLocColumnColumn] != rowItem[kLocColumnColumn])
             break;
-        result << m_index->stringTable("usr")->item(rowItem[3]);
+        result << m_symbolTable->item(rowItem[kLocColumnSymbol]);
     }
 
     return result;
@@ -197,15 +216,15 @@ QList<Ref> Project::queryAllSymbolDefinitions()
     indexdb::TableIterator it = m_index->table("ref")->begin();
 
     for (; it != itEnd; ++it) {
-        indexdb::Row rowItem(5);
+        indexdb::Row rowItem(kRefColumns);
         it.value(rowItem);
-        if (rowItem[4] != defnKindID)
+        if (rowItem[kRefColumnKind] != defnKindID)
             continue;
-        indexdb::ID symbolID = rowItem[0];
-        indexdb::ID fileID = rowItem[1];
-        int line = rowItem[2];
-        int column = rowItem[3];
-        indexdb::ID kindID = rowItem[4];
+        indexdb::ID symbolID = rowItem[kRefColumnSymbol];
+        indexdb::ID fileID = rowItem[kRefColumnFile];
+        int line = rowItem[kRefColumnLine];
+        int column = rowItem[kRefColumnColumn];
+        indexdb::ID kindID = rowItem[kRefColumnKind];
 
         result << Ref(*this, symbolID, fileID, line, column, kindID);
     }
