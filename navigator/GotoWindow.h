@@ -157,7 +157,6 @@ private:
     PlaceholderLineEdit *m_editor;
     QScrollArea *m_scrollArea;
     GotoWindowResults *m_results;
-    std::vector<int> m_symbolTextWidths;
     std::vector<const char*> m_symbols;
     FilteredSymbols *m_pendingFilteredSymbols;
     TextWidthCalculator *m_textWidthCalculator;
