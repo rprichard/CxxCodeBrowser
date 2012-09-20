@@ -238,6 +238,7 @@ void FolderWidgetView::traverseLayout(LayoutTraversalState &state) const
         // Handle the category title.
         if (state.painter != NULL) {
             state.painter->setFont(catFont);
+            state.painter->setPen(palette().color(QPalette::Text));
             state.painter->drawText(state.origin.x(),
                                     state.origin.y() + catFM.ascent(),
                                     category->title());
