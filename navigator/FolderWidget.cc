@@ -71,8 +71,10 @@ void FolderWidgetView::openAncestors(FolderItem *item)
         }
         parent = parent->parent();
     }
-    if (changed)
+    if (changed) {
         updateSizeHint();
+        update();
+    }
 }
 
 QRect FolderWidgetView::itemBoundingRect(FolderItem *item)
