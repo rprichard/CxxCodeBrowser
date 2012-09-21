@@ -33,7 +33,7 @@ void IndexerPPCallbacks::recordReference(
         const clang::Token &macroNameToken,
         const char *kind)
 {
-    std::string usr = "c:macro@";
+    std::string usr = "@";
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
     usr.append(macroName.data(), macroName.size());
     Location loc = m_context.locationConverter().convert(

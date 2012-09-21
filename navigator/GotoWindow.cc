@@ -29,7 +29,7 @@ static QString convertFilterIntoRegex(const QString &filter)
 
     if (words.size() > 0) {
         for (QString word : words) {
-            regex += ".*";
+            regex += "[^()]*";
             regex += "\\b";
             for (QChar ch : word) {
                 if (ch.unicode() == '*') {
@@ -40,7 +40,7 @@ static QString convertFilterIntoRegex(const QString &filter)
             }
             regex += "\\b";
         }
-        regex += "$";
+        regex += "($|[(])";
     }
     return regex;
 }

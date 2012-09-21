@@ -29,19 +29,15 @@ public:
     IndexerASTConsumer(IndexerContext &context) : m_context(context) {}
 
 private:
-    virtual bool HandleTopLevelDecl(clang::DeclGroupRef declGroup);
+    void HandleTranslationUnit(clang::ASTContext &ctx);
 
     IndexerContext m_context;
 };
 
-bool IndexerASTConsumer::HandleTopLevelDecl(clang::DeclGroupRef declGroup)
+void IndexerASTConsumer::HandleTranslationUnit(clang::ASTContext &ctx)
 {
-    for (clang::DeclGroupRef::iterator i = declGroup.begin(); i != declGroup.end(); ++i) {
-        clang::Decl *decl = *i;
-        ASTIndexer iv(m_context);
-        iv.indexDecl(decl);
-    }
-    return true;
+    ASTIndexer iv(m_context);
+    iv.indexDecl(ctx.getTranslationUnitDecl());
 }
 
 class IndexerAction : public clang::ASTFrontendAction {

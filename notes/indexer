@@ -72,3 +72,23 @@ Special buffers (scratch space, built-in macros)
 
    DECISION: I think the transformation should be done at index-time so as to
    keep more C/C++-specific code out of the navigator.
+
+----
+
+For C++, include parameter type names to handle overloading:
+
+std::vector::push_back(A*)
+
+For symbols with internal linkage:
+
+    basename.h/static_function
+    basename.h/foo::<anon>::function
+
+Templates: -- omit the template params entirely
+
+    PROBLEM: What about function overloading?  Suppose there are two
+    functions:
+        int func(std::vector<int> &vi)
+        int func(std::vector<double &vd)
+    Would we represent both as this?
+        func(std::vector&)

@@ -1,12 +1,13 @@
 #include "ASTIndexer.h"
 
-#include <iostream>
+#include <clang/AST/Type.h>
 #include <llvm/ADT/SmallString.h>
 #include <llvm/Support/Casting.h>
 #include <string>
 
 #include "IndexBuilder.h"
 #include "IndexerContext.h"
+#include "NameGenerator.h"
 #include "Switcher.h"
 #include "USRGenerator.h"
 
@@ -21,18 +22,8 @@ namespace indexer {
 // calls the same way that normal assignment operations are handled.  Consider
 // doing the same for the other overloadable operators.
 
-// TODO: Look at clang::UsingDecl and clang::UsingShadowDecl.  Consider this
-// test case:
-//     namespace Foo { enum E { Test }; E v2; }
-//     using Foo::E;
-//     E v1;
-// Are the first "E" and the last "E" the same symbol in the index?  If there
-// is a Foo::E identifier recorded, is a plain E also recorded?  Since they're
-// actually the same type, I would think that an xref on one should show both.
-
 // TODO: Unary ++ and --
 // TODO: templates
-// TODO: For a namespace alias "namespace A = B", record B.
 
 ///////////////////////////////////////////////////////////////////////////////
 // Misc routines
@@ -250,7 +241,7 @@ bool ASTIndexer::VisitMemberExpr(clang::MemberExpr *e)
             m_childContext |= CF_Read;
         if (m_thisContext & CF_Called) {
             // I'm not sure what the best behavior here is.
-            m_childContext |= CF_Called;
+            m_childContext |= CF_Read;
         }
     }
 
@@ -313,12 +304,24 @@ bool ASTIndexer::TraverseNestedNameSpecifierLoc(
             break;
         case clang::NestedNameSpecifier::TypeSpec:
         case clang::NestedNameSpecifier::TypeSpecWithTemplate:
-            {
-                const clang::RecordType *rt = nns->getAsType()->getAs<clang::RecordType>();
-                if (rt != NULL) {
-                    RecordDeclRef(rt->getDecl(),
-                                  qualifier.getLocalBeginLoc(),
-                                  "Qualifier");
+            if (const clang::TypedefType *tt = nns->getAsType()->getAs<clang::TypedefType>()) {
+                RecordDeclRef(tt->getDecl(),
+                              qualifier.getLocalBeginLoc(),
+                              "Qualifier");
+            } else if (const clang::RecordType *rt = nns->getAsType()->getAs<clang::RecordType>()) {
+                RecordDeclRef(rt->getDecl(),
+                              qualifier.getLocalBeginLoc(),
+                              "Qualifier");
+            } else if (const clang::TemplateSpecializationType *tst =
+                       nns->getAsType()->getAs<clang::TemplateSpecializationType>()) {
+
+                if (clang::TemplateDecl *decl = tst->getTemplateName().getAsTemplateDecl()) {
+                    if (clang::NamedDecl *templatedDecl = decl->getTemplatedDecl()) {
+                        RecordDeclRef(templatedDecl,
+                                      qualifier.getLocalBeginLoc(),
+                                      "Qualifier");
+
+                    }
                 }
             }
             break;
@@ -333,6 +336,17 @@ bool ASTIndexer::TraverseNestedNameSpecifierLoc(
 
 ///////////////////////////////////////////////////////////////////////////////
 // Declaration and TypeLoc handling
+
+void ASTIndexer::traverseDeclContextHelper(clang::DeclContext *d)
+{
+    // Traverse children.
+    for (clang::DeclContext::decl_iterator it = d->decls_begin(),
+            itEnd = d->decls_end(); it != itEnd; ++it) {
+        // BlockDecls are traversed through BlockExprs.
+        if (!llvm::isa<clang::BlockDecl>(*it))
+            TraverseDecl(*it);
+    }
+}
 
 // Overriding TraverseCXXRecordDecl lets us mark the base-class references
 // with the "Base-Class" kind.
@@ -355,15 +369,47 @@ bool ASTIndexer::TraverseCXXRecordDecl(clang::CXXRecordDecl *d)
         }
     }
 
-    // Traverse children.
-    for (clang::DeclContext::decl_iterator it = d->decls_begin(),
-            itEnd = d->decls_end(); it != itEnd; ++it) {
-        // BlockDecls are traversed through BlockExprs.
-        if (!llvm::isa<clang::BlockDecl>(*it))
-            TraverseDecl(*it);
-    }
-
+    traverseDeclContextHelper(d);
     return true;
+}
+
+bool ASTIndexer::TraverseClassTemplateSpecializationDecl(
+        clang::ClassTemplateSpecializationDecl *d)
+{
+    // base::TraverseClassTemplateSpecializationDecl calls TraverseTypeLoc,
+    // which then visits a clang::TemplateSpecializationTypeLoc.  We want
+    // to mark the template specialization as Declaration or Definition,
+    // not Reference, so skip the TraverseTypeLoc call.
+    //
+    // The problem happens with code like this:
+    //     template <>
+    //     struct Vector<bool, void> {};
+
+    WalkUpFromClassTemplateSpecializationDecl(d);
+    traverseDeclContextHelper(d);
+    return true;
+}
+
+bool ASTIndexer::TraverseNamespaceAliasDecl(clang::NamespaceAliasDecl *d)
+{
+    // The base::TraverseNamespaceAliasDecl function avoids traversing the
+    // namespace decl itself because (I think) that would traverse the
+    // complete contents of the namespace.  However, it fails to traverse
+    // the qualifiers on the target namespace, so we do that here.
+    TraverseNestedNameSpecifierLoc(d->getQualifierLoc());
+
+    return base::TraverseNamespaceAliasDecl(d);
+}
+
+void ASTIndexer::templateParameterListsHelper(clang::DeclaratorDecl *d)
+{
+    for (unsigned i = 0, iEnd = d->getNumTemplateParameterLists();
+            i != iEnd; ++i) {
+        clang::TemplateParameterList *parmList =
+                d->getTemplateParameterList(i);
+        for (clang::NamedDecl *parm : *parmList)
+            TraverseDecl(parm);
+    }
 }
 
 bool ASTIndexer::VisitDecl(clang::Decl *d)
@@ -371,17 +417,51 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
     if (clang::NamedDecl *nd = llvm::dyn_cast<clang::NamedDecl>(d)) {
         clang::SourceLocation loc = nd->getLocation();
         if (clang::FunctionDecl *fd = llvm::dyn_cast<clang::FunctionDecl>(d)) {
-            const char *kind;
-            kind = fd->isThisDeclarationADefinition() ? "Definition" : "Declaration";
-            RecordDeclRef(nd, loc, kind);
-        } else if (clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(d)) {
-            const char *kind;
-            if (vd->isThisDeclarationADefinition() == clang::VarDecl::DeclarationOnly) {
-                kind = "Declaration";
+            if (fd->getTemplateInstantiationPattern() != NULL) {
+                // When Clang instantiates a function template, it seems to
+                // create a FunctionDecl for the instantiation that returns
+                // false for fd->isThisDeclarationADefinition().  The result
+                // is that the template function definition's location is
+                // marked as both a Declaration and a Definition.  Fix this by
+                // omitting the ref on the instantiation.
             } else {
-                kind = "Definition";
+#if 0
+                // This code recorded refs without appropriate qualifiers.  For
+                // example, with the code
+                //     template <typename A> void Vector<A>::clear() {}
+                // it would record the first A as "A", but it needs to record
+                // Vector::A.
+                templateParameterListsHelper(fd);
+#endif
+                const char *kind;
+                kind = fd->isThisDeclarationADefinition() ? "Definition" : "Declaration";
+                RecordDeclRef(nd, loc, kind);
             }
-            RecordDeclRef(nd, loc, kind);
+        } else if (clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(d)) {
+            // Don't record the parameter definitions in a function declaration
+            // (unless the function declaration is also a definition).  A
+            // definition will be recorded at the function's definition, and
+            // recording two definitions is unhelpful.  This code could record
+            // a different kind of reference, but recording the position of
+            // parameter names in declarations doesn't seem useful.
+            bool omitParmVar = false;
+            clang::ParmVarDecl *pvd = llvm::dyn_cast<clang::ParmVarDecl>(d);
+            if (pvd) {
+                clang::FunctionDecl *fd =
+                        llvm::dyn_cast_or_null<clang::FunctionDecl>(
+                            pvd->getDeclContext());
+                if (fd && !fd->isThisDeclarationADefinition())
+                    omitParmVar = true;
+            }
+            if (!omitParmVar) {
+                const char *kind;
+                if (vd->isThisDeclarationADefinition() == clang::VarDecl::DeclarationOnly) {
+                    kind = "Declaration";
+                } else {
+                    kind = "Definition";
+                }
+                RecordDeclRef(nd, loc, kind);
+            }
         } else if (clang::TagDecl *td = llvm::dyn_cast<clang::TagDecl>(d)) {
             // TODO: Handle the C++11 fixed underlying type of enumeration
             // declarations.
@@ -392,6 +472,23 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
             RecordDeclRef(
                         ud->getNominatedNamespaceAsWritten(),
                         loc, "Using-Directive");
+        } else if (clang::UsingDecl *usd = llvm::dyn_cast<clang::UsingDecl>(d)) {
+            for (auto it = usd->shadow_begin(), itEnd = usd->shadow_end();
+                    it != itEnd; ++it) {
+                clang::UsingShadowDecl *shadow = *it;
+                RecordDeclRef(shadow->getTargetDecl(), loc, "Using");
+            }
+        } else if (clang::NamespaceAliasDecl *nad = llvm::dyn_cast<clang::NamespaceAliasDecl>(d)) {
+            RecordDeclRef(nad, loc, "Declaration");
+            RecordDeclRef(nad->getAliasedNamespace(),
+                          nad->getTargetNameLoc(),
+                          "Namespace-Alias");
+        } else if (llvm::isa<clang::FunctionTemplateDecl>(d)) {
+            // Do nothing.  The function will be recorded when it appears as a
+            // FunctionDecl.
+        } else if (llvm::isa<clang::ClassTemplateDecl>(d)) {
+            // Do nothing.  The class will be recorded when it appears as a
+            // RecordDecl.
         } else {
             RecordDeclRef(nd, loc, "Declaration");
         }
@@ -412,6 +509,19 @@ bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
         RecordDeclRef(ttl.getTypedefNameDecl(),
                       tl.getBeginLoc(),
                       m_typeContext);
+    } else if (llvm::isa<clang::TemplateTypeParmTypeLoc>(tl)) {
+        clang::TemplateTypeParmTypeLoc &ttptl = *llvm::cast<clang::TemplateTypeParmTypeLoc>(&tl);
+        RecordDeclRef(ttptl.getDecl(),
+                      tl.getBeginLoc(),
+                      m_typeContext);
+    } else if (llvm::isa<clang::TemplateSpecializationTypeLoc>(tl)) {
+        clang::TemplateSpecializationTypeLoc &tstl = *llvm::cast<clang::TemplateSpecializationTypeLoc>(&tl);
+        const clang::TemplateSpecializationType &tst = *tstl.getTypePtr()->getAs<clang::TemplateSpecializationType>();
+        if (tst.getAsCXXRecordDecl()) {
+            RecordDeclRef(tst.getAsCXXRecordDecl(),
+                          tl.getBeginLoc(),
+                          m_typeContext);
+        }
     }
 
     return true;
@@ -421,14 +531,23 @@ bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
 ///////////////////////////////////////////////////////////////////////////////
 // Reference recording
 
+static bool isNamedDeclUnnamed(clang::NamedDecl *d)
+{
+    return d->getDeclName().isIdentifier() && d->getIdentifier() == NULL;
+}
+
 void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, clang::SourceLocation loc, const char *kind)
 {
+    // Skip references to unnamed declarations.  This is expected to skip the
+    // definitions of unnamed types (structs/unions/enums).
+    if (isNamedDeclUnnamed(d))
+        return;
+
     Location convertedLoc =
             m_indexerContext.locationConverter().convert(loc);
-    llvm::SmallString<128> usr;
-    if (getDeclCursorUSR(d, usr))
-        return;
-    m_indexerContext.indexBuilder().recordRef(usr.c_str(), convertedLoc, kind);
+    std::string symbol;
+    getDeclName(d, symbol);
+    m_indexerContext.indexBuilder().recordRef(symbol.c_str(), convertedLoc, kind);
 }
 
 } // namespace indexer

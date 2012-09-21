@@ -48,6 +48,7 @@ private:
     const char *m_typeContext;
 
     // Misc routines
+    bool shouldVisitTemplateInstantiations() const { return true; }
     bool shouldUseDataRecursionFor(clang::Stmt *s) const;
 
     // Dispatcher routines
@@ -87,7 +88,12 @@ private:
     bool TraverseNestedNameSpecifierLoc(clang::NestedNameSpecifierLoc qualifier);
 
     // Declaration and TypeLoc handling
+    void traverseDeclContextHelper(clang::DeclContext *d);
     bool TraverseCXXRecordDecl(clang::CXXRecordDecl *d);
+    bool TraverseNamespaceAliasDecl(clang::NamespaceAliasDecl *d);
+    bool TraverseClassTemplateSpecializationDecl(
+            clang::ClassTemplateSpecializationDecl *d);
+    void templateParameterListsHelper(clang::DeclaratorDecl *d);
     bool VisitDecl(clang::Decl *d);
     bool VisitTypeLoc(clang::TypeLoc tl);
 

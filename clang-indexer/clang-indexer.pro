@@ -11,7 +11,8 @@ SOURCES += \
     TUIndexer.cc \
     IndexBuilder.cc \
     USRGenerator.cc \
-    IndexerContext.cc
+    IndexerContext.cc \
+    NameGenerator.cc
 
 #LIBS += -lclang
 CONFIG += link_pkgconfig
@@ -33,6 +34,7 @@ HEADERS += \
     TUIndexer.h \
     IndexBuilder.h \
     USRGenerator.h \
-    IndexerContext.h
+    IndexerContext.h \
+    NameGenerator.h
 
 include(../clang.pri)

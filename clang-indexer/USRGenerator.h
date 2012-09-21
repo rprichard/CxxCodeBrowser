@@ -6,7 +6,7 @@
 
 namespace indexer {
 
-// Returns false on error.  The Buf is not guaranteed to be NUL-terminated.
+// Returns true on success.
 bool getDeclCursorUSR(const clang::Decl *D, llvm::SmallVectorImpl<char> &Buf);
 
 } // namespace indexer

@@ -800,7 +800,7 @@ static inline StringRef extractUSRSuffix(StringRef s) {
 bool getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf) {
   // Don't generate USRs for things with invalid locations.
   if (!D || D->getLocStart().isInvalid())
-    return true;
+    return false;
 
   // Check if the cursor has 'NoLinkage'.
   if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
@@ -830,10 +830,10 @@ bool getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf) {
     UG->Visit(const_cast<Decl*>(D));
 
     if (UG->ignoreResults())
-      return true;
+      return false;
   }
 
-  return false;
+  return true;
 }
 
 } // namespace indexer
