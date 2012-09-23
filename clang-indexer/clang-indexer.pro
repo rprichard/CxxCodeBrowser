@@ -14,7 +14,6 @@ SOURCES += \
     IndexerContext.cc \
     NameGenerator.cc
 
-#LIBS += -lclang
 CONFIG += link_pkgconfig
 PKGCONFIG += jsoncpp
 
