@@ -92,3 +92,38 @@ Templates: -- omit the template params entirely
         int func(std::vector<double &vd)
     Would we represent both as this?
         func(std::vector&)
+
+----
+
+Problem at llvm/include/llvm/ADT/SmallVector.h, lines 273.
+There is no ref on SmallVectorTemplateBase or value.
+
+    class SmallVectorImpl : public SmallVectorTemplateBase<T, isPodLike<T>::value> {
+
+----
+
+New uint32_t encoding:
+
+0xxxxxxx
+10xxxxxx xxxxxxxx
+110xxxxx xxxxxxxx xxxxxxxx
+1110xxxx xxxxxxxx xxxxxxxx xxxxxxxx
+1111000x xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
+
+This variable-length encoding ensures that a sequence of numbers has the same
+order as its encoded byte-string (which is the concatenation of the VLE-encoded
+numbers).
+
+Each xxxxxxxx represents 255 values rather than 256, to avoid NUL bytes.  This
+will require division to encode a number and multiplication to decode a number.
+
+The encoding handles the values [0..2**32-1].  To encode zero without using a
+NUL byte, one is added to the value before encoding it.
+
+----
+
+Calls to the clang::VarDecl(Kind, DeclContext, ...) ctor seem to be missing
+from the refs info.  Also review whether calls to dtors are in the refs info.
+This might be a difficult thing to fix -- a lot of these calls are implicit.
+Image what happens with std::vector<SomeType> -- where are calls to
+SomeType::~SomeType coming from?  Implicit conversions are probably related.
