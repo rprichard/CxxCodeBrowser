@@ -130,9 +130,13 @@ public:
     void merge(const Index &other);
 
     // Add/query values.
+    size_t stringTableCount();
+    std::string stringTableName(size_t index);
     StringTable *addStringTable(const std::string &name);
     StringTable *stringTable(const std::string &name);
     const StringTable *stringTable(const std::string &name) const;
+    size_t tableCount();
+    std::string tableName(size_t index);
     Table *addTable(const std::string &name, const std::vector<std::string> &names);
     Table *table(const std::string &name);
     const Table *table(const std::string &name) const;

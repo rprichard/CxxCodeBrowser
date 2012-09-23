@@ -356,6 +356,21 @@ void Index::mergeTable(
     }
 }
 
+size_t Index::stringTableCount()
+{
+    return m_stringTables.size();
+}
+
+std::string Index::stringTableName(size_t index)
+{
+    auto it = m_stringTables.begin(), itEnd = m_stringTables.end();
+    while (assert(it != itEnd), index > 0) {
+        ++it;
+        --index;
+    }
+    return it->first;
+}
+
 // Returns the string table with the given name.  Creates the table if it does
 // not exist.  The index must be writable to call this method.
 StringTable *Index::addStringTable(const std::string &name)
@@ -380,6 +395,21 @@ const StringTable *Index::stringTable(const std::string &name) const
 {
     auto it = m_stringTables.find(name);
     return (it != m_stringTables.end()) ? it->second : NULL;
+}
+
+size_t Index::tableCount()
+{
+    return m_tables.size();
+}
+
+std::string Index::tableName(size_t index)
+{
+    auto it = m_tables.begin(), itEnd = m_tables.end();
+    while (assert(it != itEnd), index > 0) {
+        ++it;
+        --index;
+    }
+    return it->first;
 }
 
 // Returns the table with the given name, creating it if it does not exist.  If
