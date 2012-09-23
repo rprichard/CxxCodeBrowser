@@ -33,12 +33,14 @@ void IndexerPPCallbacks::recordReference(
         const clang::Token &macroNameToken,
         const char *kind)
 {
-    std::string usr = "@";
+    std::string symbolName = "@";
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
-    usr.append(macroName.data(), macroName.size());
-    Location loc = m_context.locationConverter().convert(
+    symbolName.append(macroName.data(), macroName.size());
+    Location start = m_context.locationConverter().convert(
                 macroNameToken.getLocation());
-    m_context.indexBuilder().recordRef(usr.c_str(), loc, kind);
+    Location end = start;
+    end.column += macroName.size();
+    m_context.indexBuilder().recordRef(symbolName.c_str(), start, end, kind);
 }
 
 } // namespace indexer

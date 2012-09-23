@@ -46,11 +46,11 @@ public:
     bool isNull() const { return m_project == NULL; }
 
     QString symbol() const {
-        return m_project->symbolTable().item(m_symbolID);
+        return m_project->symbolStringTable().item(m_symbolID);
     }
 
     File &file() const {
-        const char *fileName = m_project->pathTable().item(m_fileID);
+        const char *fileName = m_project->pathStringTable().item(m_fileID);
         return m_project->fileManager().file(fileName);
     }
 
@@ -58,7 +58,7 @@ public:
     int column() const { return m_column; }
 
     QString kind() const {
-        return m_project->kindTable().item(m_kindID);
+        return m_project->referenceTypeStringTable().item(m_kindID);
     }
 
 private:

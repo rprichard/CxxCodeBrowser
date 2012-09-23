@@ -1,6 +1,7 @@
 #include "ASTIndexer.h"
 
 #include <clang/AST/Type.h>
+#include <clang/Lex/Preprocessor.h>
 #include <llvm/ADT/SmallString.h>
 #include <llvm/Support/Casting.h>
 #include <string>
@@ -531,23 +532,107 @@ bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
 ///////////////////////////////////////////////////////////////////////////////
 // Reference recording
 
-static bool isNamedDeclUnnamed(clang::NamedDecl *d)
+static inline bool isNamedDeclUnnamed(clang::NamedDecl *d)
 {
     return d->getDeclName().isIdentifier() && d->getIdentifier() == NULL;
 }
 
-void ASTIndexer::RecordDeclRef(clang::NamedDecl *d, clang::SourceLocation loc, const char *kind)
+std::pair<Location, Location> ASTIndexer::getDeclRefRange(
+        clang::NamedDecl *decl,
+        clang::SourceLocation loc)
+{
+    clang::SourceLocation sloc =
+            m_indexerContext.sourceManager().getSpellingLoc(loc);
+    Location beginLoc = m_indexerContext.locationConverter().convert(sloc);
+    clang::DeclarationName name = decl->getDeclName();
+    clang::DeclarationName::NameKind nameKind = name.getNameKind();
+
+    // A C++ destructor name consists of two tokens, '~' and an identifier.
+    // Try to include both of them in the ref.
+    if (nameKind == clang::DeclarationName::CXXDestructorName) {
+        // Start by getting the destructor name, sans template arguments.
+        const clang::Type *nameType = name.getCXXNameType().getTypePtr();
+        assert(nameType != NULL);
+        llvm::StringRef className;
+        if (const clang::InjectedClassNameType *injectedNameType =
+                nameType->getAs<clang::InjectedClassNameType>()) {
+            className = injectedNameType->getDecl()->getName();
+        } else if (const clang::RecordType *recordType =
+                nameType->getAs<clang::RecordType>()) {
+            className = recordType->getDecl()->getName();
+        }
+        if (!className.empty()) {
+            // Scan the characters.
+            const char *const buffer = m_indexerContext.sourceManager().getCharacterData(sloc);
+            const char *p = buffer;
+            if (p != NULL && *p == '~') {
+                p++;
+                // Permit whitespace between the ~ and the class name.
+                // Technically there could be preprocessor tokens, comments,
+                // etc..
+                while (*p == ' ' || *p == '\t')
+                    p++;
+                // Match the class name against the text in the source.
+                if (!strncmp(p, className.data(), className.size())) {
+                    p += className.size();
+                    if (!isalnum(*p) && *p != '_') {
+                        Location endLoc = beginLoc;
+                        endLoc.column += p - buffer;
+                        return std::make_pair(beginLoc, endLoc);
+                    }
+                }
+            }
+        }
+    }
+
+    // For references to C++ overloaded operators, try to include both the
+    // operator keyword and the operator name in the ref.
+    if (nameKind == clang::DeclarationName::CXXOperatorName) {
+        const char *spelling = clang::getOperatorSpelling(
+                    name.getCXXOverloadedOperator());
+        if (spelling != NULL) {
+            const char *const buffer = m_indexerContext.sourceManager().getCharacterData(sloc);
+            const char *p = buffer;
+            if (p != NULL && !strncmp(p, "operator", 8)) {
+                p += 8;
+                // Skip whitespace between "operator" and the operator itself.
+                while (*p == ' ' || *p == '\t')
+                    p++;
+                // Look for the operator name.  This may be too restrictive for
+                // recognizing multi-token operators like operator[], operator
+                // delete[], or operator ->*.
+                if (!strncmp(p, spelling, strlen(spelling))) {
+                    p += strlen(spelling);
+                    Location endLoc = beginLoc;
+                    endLoc.column += p - buffer;
+                    return std::make_pair(beginLoc, endLoc);
+                }
+            }
+        }
+    }
+
+    // General case -- find the end of the token starting at loc.
+    clang::SourceLocation endSloc =
+            m_indexerContext.preprocessor().getLocForEndOfToken(sloc);
+    Location endLoc = m_indexerContext.locationConverter().convert(endSloc);
+    return std::make_pair(beginLoc, endLoc);
+}
+
+void ASTIndexer::RecordDeclRef(
+        clang::NamedDecl *d,
+        clang::SourceLocation beginLoc,
+        const char *kind)
 {
     // Skip references to unnamed declarations.  This is expected to skip the
     // definitions of unnamed types (structs/unions/enums).
     if (isNamedDeclUnnamed(d))
         return;
 
-    Location convertedLoc =
-            m_indexerContext.locationConverter().convert(loc);
     std::string symbol;
     getDeclName(d, symbol);
-    m_indexerContext.indexBuilder().recordRef(symbol.c_str(), convertedLoc, kind);
+    std::pair<Location, Location> range = getDeclRefRange(d, beginLoc);
+    m_indexerContext.indexBuilder().recordRef(
+                symbol.c_str(), range.first, range.second, kind);
 }
 
 } // namespace indexer

@@ -54,8 +54,10 @@ public:
 
 private:
     IndexerContext &getContext(clang::CompilerInstance &ci) {
-        if (m_context == NULL)
-            m_context = new IndexerContext(ci.getSourceManager(), m_index);
+        if (m_context == NULL) {
+            m_context = new IndexerContext(
+                        ci.getSourceManager(), ci.getPreprocessor(), m_index);
+        }
         return *m_context;
     }
 

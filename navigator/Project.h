@@ -33,9 +33,11 @@ public:
     Ref findSingleDefinitionOfSymbol(const QString &symbol);
     QList<Ref> queryAllSymbolDefinitions();
 
-    indexdb::StringTable &symbolTable() { return *m_symbolTable; }
-    indexdb::StringTable &pathTable() { return *m_pathTable; }
-    indexdb::StringTable &kindTable() { return *m_kindTable; }
+    indexdb::StringTable &symbolStringTable() { return *m_symbolStringTable; }
+    indexdb::StringTable &pathStringTable() { return *m_pathStringTable; }
+    indexdb::StringTable &referenceTypeStringTable() {
+        return *m_referenceTypeStringTable;
+    }
 
 private:
     void initSortedSymbols();
@@ -45,9 +47,9 @@ private:
     std::vector<const char*> m_sortedSymbols;
     FileManager *m_fileManager;
     indexdb::Index *m_index;
-    indexdb::StringTable *m_symbolTable;
-    indexdb::StringTable *m_pathTable;
-    indexdb::StringTable *m_kindTable;
+    indexdb::StringTable *m_symbolStringTable;
+    indexdb::StringTable *m_pathStringTable;
+    indexdb::StringTable *m_referenceTypeStringTable;
 };
 
 } // namespace Nav

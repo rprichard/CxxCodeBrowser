@@ -98,7 +98,13 @@ private:
     bool VisitTypeLoc(clang::TypeLoc tl);
 
     // Reference recording
-    void RecordDeclRef(clang::NamedDecl *d, clang::SourceLocation loc, const char *kind);
+    std::pair<Location, Location> getDeclRefRange(
+            clang::NamedDecl *decl,
+            clang::SourceLocation loc);
+    void RecordDeclRef(
+            clang::NamedDecl *d,
+            clang::SourceLocation beginLoc,
+            const char *kind);
 };
 
 } // namespace indexer
