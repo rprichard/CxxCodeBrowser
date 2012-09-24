@@ -120,14 +120,11 @@ Table::Table(Index *index, Reader &reader) : m_readonly(true)
 {
     uint32_t columns = reader.readUInt32();
     m_columnNames.resize(columns);
-    m_columnStringSets.resize(columns);
     for (uint32_t i = 0; i < columns; ++i) {
         m_columnNames[i] = reader.readString();
-        if (m_columnNames[i].empty()) {
-            m_columnStringSets[i] = NULL;
-        } else {
-            m_columnStringSets[i] = index->stringTable(m_columnNames[i]);
-            assert(m_columnStringSets[i] != NULL);
+        if (!m_columnNames[i].empty()) {
+            StringTable *stringTable = index->stringTable(m_columnNames[i]);
+            assert(stringTable != NULL);
         }
     }
     m_stringSetBuffer = reader.readBuffer();
@@ -149,9 +146,9 @@ Table::Table(Index *index, const std::vector<std::string> &columnNames) :
     assert(columnNames.size() >= 1);
     uint32_t size = columnNames.size();
     m_columnNames = columnNames;
-    m_columnStringSets.resize(size);
     for (uint32_t i = 0; i < size; ++i) {
-        m_columnStringSets[i] = index->addStringTable(m_columnNames[i]);
+        if (!m_columnNames[i].empty())
+            index->addStringTable(m_columnNames[i]);
     }
 }
 

@@ -108,7 +108,6 @@ private:
 
     bool m_readonly;
     std::vector<std::string> m_columnNames;
-    std::vector<StringTable*> m_columnStringSets;
     Buffer m_stringSetBuffer;
     StringTable m_stringSetHash;
 
