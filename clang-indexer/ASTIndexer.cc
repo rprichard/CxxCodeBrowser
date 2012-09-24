@@ -10,7 +10,6 @@
 #include "IndexerContext.h"
 #include "NameGenerator.h"
 #include "Switcher.h"
-#include "USRGenerator.h"
 
 namespace indexer {
 

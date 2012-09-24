@@ -7,7 +7,6 @@ SUBDIRS += libindexdb \
            libre2 \
            index-tool \
            navigator \
-           clang-index-test \
            clang-indexer \
            libbtrace
 

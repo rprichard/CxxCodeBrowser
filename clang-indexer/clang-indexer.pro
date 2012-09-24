@@ -10,7 +10,6 @@ SOURCES += \
     IndexerPPCallbacks.cc \
     TUIndexer.cc \
     IndexBuilder.cc \
-    USRGenerator.cc \
     IndexerContext.cc \
     NameGenerator.cc
 
@@ -32,7 +31,6 @@ HEADERS += \
     IndexerPPCallbacks.h \
     TUIndexer.h \
     IndexBuilder.h \
-    USRGenerator.h \
     IndexerContext.h \
     NameGenerator.h
 
