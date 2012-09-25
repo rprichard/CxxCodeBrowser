@@ -11,9 +11,27 @@
 
 namespace indexdb {
 
+#ifdef __unix__
+#define EINTR_LOOP(expr)                        \
+    ({                                          \
+        decltype(expr) ret;                     \
+        do {                                    \
+            ret = (expr);                       \
+        } while (ret == -1 && errno == EINTR);  \
+        ret;                                    \
+    })
+#endif
+
 Writer::Writer(const std::string &path)
 {
-    m_fp = fopen(path.c_str(), "w");
+    const char *pathPtr = path.c_str();
+#ifdef __unix__
+    const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
+    int fd = EINTR_LOOP(open(pathPtr, flags, 0666));
+    m_fp = fdopen(fd, "w");
+#else
+    m_fp = fopen(pathPtr, "w");
+#endif
     assert(m_fp);
     m_writeOffset = 0;
 }
@@ -55,7 +73,7 @@ void Writer::writeBuffer(const Buffer &buffer)
 
 Reader::Reader(const std::string &path)
 {
-    int fd = open(path.c_str(), O_RDONLY);
+    int fd = EINTR_LOOP(open(path.c_str(), O_RDONLY | O_CLOEXEC));
     assert(fd != -1);
     m_bufferPointer = 0;
     m_bufferSize = lseek(fd, 0, SEEK_END); // TODO: allow 64-bit offset
