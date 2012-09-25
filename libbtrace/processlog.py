@@ -67,11 +67,6 @@ def readFile(path):
     return commands
 
 
-filterPattern = re.compile(
-    r"-W | ( -[gwc] | -pedantic | -O[0-9] )$",
-    re.VERBOSE)
-
-
 sourceExtensions = [".c", ".cc", ".cpp", ".cxx", ".c++"]
 
 assemblyExtensions = [".s", ".S"]
@@ -84,6 +79,12 @@ def endsWithOneOf(text, extensions):
     return False
 
 
+def joinCommandLine(argv):
+    # TODO: Actually get this right -- quotes,spaces,escapes,newlines
+    # TODO: Review what Clang's libtooling and CMake do, especially on Windows.
+    return " ".join(argv)
+
+
 def extractSourceFile(command):
     """Attempt to extract a compile step from a driver command line."""
 
@@ -93,75 +94,25 @@ def extractSourceFile(command):
 
     args = command.argv[1:]
     inputFile = None
-    outputFile = None
-
-    outputIncludes = []
-    outputDefines = []
-    outputExtraArgs = []
 
     while len(args) > 0:
-
         arg = args.pop(0)
-
-        if arg[0] == "-" and arg[1] in "oDI" and len(arg) == 2:
-            assert len(args) >= 1
-            arg += args.pop(0)
-
-        if filterPattern.match(arg):
+        if arg[0] == "-":
             pass
-        elif arg[0] == "-":
-            if arg[1] == "o":
-                assert outputFile is None
-                outputFile = arg[2:]
-            elif arg[1] == "I":
-                outputIncludes.append(
-                    os.path.realpath(
-                        os.path.join(command.cwd,
-                                     arg[2:])))
-            elif arg[1] == "D":
-                outputDefines.append(arg[2:])
-            elif arg in ["-include", "-isysroot"]:
-                # Keep this and next argument.
-                assert len(args) >= 1
-                outputExtraArgs.append(arg)
-                outputExtraArgs.append(
-                    os.path.realpath(
-                        os.path.join(command.cwd,
-                                     args.pop(0))))
-            elif arg == "-arch":
-                # Keep this and next argument.
-                assert len(args) >= 1
-                outputExtraArgs.append(arg)
-                outputExtraArgs.append(args.pop(0))
-            elif arg in ["-MF", "-MT", "-MQ", "--param"]:
-                # Discard this and next argument.
-                assert len(args) >= 1
-                args.pop(0)
-            else:
-                outputExtraArgs.append(arg)
         elif endsWithOneOf(arg, sourceExtensions):
             assert inputFile is None
             inputFile = arg
         elif endsWithOneOf(arg, assemblyExtensions):
             return None
-        else:
-            print("Unknown argument: " + arg)
-            print(command.argv)
-            outputExtraArgs.append(arg)
 
     if inputFile is None:
         return None
 
-    output = """    {"file": """ + json.dumps(
-        os.path.join(command.cwd, inputFile))
-
-    if len(outputIncludes) > 0:
-        output += """\n        ,"includes": """ + json.dumps(outputIncludes)
-    if len(outputDefines) > 0:
-        output += """\n        ,"defines": """ + json.dumps(outputDefines)
-    if len(outputExtraArgs) > 0:
-        output += """\n        ,"extraArgs": """ + json.dumps(outputExtraArgs)
-    output += "}"
+    output =  '{\n'
+    output += '  "directory" : %s,\n' % json.dumps(command.cwd)
+    output += '  "command" : %s,\n' % json.dumps(joinCommandLine(command.argv))
+    output += '  "file" : %s\n' % json.dumps(inputFile)
+    output += '}'
 
     return output
 
@@ -169,19 +120,17 @@ def extractSourceFile(command):
 def main():
     firstFile = True
     commands = readFile("btrace.log")
-    f = open("btrace.sources", "w")
-    f.write("[\n")
+    f = open("compile_commands.json", "w")
+    f.write("[")
     for x in commands:
         sourceFile = extractSourceFile(x)
         if sourceFile is not None:
             if not firstFile:
-                f.write(",\n")
-            f.write("    ")
-            f.write(sourceFile)
+                f.write(",")
             firstFile = False
-    if not firstFile:
-        f.write("\n")
-    f.write("]")
+            f.write("\n")
+            f.write(sourceFile)
+    f.write("\n]")
     f.close()
 
 

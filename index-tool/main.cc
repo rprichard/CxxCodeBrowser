@@ -2,9 +2,14 @@
 
 #include "../libindexdb/IndexDb.h"
 
-int main()
+int main(int argc, char *argv[])
 {
-    indexdb::Index index("index");
+    if (argc != 2 || !strcmp(argv[1], "--help")) {
+        std::cout << "Usage:" << argv[0] << " indexdb-file" << std::endl;
+        return 1;
+    }
+
+    indexdb::Index index(argv[1]);
 
     std::cout << "{" << std::endl;
 

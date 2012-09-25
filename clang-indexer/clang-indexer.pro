@@ -11,7 +11,9 @@ SOURCES += \
     TUIndexer.cc \
     IndexBuilder.cc \
     IndexerContext.cc \
-    NameGenerator.cc
+    NameGenerator.cc \
+    SubprocessManager.cc \
+    Util.cc
 
 CONFIG += link_pkgconfig
 PKGCONFIG += jsoncpp
@@ -32,6 +34,8 @@ HEADERS += \
     TUIndexer.h \
     IndexBuilder.h \
     IndexerContext.h \
-    NameGenerator.h
+    NameGenerator.h \
+    SubprocessManager.h \
+    Util.h
 
 include(../clang.pri)

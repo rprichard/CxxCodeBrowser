@@ -7,6 +7,7 @@
 #include <string>
 
 #include "Switcher.h"
+#include "Util.h"
 
 namespace indexer {
 
@@ -61,28 +62,6 @@ void NameGenerator::outputSeparator()
         return;
     m_out << "::";
     m_needSeparator = false;
-}
-
-// The POSIX basename can modify its path, which is inconvenient.
-static const char *const_basename(const char *path)
-{
-    const char *ret = path;
-    while (true) {
-        char ch = *path;
-        if (ch == '\0') {
-            break;
-        } else if (ch == '/') {
-            ret = path + 1;
-        }
-#ifdef _WIN32
-        // Not tested
-        else if (ch == '\\' || ch == ':') {
-            ret = path + 1;
-        }
-#endif
-        path++;
-    }
-    return ret;
 }
 
 void NameGenerator::VisitDeclContext(clang::DeclContext *context)
