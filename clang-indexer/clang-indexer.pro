@@ -12,8 +12,9 @@ SOURCES += \
     IndexBuilder.cc \
     IndexerContext.cc \
     NameGenerator.cc \
-    SubprocessManager.cc \
-    Util.cc
+    Util.cc \
+    DaemonPool.cc \
+    Process.cc
 
 CONFIG += link_pkgconfig
 PKGCONFIG += jsoncpp
@@ -35,7 +36,8 @@ HEADERS += \
     IndexBuilder.h \
     IndexerContext.h \
     NameGenerator.h \
-    SubprocessManager.h \
-    Util.h
+    Util.h \
+    DaemonPool.h \
+    Process.h
 
 include(../clang.pri)

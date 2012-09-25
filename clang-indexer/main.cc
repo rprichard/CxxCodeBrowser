@@ -13,8 +13,8 @@
 #include <clang-c/Index.h>
 
 #include "../libindexdb/IndexDb.h"
+#include "DaemonPool.h"
 #include "IndexBuilder.h"
-#include "SubprocessManager.h"
 #include "TUIndexer.h"
 #include "Util.h"
 
@@ -24,21 +24,6 @@ namespace indexer {
 // The Clang driver uses this driver path to locate its built-in include files
 // which are at ../lib/clang/<VERSION>/include from the bin directory.
 #define kDriverPath "/home/rprichard/llvm-install/bin/clang"
-
-struct SourceFileInfo {
-    std::string sourceFilePath;
-    std::string workingDirectory;
-    std::string indexFilePath;
-    std::vector<std::string> clangArgv;
-    bool done;
-};
-
-static bool stringEndsWith(const std::string &str, const std::string &suffix)
-{
-    if (suffix.size() > str.size())
-        return false;
-    return !str.compare(str.size() - suffix.size(), suffix.size(), suffix);
-}
 
 static std::vector<std::string> splitCommandLine(const std::string &commandLine)
 {
@@ -61,6 +46,13 @@ static std::vector<std::string> splitCommandLine(const std::string &commandLine)
     return result;
 }
 
+struct SourceFileInfo {
+    std::string sourceFilePath;
+    std::string workingDirectory;
+    std::string indexFilePath;
+    std::vector<std::string> clangArgv;
+};
+
 static void readSourcesJson(
         const Json::Value &json,
         std::vector<SourceFileInfo> &output)
@@ -71,7 +63,6 @@ static void readSourcesJson(
             it != itEnd; ++it) {
         Json::Value &sourceJson = *it;
         SourceFileInfo sfi;
-        sfi.done = false;
         QDir workingDirectory(QString::fromStdString(
                                   sourceJson["directory"].asString()));
         sfi.workingDirectory = workingDirectory.absolutePath().toStdString();
@@ -141,43 +132,66 @@ static void readSourcesJson(
     readSourcesJson(rootJson, output);
 }
 
-static int indexProject(
-        const std::string &argv0,
-        std::vector<SourceFileInfo> &project)
+std::string indexFile(DaemonPool *daemonPool, SourceFileInfo *sfi)
 {
-    SubprocessManager subprocessManager(argv0);
-    indexdb::Index *index = newIndex();
-
-    for (auto &sfi : project) {
-        std::vector<std::string> args;
-        args.push_back("--index-file");
-        args.push_back(sfi.indexFilePath);
-        args.push_back("--");
-        args.insert(args.end(), sfi.clangArgv.begin(), sfi.clangArgv.end());
-        subprocessManager.spawnJob(
-                    "Generating " + sfi.indexFilePath + "...",
-                    sfi.workingDirectory,
-                    args,
-                    &sfi.done);
+    if (sfi->indexFilePath.empty()) {
+        // TODO: In theory, these temporary files could take up an arbitrarily
+        // large amount of disk space, if the indexer were to get ahead of the
+        // merging step.  I'd like to enforce a cap on the number of temp files
+        // existing at a given time, but I'd have to be careful not to cause a
+        // deadlock considering that the merging happens in a deterministic
+        // order, so progress must always be possible on the next file to
+        // merge.  The indexing seems to be much slower than the merging step.
+        QTemporaryFile tempFile;
+        tempFile.setAutoRemove(false);
+        // TODO: Is this temporary file opened O_CLOEXEC?
+        tempFile.open();
+        sfi->indexFilePath = tempFile.fileName().toStdString();
     }
 
-    for (auto &sfi : project) {
-        // Wait for this particular index to be completed.
-        while (!sfi.done) {
-            subprocessManager.doWork();
+    Daemon *daemon = daemonPool->get();
+    std::vector<std::string> args;
+    args.push_back("--index-file");
+    args.push_back(sfi->indexFilePath);
+    args.push_back("--");
+    args.insert(args.end(), sfi->clangArgv.begin(), sfi->clangArgv.end());
+    daemon->run(sfi->workingDirectory, args);
+    daemonPool->release(daemon);
+    return sfi->indexFilePath;
+}
+
+static int indexProject(const std::string &argv0, bool incremental)
+{
+    std::vector<SourceFileInfo> sourceFiles;
+    readSourcesJson(std::string("compile_commands.json"), sourceFiles);
+
+    DaemonPool daemonPool;
+    indexdb::Index *mergedIndex = newIndex();
+    std::vector<std::pair<std::string, QFuture<std::string> > > futures;
+
+    for (auto &sfi : sourceFiles) {
+        if (!incremental)
+            sfi.indexFilePath = "";
+        QFuture<std::string> future = QtConcurrent::run(
+                    indexFile, &daemonPool, &sfi);
+        futures.push_back(std::make_pair(sfi.sourceFilePath, future));
+    }
+    for (auto &p : futures) {
+        std::string indexPath = p.second.result();
+        std::cout << "Indexed " << p.first;
+        if (incremental)
+            std::cout << " (" << indexPath << ")";
+        std::cout << std::endl;
+        {
+            indexdb::Index fileIndex(indexPath);
+            mergedIndex->merge(fileIndex);
         }
-        // Merge it.
-        indexdb::Index fileIndex(sfi.indexFilePath);
-        index->merge(fileIndex);
+        if (!incremental)
+            QFile(QString::fromStdString(indexPath)).remove();
     }
 
-    // Wait for child processes to die.
-    while (!subprocessManager.doWork())
-        ;
-
-    // Write out the merged index.
-    index->setReadOnly();
-    index->save("index");
+    mergedIndex->setReadOnly();
+    mergedIndex->save("index");
 
     return 0;
 }
@@ -188,9 +202,15 @@ static int runCommand(const std::vector<std::string> &argv)
             //        1         2         3         4         5         6         7         8
             //        0         0         0         0         0         0         0         0
             "Usage: %s\n"
-            "    --index-project\n"
+            "\n"
+            "    --index-project [--incremental]\n"
             "          Index all of the translation units in the compile_commands.json file\n"
             "          and create a single merged index file named index.\n"
+            "\n"
+            "          If --incremental is specified, then each translation unit's index is\n"
+            "          saved to a separate idx file, which is reused by later --index-project\n"
+            "          invocations if none of its referenced files have changed.\n"
+            "\n"
             "    --index-file index-out-file -- clang-path clang-arguments...\n"
             "          Index a single translation unit.  Write the index to index-out-file.\n"
             "          clang-path must be the full path to a clang or clang++ driver\n"
@@ -202,10 +222,11 @@ static int runCommand(const std::vector<std::string> &argv)
             // it's the reason a driver basename is executed rather than just a path to the
             // include file directory.
 
-    if (argv.size() == 2 && argv[1] == "--index-project") {
-        std::vector<SourceFileInfo> project;
-        readSourcesJson(std::string("compile_commands.json"), project);
-        return indexProject(argv[0], project);
+    // TODO: Improve the argument parsing (allow --help anywhere, allow reversing the args)
+
+    if (argv.size() >= 2 && argv[1] == "--index-project") {
+        bool incremental = argv.size() >= 3 && argv[2] == "--incremental";
+        return indexProject(argv[0], incremental);
     } else if (argv.size() >= 6 &&
                argv[1] == "--index-file" &&
                argv[3] == "--") {
@@ -222,15 +243,6 @@ static int runCommand(const std::vector<std::string> &argv)
         printf(kUsageTextPattern, argv[0].c_str());
         return 0;
     }
-}
-
-// If the line ends with a newline, remove it.  Handle CRLF and LF endings.
-static void chompLine(std::string &line)
-{
-    if (line.size() >= 1 && line[line.size() - 1] == '\n')
-        line.resize(line.size() - 1);
-    if (line.size() >= 1 && line[line.size() - 1] == '\r')
-        line.resize(line.size() - 1);
 }
 
 // Read a series of commands from stdin and run them.  After each command,
@@ -257,23 +269,18 @@ static void chompLine(std::string &line)
 //
 static int runDaemon(const char *argv0)
 {
-    QFile in;
-    in.open(stdin, QIODevice::ReadOnly);
     while (true) {
-        std::string cwd = in.readLine().data();
-        chompLine(cwd);
+        std::string cwd = readLine(stdin);
         if (cwd.empty())
             return 0;
         std::vector<std::string> commandArgv;
         commandArgv.push_back(argv0);
         // TODO: What about newlines embedded in arguments?
         while (true) {
-            std::string line = in.readLine().data();
-            chompLine(line);
+            std::string line = readLine(stdin);
             if (line.empty())
                 break;
             commandArgv.push_back(line);
-            std::cerr << "(" << commandArgv.back() << ")" << std::endl;
         }
         if (commandArgv.size() <= 1) {
             std::cerr << argv0 << " daemon error: "
@@ -287,7 +294,8 @@ static int runDaemon(const char *argv0)
             exit(1);
         }
         int statusCode = runCommand(commandArgv);
-        std::cout << "DONE " << statusCode << std::endl;
+        printf("DONE %d\n", statusCode);
+        fflush(stdout);
     }
 }
 
@@ -295,6 +303,8 @@ static int runDaemon(const char *argv0)
 
 int main(int argc, char *argv[])
 {
+    QCoreApplication app(argc, argv);
+
     if (argc == 2 && !strcmp(argv[1], "--daemon")) {
         return indexer::runDaemon(argv[0]);
     } else {
