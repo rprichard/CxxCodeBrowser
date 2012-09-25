@@ -18,6 +18,8 @@
 #include "TUIndexer.h"
 #include "Util.h"
 
+namespace indexer {
+
 // TODO: This needs to be configured somehow.
 // The Clang driver uses this driver path to locate its built-in include files
 // which are at ../lib/clang/<VERSION>/include from the bin directory.
@@ -113,7 +115,7 @@ static void readSourcesJson(
         // If there wasn't a -o argument, combine the working directory with
         // the basename of the source path, and change the extension to .idx.
         if (sfi.indexFilePath.empty()) {
-            std::string basename = indexer::const_basename(sfi.sourceFilePath.c_str());
+            std::string basename = const_basename(sfi.sourceFilePath.c_str());
             auto pos = basename.rfind('.');
             if (pos != std::string::npos) {
                 basename = basename.substr(0, pos) + ".idx";
@@ -143,8 +145,8 @@ static int indexProject(
         const std::string &argv0,
         std::vector<SourceFileInfo> &project)
 {
-    indexer::SubprocessManager subprocessManager(argv0);
-    indexdb::Index *index = indexer::newIndex();
+    SubprocessManager subprocessManager(argv0);
+    indexdb::Index *index = newIndex();
 
     for (auto &sfi : project) {
         std::vector<std::string> args;
@@ -210,8 +212,8 @@ static int runCommand(const std::vector<std::string> &argv)
         std::string outputFile = argv[2];
         std::vector<std::string> clangArgv = argv;
         clangArgv.erase(clangArgv.begin(), clangArgv.begin() + 4);
-        indexdb::Index *index = indexer::newIndex();
-        indexer::indexTranslationUnit(clangArgv, *index);
+        indexdb::Index *index = newIndex();
+        indexTranslationUnit(clangArgv, *index);
         index->setReadOnly();
         index->save(outputFile);
         delete index;
@@ -289,16 +291,16 @@ static int runDaemon(const char *argv0)
     }
 }
 
+} // namespace indexer
+
 int main(int argc, char *argv[])
 {
-    QCoreApplication app(argc, argv);
-
     if (argc == 2 && !strcmp(argv[1], "--daemon")) {
-        return runDaemon(argv[0]);
+        return indexer::runDaemon(argv[0]);
     } else {
         std::vector<std::string> commandArgv;
         for (int i = 0; i < argc; ++i)
             commandArgv.push_back(argv[i]);
-        return runCommand(commandArgv);
+        return indexer::runCommand(commandArgv);
     }
 }
