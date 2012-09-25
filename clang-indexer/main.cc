@@ -5,9 +5,16 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <unordered_map>
 #include <iostream>
 #include <sstream>
 #include <vector>
+
+#ifdef __unix__
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 
 #include <json/reader.h>
 #include <clang-c/Index.h>
@@ -132,7 +139,65 @@ static void readSourcesJson(
     readSourcesJson(rootJson, output);
 }
 
-std::string indexFile(DaemonPool *daemonPool, SourceFileInfo *sfi)
+const time_t kInvalidTime = static_cast<time_t>(-1);
+
+static time_t getPathModTime(const std::string &path)
+{
+#if defined(__unix__)
+    // TODO: What about symlinks?  It seems that the perfect behavior is to use
+    // the non-symlink modtime for the index file itself, but for input files,
+    // to use the highest modtime among all the symlinks and the non-symlink.
+    // That's complicated, though, so just use the modtime of the non-symlink.
+    struct stat buf;
+    if (stat(path.c_str(), &buf) != 0)
+        return kInvalidTime;
+    return buf.st_mtime;
+#elif defined(_WIN32)
+#error "Should use GetFileInformation on Win32 -- not implemented yet"
+#else
+#error "Not implemented on this OS."
+#endif
+}
+
+static time_t getCachedPathModTime(
+        std::unordered_map<std::string, time_t> &fileTimeCache,
+        const std::string &path)
+{
+    auto it = fileTimeCache.find(path);
+    if (it != fileTimeCache.end()) {
+        return it->second;
+    } else {
+        time_t t = getPathModTime(path);
+        fileTimeCache[path] = t;
+        return t;
+    }
+}
+
+// TODO: We need to save the (workingDirectory, clang-args) in the index file
+// somehow, so that if they change, we don't reuse the index.
+static bool canReuseExistingIndexFile(
+        std::unordered_map<std::string, time_t> &fileTimeCache,
+        const SourceFileInfo &sfi)
+{
+    if (sfi.indexFilePath.empty())
+        return false;
+    time_t indexTime = getPathModTime(sfi.indexFilePath);
+    if (indexTime == kInvalidTime)
+        return false;
+    indexdb::Index fileIndex(sfi.indexFilePath);
+    indexdb::StringTable *pathTable = fileIndex.stringTable("Path");
+    for (uint32_t i = 0, iEnd = pathTable->size(); i < iEnd; ++i) {
+        std::string path = pathTable->item(i);
+        if (path[0] == '\0' || path[0] == '<')
+            continue;
+        time_t inputTime = getCachedPathModTime(fileTimeCache, path);
+        if (inputTime == kInvalidTime || inputTime > indexTime)
+            return false;
+    }
+    return true;
+}
+
+static std::string indexFile(DaemonPool *daemonPool, SourceFileInfo *sfi)
 {
     if (sfi->indexFilePath.empty()) {
         // TODO: In theory, these temporary files could take up an arbitrarily
@@ -160,6 +225,11 @@ std::string indexFile(DaemonPool *daemonPool, SourceFileInfo *sfi)
     return sfi->indexFilePath;
 }
 
+static std::string identityString(std::string str)
+{
+    return str;
+}
+
 static int indexProject(const std::string &argv0, bool incremental)
 {
     std::vector<SourceFileInfo> sourceFiles;
@@ -168,13 +238,22 @@ static int indexProject(const std::string &argv0, bool incremental)
     DaemonPool daemonPool;
     indexdb::Index *mergedIndex = newIndex();
     std::vector<std::pair<std::string, QFuture<std::string> > > futures;
+    std::unordered_map<std::string, time_t> fileTimeCache;
 
     for (auto &sfi : sourceFiles) {
         if (!incremental)
             sfi.indexFilePath = "";
-        QFuture<std::string> future = QtConcurrent::run(
-                    indexFile, &daemonPool, &sfi);
-        futures.push_back(std::make_pair(sfi.sourceFilePath, future));
+        if (canReuseExistingIndexFile(fileTimeCache, sfi)) {
+            // TODO: It's inefficient to run identityString on a separate
+            // thread.
+            QFuture<std::string> future = QtConcurrent::run(
+                        identityString, sfi.indexFilePath);
+            futures.push_back(std::make_pair(sfi.sourceFilePath, future));
+        } else {
+            QFuture<std::string> future = QtConcurrent::run(
+                        indexFile, &daemonPool, &sfi);
+            futures.push_back(std::make_pair(sfi.sourceFilePath, future));
+        }
     }
     for (auto &p : futures) {
         std::string indexPath = p.second.result();
