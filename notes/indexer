@@ -127,3 +127,11 @@ from the refs info.  Also review whether calls to dtors are in the refs info.
 This might be a difficult thing to fix -- a lot of these calls are implicit.
 Image what happens with std::vector<SomeType> -- where are calls to
 SomeType::~SomeType coming from?  Implicit conversions are probably related.
+
+----
+
+Improve run-time by generating a symbol ID just once per decl.  Consider
+calling getCanonicalDecl first, so that multiple decls of the same thing still
+use the same cache entry.  The two major questionsa are: (1) Is there ever a
+case where the canonical Decl of a Decl should have a different name, and (2)
+Is calling getCanonicalDecl slower than generating a symbol ID?
