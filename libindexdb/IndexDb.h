@@ -100,6 +100,11 @@ public:
 
     TableIterator lowerBound(const Row &row);
 
+    uint32_t bufferSize() const {
+        assert(m_readonly);
+        return m_stringSetBuffer.size();
+    }
+
 private:
     Table(Index *index, Reader &reader);
     void write(Writer &writer);

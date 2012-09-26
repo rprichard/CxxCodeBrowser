@@ -67,6 +67,8 @@ public:
 
     uint32_t size() const { return m_table.size() / sizeof(TableNode); }
 
+    uint32_t contentSize() const { return m_data.size(); }
+
     friend class Index;
 };
 

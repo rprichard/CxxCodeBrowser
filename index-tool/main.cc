@@ -2,14 +2,47 @@
 
 #include "../libindexdb/IndexDb.h"
 
-int main(int argc, char *argv[])
+static int computeTableSize(const indexdb::Table &table)
 {
-    if (argc != 2 || !strcmp(argv[1], "--help")) {
-        std::cout << "Usage:" << argv[0] << " indexdb-file" << std::endl;
-        return 1;
+    int size = 0;
+    for (auto it = table.begin(), itEnd = table.end(); it != itEnd;
+            ++it) {
+        size++;
+    }
+    return size;
+}
+
+static void dump(const std::string &path)
+{
+    indexdb::Index index(path);
+
+    printf("String Tables:\n\n");
+    printf("    %-20s  %10s  %10s\n", "Name", "Count", "ContentSize");
+    printf("    %-20s  %10s  %10s\n", "====", "=====", "===========");
+    for (size_t tableIndex = 0; tableIndex < index.stringTableCount();
+            ++tableIndex) {
+        std::string name = index.stringTableName(tableIndex);
+        indexdb::StringTable *table = index.stringTable(name);
+        printf("    %-20s  %10u  %10u\n",
+               name.c_str(), table->size(), table->contentSize());
+
     }
 
-    indexdb::Index index(argv[1]);
+    printf("\nTables:\n\n");
+    printf("    %-20s  %10s  %10s\n", "Name", "Count", "BufferSize");
+    printf("    %-20s  %10s  %10s\n", "====", "=====", "==========");
+    for (size_t tableIndex = 0; tableIndex < index.tableCount();
+            ++tableIndex) {
+        std::string name = index.tableName(tableIndex);
+        indexdb::Table *table = index.table(name);
+        printf("    %-20s  %10d  %10d\n",
+               name.c_str(), computeTableSize(*table), table->bufferSize());
+    }
+}
+
+static void dumpJson(const std::string &path)
+{
+    indexdb::Index index(path);
 
     std::cout << "{" << std::endl;
 
@@ -94,4 +127,16 @@ int main(int argc, char *argv[])
     }
     std::cout << '}' << std::endl;
     std::cout << '}' << std::endl;
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc == 3 && !strcmp(argv[1], "--dump")) {
+        dump(argv[2]);
+    } else if (argc == 3 && !strcmp(argv[1], "--dump-json")) {
+        dumpJson(argv[2]);
+    } else {
+        std::cout << "Usage:" << argv[0] << " (--dump|--dump-json) indexdb-file"
+                  << std::endl;
+    }
 }
