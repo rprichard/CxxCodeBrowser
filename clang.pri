@@ -5,7 +5,8 @@
 LLVM_DIR=/home/rprichard/llvm-3.1-configure-release-install
 
 INCLUDEPATH += $${LLVM_DIR}/include
-QMAKE_CXXFLAGS += -fPIC -fvisibility-inlines-hidden -fno-rtti -fno-exceptions -pthread -Wno-unused-parameter -Wno-strict-aliasing
+QMAKE_CXXFLAGS += -fPIC -fvisibility-inlines-hidden -fno-rtti -fno-exceptions -pthread
+QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-strict-aliasing
 DEFINES += _GNU_SOURCE __STDC_CONSTANT_MACROS __STDC_FORMAT_MACROS __STDC_LIMIT_MACROS
 
 LIBS += \

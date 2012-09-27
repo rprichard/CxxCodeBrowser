@@ -17,4 +17,5 @@ HEADERS += \
     StringTable.h \
     MurmurHash3.h
 
-QMAKE_CXXFLAGS += -Wall -Wno-unused-parameter -std=c++0x
+QMAKE_CXXFLAGS += -std=c++0x
+QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter

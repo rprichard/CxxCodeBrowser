@@ -30,3 +30,8 @@ SOURCES += \
         re2/tostring.cc \
         re2/unicode_casefold.cc \
         re2/unicode_groups.cc
+
+QMAKE_CXXFLAGS_WARN_ON += \
+        -Wno-sign-compare \
+        -Wno-unused-parameter \
+        -Wno-missing-field-initializers

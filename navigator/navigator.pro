@@ -62,4 +62,5 @@ INCLUDEPATH += ../libre2
 target.path = /
 INSTALLS += target
 
-QMAKE_CXXFLAGS += -Wall -Wno-unused-parameter -std=c++0x
+QMAKE_CXXFLAGS += -std=c++0x
+QMAKE_CXXFLAGS_WARN_ON += -Wall -Wno-unused-parameter
