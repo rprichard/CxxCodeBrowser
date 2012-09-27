@@ -15,9 +15,9 @@ public:
     Buffer &operator=(Buffer &other) = delete;
     static Buffer fromMappedBuffer(void *data, uint32_t size);
     ~Buffer();
-    uint32_t size() const;
-    void *data();
-    const void *data() const;
+    uint32_t size() const       { return m_size; }
+    void *data()                { return m_data; }
+    const void *data() const    { return m_data; }
     void append(const void *data, uint32_t size);
     bool isMapped() const { return m_isMapped; }
 

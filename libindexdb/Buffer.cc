@@ -70,21 +70,6 @@ Buffer::~Buffer()
         free(m_data);
 }
 
-uint32_t Buffer::size() const
-{
-    return m_size;
-}
-
-void *Buffer::data()
-{
-    return m_data;
-}
-
-const void *Buffer::data() const
-{
-    return m_data;
-}
-
 void Buffer::append(const void *data, uint32_t size)
 {
     assert(!m_isMapped);
