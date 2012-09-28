@@ -1,5 +1,5 @@
 #include "FileIo.h"
-#include "Buffer.h"
+
 #include <cassert>
 
 // UNIX headers
@@ -9,18 +9,10 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-namespace indexdb {
+#include "Buffer.h"
+#include "Util.h"
 
-#ifdef __unix__
-#define EINTR_LOOP(expr)                        \
-    ({                                          \
-        decltype(expr) ret;                     \
-        do {                                    \
-            ret = (expr);                       \
-        } while (ret == -1 && errno == EINTR);  \
-        ret;                                    \
-    })
-#endif
+namespace indexdb {
 
 Writer::Writer(const std::string &path)
 {

@@ -15,7 +15,9 @@ HEADERS += \
     FileIo.h \
     IndexDb.h \
     StringTable.h \
-    MurmurHash3.h
+    MurmurHash3.h \
+    Util.h \
+    Endian.h
 
 QMAKE_CXXFLAGS += -std=c++0x
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
