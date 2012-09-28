@@ -130,8 +130,37 @@ SomeType::~SomeType coming from?  Implicit conversions are probably related.
 
 ----
 
+Optimization:
+
 Improve run-time by generating a symbol ID just once per decl.  Consider
 calling getCanonicalDecl first, so that multiple decls of the same thing still
 use the same cache entry.  The two major questionsa are: (1) Is there ever a
 case where the canonical Decl of a Decl should have a different name, and (2)
 Is calling getCanonicalDecl slower than generating a symbol ID?
+
+----
+
+Optimization:
+
+Don't create the SymbolToReference table for each translation unit's index.
+Instead, wait until the translation units are merged, *then* create this table.
+Within each translation unit, create a LocationToReference table.
+
+(Along the same lines, there are other invariants that could be loosened for
+"intermediate" indexes -- the string and non-string tables could both be left
+unsorted.)
+
+----
+
+Indexer header file deduplication:
+
+ * Within each translation unit's index file, create a separate
+   LocationToReference table for each pathname.  When the index file is saved,
+   compute a hash (SHA?) of the content of each table.  When index files are
+   merged, record the SHA hash of each input tabled merged into a table.  If
+   the input table's SHA hash has already been merged, then that table can be
+   skipped.
+
+----
+
+Consider compressing the string tables with something like Snappy.
