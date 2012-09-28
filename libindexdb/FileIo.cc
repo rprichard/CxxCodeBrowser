@@ -42,6 +42,7 @@ void Writer::writeUInt32(uint32_t val)
         fwrite(padding, 1, padAmount, m_fp);
         m_writeOffset += padAmount;
     }
+    val = HostToLE32(val);
     fwrite(&val, 1, sizeof(val), m_fp);
 }
 
@@ -89,6 +90,7 @@ uint32_t Reader::readUInt32()
     // TODO: Is this type punning safe?
     uint32_t result = *reinterpret_cast<uint32_t*>(m_buffer + m_bufferPointer);
     m_bufferPointer += sizeof(uint32_t);
+    result = LEToHost32(result);
     return result;
 }
 

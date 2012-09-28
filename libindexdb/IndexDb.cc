@@ -7,6 +7,7 @@
 
 #include "FileIo.h"
 #include "MurmurHash3.h"
+#include "Util.h"
 
 namespace indexdb {
 
@@ -40,9 +41,16 @@ static inline void writeVleUInt32(char *&buffer, uint32_t value)
     } while (value != 0);
 }
 
-static inline void encodeRow(const Row &input, char *output)
+// Maximum number of bytes used by an encoded row of a given number of columns.
+// This return value does not include the NUL terminator.
+static inline size_t maxEncodedRowSize(int columnCount)
 {
-    for (int i = 0; i < input.count(); ++i) {
+    return columnCount * 5;
+}
+
+static inline void encodeRow(const ID *input, int columnCount, char *output)
+{
+    for (int i = 0; i < columnCount; ++i) {
         uint32_t temp = input[i] + 1;
         assert(temp != 0);
         writeVleUInt32(output, temp);
@@ -50,15 +58,25 @@ static inline void encodeRow(const Row &input, char *output)
     *output++ = '\0';
 }
 
-static inline void decodeRow(Row &output, const char *input)
+static inline void decodeRow(ID *output, int columnCount, const char *input)
 {
     const char *pinput = input;
-    for (int i = 0; i < output.count(); ++i) {
+    for (int i = 0; i < columnCount; ++i) {
         uint32_t temp = readVleUInt32(pinput);
         assert(temp != 0);
         output[i] = temp - 1;
     }
     assert(*pinput == '\0');
+}
+
+static inline void encodeRow(const Row &input, char *output)
+{
+    return encodeRow(&input[0], input.count(), output);
+}
+
+static inline void decodeRow(Row &output, const char *input)
+{
+    return decodeRow(&output[0], output.count(), input);
 }
 
 void Row::resize(int count)
@@ -102,13 +120,12 @@ TableIterator &TableIterator::operator--()
 ///////////////////////////////////////////////////////////////////////////////
 // Table
 
-
 void Table::add(const Row &row)
 {
     assert(!m_readonly);
-    char buffer[256]; // TODO: handle arbitrary row sizes
-    encodeRow(row, buffer);
-    m_stringSetHash.insert(buffer);
+    m_stringSetHash.insert(
+                reinterpret_cast<const char*>(&row[0]),
+                sizeof(row[0]) * row.count());
 }
 
 int Table::columnCount() const
@@ -141,7 +158,7 @@ void Table::write(Writer &writer)
 }
 
 Table::Table(Index *index, const std::vector<std::string> &columnNames) :
-    m_readonly(false)
+    m_readonly(false), m_stringSetHash(/*nullTerminateStrings=*/false)
 {
     assert(columnNames.size() >= 1);
     uint32_t size = columnNames.size();
@@ -152,40 +169,111 @@ Table::Table(Index *index, const std::vector<std::string> &columnNames) :
     }
 }
 
-void Table::setReadOnly()
+// For efficiency, create a table mapping column numbers to the appropriate ID
+// remapping table for that column, or NULL if the integers are not remapped
+// (e.g. line/column numbers).
+std::vector<const std::vector<ID>*> Table::createTableSpecificIdMap(
+        const std::map<std::string, std::vector<ID> > &idMap)
+{
+    std::vector<const std::vector<ID>*> tableIdMap(columnCount());
+    for (int i = 0; i < columnCount(); ++i) {
+        std::string name = columnName(i);
+        if (!name.empty())
+            tableIdMap[i] = &idMap.at(name);
+    }
+    return tableIdMap;
+}
+
+// Transform the Table from its mutable representation to its read-only
+// representation.
+//
+// The mutable representation stores rows unpacked and in arbitrary order.  The
+// read-only representation stores rows using a variable-length encoding and in
+// sorted order.
+//
+// This transformation always occurs at the same time that the string tables
+// are sorted.  Sorting the string tables changes their IDs, this function also
+// remaps all the IDs in its rows (before sorting them, of course).  The effect
+// is that everything (string and non-string tables) are in sorted order.
+//
+void Table::setReadOnly(
+        const std::map<std::string, std::vector<ID> > &idMap)
 {
     if (m_readonly)
         return;
-
     assert(m_stringSetBuffer.size() == 0);
-    uint32_t size = m_stringSetHash.size();
-    Buffer sortedStringsBuffer(size * sizeof(uint32_t));
-    uint32_t *sortedStrings = static_cast<uint32_t*>(sortedStringsBuffer.data());
-    for (uint32_t i = 0; i < size; ++i)
+
+    // Trash m_stringSetHash and setup a few local variables holding its
+    // previous state.  Use pillageContent to steal the data Buffer because
+    // a StringTable's content is normally immutable to preserve invariants.
+    const uint32_t columnCount = this->columnCount();
+    const uint32_t rowCount = m_stringSetHash.size();
+    Buffer tableDataBuffer(m_stringSetHash.pillageContent());
+    assert(tableDataBuffer.size() == rowCount * columnCount * sizeof(ID));
+    ID *tableData = static_cast<ID*>(tableDataBuffer.data());
+    m_stringSetHash = StringTable();
+
+    // Translate the rows according to the idMap.
+    {
+        auto tableIdMap = createTableSpecificIdMap(idMap);
+        uint32_t index = 0;
+        for (uint32_t i = 0; i < rowCount; ++i) {
+            for (uint32_t j = 0; j < columnCount; ++j) {
+                const std::vector<ID> *map = tableIdMap[j];
+                if (map != NULL)
+                    tableData[index] = (*map)[tableData[index]];
+                // Convert each uint32_t to big-endian so that rows can be
+                // compared below using memcmp.
+                tableData[index] = HostToBE32(tableData[index]);
+                index++;
+            }
+        }
+    }
+
+    // Create a table mapping sorted index to old index.
+    std::vector<uint32_t> sortedStrings(rowCount);
+    for (uint32_t i = 0; i < rowCount; ++i)
         sortedStrings[i] = i;
 
     struct CompareFunc {
-        StringTable *m_stringSetHash;
-        bool operator()(const uint32_t &x, const uint32_t &y) {
-            return strcmp(m_stringSetHash->item(x),
-                          m_stringSetHash->item(y)) < 0;
+        uint32_t rowCount;
+        uint32_t columnCount;
+        ID *tableData;
+        bool operator()(uint32_t x, uint32_t y) {
+            assert(x < rowCount);
+            assert(y < rowCount);
+            ID *rowX = &tableData[x * columnCount];
+            ID *rowY = &tableData[y * columnCount];
+            return memcmp(rowX, rowY, columnCount * sizeof(ID)) < 0;
         }
     } compareFunc;
 
-    compareFunc.m_stringSetHash = &m_stringSetHash;
-
-    std::sort<uint32_t*, CompareFunc>(&sortedStrings[0], &sortedStrings[size], compareFunc);
+    compareFunc.rowCount = rowCount;
+    compareFunc.columnCount = columnCount;
+    compareFunc.tableData = tableData;
+    std::sort<uint32_t*, CompareFunc>(
+                &sortedStrings[0],
+                &sortedStrings[rowCount],
+                compareFunc);
 
     // Prepend an initial NUL character to simplify iterator decrement.
     m_stringSetBuffer.append("", 1);
 
-    for (uint32_t i = 0; i < size; ++i) {
-        // The itemSize does not include the NUL-terminator, but item's result
-        // is guaranteed to be NUL-terminated.  Add one to the size so the
-        // string in m_stringSetBuffer is also NUL-terminated.
+    // Encode each row and add it to the buffer.
+    std::vector<char> encodedRow(maxEncodedRowSize(columnCount) + 1);
+    for (uint32_t newIndex = 0; newIndex < rowCount; ++newIndex) {
+        uint32_t oldIndex = sortedStrings[newIndex];
+        ID *row = &tableData[oldIndex * columnCount];
+        for (uint32_t i = 0; i < columnCount; ++i) {
+            // The integers were converted to big-endian above.  Convert them
+            // to host-encoding here.  (encodeRow will further convert them to
+            // a big-endian-like VLE representation.)
+            row[i] = BEToHost32(row[i]);
+        }
+        encodeRow(row, columnCount, encodedRow.data());
         m_stringSetBuffer.append(
-                    m_stringSetHash.item(sortedStrings[i]),
-                    m_stringSetHash.itemSize(sortedStrings[i]) + 1);
+                    encodedRow.data(),
+                    strlen(encodedRow.data()) + 1);
     }
 
     m_readonly = true;
@@ -194,9 +282,10 @@ void Table::setReadOnly()
 // Find the first iterator that is greater than or equal to the given row.
 TableIterator Table::lowerBound(const Row &row)
 {
-    char buffer[256]; // TODO: allow arbitary size
+    assert(m_readonly);
+    std::vector<char> buffer(maxEncodedRowSize(row.count()) + 1);
     assert(static_cast<size_t>(row.count()) <= m_columnNames.size());
-    encodeRow(row, buffer);
+    encodeRow(row, buffer.data());
 
     TableIterator itMin = begin();
     TableIterator itMax = end();
@@ -214,7 +303,7 @@ TableIterator Table::lowerBound(const Row &row)
             assert(itMid >= itMin && itMid < itMax);
         }
 
-        int cmp = strcmp(itMid.m_string, buffer);
+        int cmp = strcmp(itMid.m_string, buffer.data());
         if (cmp < 0) {
             itMin = itMid;
             ++itMin;
@@ -224,6 +313,13 @@ TableIterator Table::lowerBound(const Row &row)
     }
 
     return itMin;
+}
+
+void Table::dumpStats() const
+{
+#if STRING_TABLE_STATS
+    m_stringSetHash.dumpStats();
+#endif
 }
 
 
@@ -289,14 +385,14 @@ void Index::save(const std::string &path)
 // A table must have the same number and name of columns in the two indices.
 void Index::merge(const Index &other)
 {
-    std::map<std::string, std::vector<indexdb::ID> > idMap;
+    std::map<std::string, std::vector<ID> > idMap;
 
     // For each string table in "other", add all of the strings to the
     // corresponding string table in "this", while also building a table
     // mapping each of the "other" IDs into "this" IDs.
     for (auto pair : other.m_stringTables) {
-        idMap[pair.first] = std::vector<indexdb::ID>();
-        std::vector<indexdb::ID> &stringTableIdMap = idMap[pair.first];
+        idMap[pair.first] = std::vector<ID>();
+        std::vector<ID> &stringTableIdMap = idMap[pair.first];
         StringTable *destStringTable = addStringTable(pair.first);
         StringTable *srcStringTable = pair.second;
         stringTableIdMap.resize(srcStringTable->size());
@@ -321,20 +417,10 @@ void Index::merge(const Index &other)
 void Index::mergeTable(
         Table *destTable,
         Table *srcTable,
-        std::map<std::string, std::vector<indexdb::ID> > &idMap)
+        std::map<std::string, std::vector<ID> > &idMap)
 {
     int columnCount = srcTable->columnCount();
-
-    // For efficiency, create a table mapping column numbers to the appropriate
-    // ID remapping table for that column, or NULL if the integers are not
-    // remapped (e.g. line/column numbers).
-    std::vector<std::vector<indexdb::ID>*> tableIdMap;
-    tableIdMap.resize(columnCount);
-    for (int i = 0; i < columnCount; ++i) {
-        std::string name = srcTable->columnName(i);
-        if (!name.empty())
-            tableIdMap[i] = &idMap[name];
-    }
+    auto tableIdMap = srcTable->createTableSpecificIdMap(idMap);
 
     // Add each of the source table's rows to the destination table.
     Row row(columnCount);
@@ -351,6 +437,40 @@ void Index::mergeTable(
         }
         destTable->add(row);
     }
+}
+
+std::pair<StringTable, std::vector<ID> >
+Index::sortStringTable(const StringTable &input)
+{
+    const uint32_t stringCount = input.size();
+
+    // Construct a table of sorted indexes to original indexes.
+    std::vector<uint32_t> sortedStrings(stringCount);
+    for (uint32_t i = 0; i < stringCount; ++i)
+        sortedStrings[i] = i;
+    struct CompareFunc {
+        const StringTable *input;
+        bool operator()(uint32_t x, uint32_t y) {
+            return strcmp(input->item(x), input->item(y)) < 0;
+        }
+    };
+    CompareFunc func;
+    func.input = &input;
+    std::sort(&sortedStrings[0], &sortedStrings[stringCount], func);
+
+    // Copy each string into the new StringTable.
+    StringTable newTable;
+    std::vector<ID> idMap(stringCount);
+    for (uint32_t newIndex = 0; newIndex < stringCount; ++newIndex) {
+        uint32_t oldIndex = sortedStrings[newIndex];
+        idMap[oldIndex] = newIndex;
+        newTable.insert(
+                    input.item(oldIndex),
+                    input.itemSize(oldIndex),
+                    input.itemHash(oldIndex));
+    }
+
+    return std::make_pair(std::move(newTable), std::move(idMap));
 }
 
 size_t Index::stringTableCount()
@@ -441,9 +561,23 @@ Table *Index::table(const std::string &name)
 
 void Index::setReadOnly()
 {
+    if (m_readonly)
+        return;
+
     m_readonly = true;
+
+    // Sort the string tables.
+    std::map<std::string, std::vector<ID> > idMap;
+    for (std::pair<std::string, StringTable*> table : m_stringTables) {
+        std::pair<StringTable, std::vector<ID> > pair =
+                sortStringTable(*table.second);
+        *table.second = std::move(pair.first);
+        idMap[table.first] = std::move(pair.second);
+    }
+
+    // Transform the tables themselves and update them with the new string IDs.
     for (auto table : m_tables) {
-        table.second->setReadOnly();
+        table.second->setReadOnly(idMap);
     }
 }
 

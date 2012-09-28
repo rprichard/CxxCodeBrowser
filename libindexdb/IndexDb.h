@@ -25,7 +25,7 @@ class Table;
 
 class Row {
 public:
-    Row(int count) {
+    explicit Row(int count) {
         assert(count > 0);
         m_data = static_cast<uint32_t*>(malloc(count * sizeof(uint32_t)));
         assert(m_data != NULL);
@@ -99,6 +99,7 @@ public:
     }
 
     TableIterator lowerBound(const Row &row);
+    void dumpStats() const;
 
     uint32_t bufferSize() const {
         assert(m_readonly);
@@ -109,7 +110,9 @@ private:
     Table(Index *index, Reader &reader);
     void write(Writer &writer);
     Table(Index *index, const std::vector<std::string> &columns);
-    void setReadOnly();
+    std::vector<const std::vector<ID>*> createTableSpecificIdMap(
+            const std::map<std::string, std::vector<ID> > &idMap);
+    void setReadOnly(const std::map<std::string, std::vector<ID> > &idMap);
 
     bool m_readonly;
     std::vector<std::string> m_columnNames;
@@ -151,6 +154,8 @@ private:
             Table *destTable,
             Table *srcTable,
             std::map<std::string, std::vector<indexdb::ID> > &idMap);
+    std::pair<StringTable, std::vector<ID> > sortStringTable(
+            const StringTable &input);
 
     Reader *m_reader;
 

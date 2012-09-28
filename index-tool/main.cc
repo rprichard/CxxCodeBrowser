@@ -24,7 +24,7 @@ static void dump(const std::string &path)
         std::string name = index.stringTableName(tableIndex);
         indexdb::StringTable *table = index.stringTable(name);
         printf("    %-20s  %10u  %10u\n",
-               name.c_str(), table->size(), table->contentSize());
+               name.c_str(), table->size(), table->contentByteSize());
 
     }
 
