@@ -123,9 +123,8 @@ TableIterator &TableIterator::operator--()
 void Table::add(const Row &row)
 {
     assert(!m_readonly);
-    m_stringSetHash.insert(
-                reinterpret_cast<const char*>(&row[0]),
-                sizeof(row[0]) * row.count());
+    encodeRow(row, m_tempEncodedRow.data());
+    m_stringSetHash.insert(m_tempEncodedRow.data());
 }
 
 int Table::columnCount() const
@@ -136,6 +135,7 @@ int Table::columnCount() const
 Table::Table(Index *index, Reader &reader) : m_readonly(true)
 {
     uint32_t columns = reader.readUInt32();
+    m_tempEncodedRow.resize(maxEncodedRowSize(columns) + 1);
     m_columnNames.resize(columns);
     for (uint32_t i = 0; i < columns; ++i) {
         m_columnNames[i] = reader.readString();
@@ -158,7 +158,8 @@ void Table::write(Writer &writer)
 }
 
 Table::Table(Index *index, const std::vector<std::string> &columnNames) :
-    m_readonly(false), m_stringSetHash(/*nullTerminateStrings=*/false)
+    m_readonly(false),
+    m_tempEncodedRow(maxEncodedRowSize(columnNames.size()) + 1)
 {
     assert(columnNames.size() >= 1);
     uint32_t size = columnNames.size();
@@ -187,9 +188,9 @@ std::vector<const std::vector<ID>*> Table::createTableSpecificIdMap(
 // Transform the Table from its mutable representation to its read-only
 // representation.
 //
-// The mutable representation stores rows unpacked and in arbitrary order.  The
-// read-only representation stores rows using a variable-length encoding and in
-// sorted order.
+// The mutable representation stores rows in arbitrary order.  The read-only
+// representation stores rows in sorted order.  While being sorted, the rows
+// are represented unpacked.
 //
 // This transformation always occurs at the same time that the string tables
 // are sorted.  Sorting the string tables changes their IDs, this function also
@@ -203,31 +204,33 @@ void Table::setReadOnly(
         return;
     assert(m_stringSetBuffer.size() == 0);
 
-    // Trash m_stringSetHash and setup a few local variables holding its
-    // previous state.  Use pillageContent to steal the data Buffer because
-    // a StringTable's content is normally immutable to preserve invariants.
     const uint32_t columnCount = this->columnCount();
     const uint32_t rowCount = m_stringSetHash.size();
-    Buffer tableDataBuffer(m_stringSetHash.pillageContent());
-    assert(tableDataBuffer.size() == rowCount * columnCount * sizeof(ID));
-    ID *tableData = static_cast<ID*>(tableDataBuffer.data());
-    m_stringSetHash = StringTable();
+    std::vector<ID> tableData(rowCount * columnCount);
 
-    // Translate the rows according to the idMap.
     {
+        // Decode the packed strings in the string set into a 2-dimensional
+        // array.  As we're writing the new table, transform the ID values
+        // using the idMap.
         auto tableIdMap = createTableSpecificIdMap(idMap);
-        uint32_t index = 0;
-        for (uint32_t i = 0; i < rowCount; ++i) {
-            for (uint32_t j = 0; j < columnCount; ++j) {
-                const std::vector<ID> *map = tableIdMap[j];
+        uint32_t rowIndex = 0;
+        ID *ptr = tableData.data();
+        ID *endPtr = tableData.data() + tableData.size();
+        while (ptr != endPtr) {
+            decodeRow(ptr, columnCount, m_stringSetHash.item(rowIndex));
+            for (uint32_t column = 0; column < columnCount; ++column) {
+                const std::vector<ID> *map = tableIdMap[column];
                 if (map != NULL)
-                    tableData[index] = (*map)[tableData[index]];
+                    *ptr = (*map)[*ptr];
                 // Convert each uint32_t to big-endian so that rows can be
                 // compared below using memcmp.
-                tableData[index] = HostToBE32(tableData[index]);
-                index++;
+                *ptr = HostToBE32(*ptr);
+                ptr++;
             }
+            rowIndex++;
         }
+        // Discard the old string set to conserve memory.
+        m_stringSetHash = StringTable();
     }
 
     // Create a table mapping sorted index to old index.
@@ -250,7 +253,7 @@ void Table::setReadOnly(
 
     compareFunc.rowCount = rowCount;
     compareFunc.columnCount = columnCount;
-    compareFunc.tableData = tableData;
+    compareFunc.tableData = tableData.data();
     std::sort<uint32_t*, CompareFunc>(
                 &sortedStrings[0],
                 &sortedStrings[rowCount],
@@ -267,7 +270,7 @@ void Table::setReadOnly(
         for (uint32_t i = 0; i < columnCount; ++i) {
             // The integers were converted to big-endian above.  Convert them
             // to host-encoding here.  (encodeRow will further convert them to
-            // a big-endian-like VLE representation.)
+            // a VLE representation.)
             row[i] = BEToHost32(row[i]);
         }
         encodeRow(row, columnCount, encodedRow.data());

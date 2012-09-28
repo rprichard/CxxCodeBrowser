@@ -118,6 +118,7 @@ private:
     std::vector<std::string> m_columnNames;
     Buffer m_stringSetBuffer;
     StringTable m_stringSetHash;
+    std::vector<char> m_tempEncodedRow;
 
     friend class Index;
 };
