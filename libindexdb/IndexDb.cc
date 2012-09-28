@@ -286,12 +286,11 @@ void Table::setReadOnly(
 TableIterator Table::lowerBound(const Row &row)
 {
     assert(m_readonly);
-    std::vector<char> buffer(maxEncodedRowSize(row.count()) + 1);
-    assert(static_cast<size_t>(row.count()) <= m_columnNames.size());
-    encodeRow(row, buffer.data());
+    assert(static_cast<size_t>(row.count()) <= columnCount());
 
     TableIterator itMin = begin();
     TableIterator itMax = end();
+    Row tempRow(columnCount());
 
     // Binary search for the provided row.
     while (itMin != itMax) {
@@ -306,8 +305,8 @@ TableIterator Table::lowerBound(const Row &row)
             assert(itMid >= itMin && itMid < itMax);
         }
 
-        int cmp = strcmp(itMid.m_string, buffer.data());
-        if (cmp < 0) {
+        decodeRow(tempRow, itMid.m_string);
+        if (tempRow < row) {
             itMin = itMid;
             ++itMin;
         } else {

@@ -46,6 +46,21 @@ private:
     int m_count;
 };
 
+// A shorter row comes before a larger row if the common columns' values are
+// equal.
+inline bool operator<(const Row &x, const Row &y) {
+    int minColumn = std::min(x.count(), y.count());
+    for (int column = 0; column < minColumn; ++column) {
+        if (x[column] < y[column])
+            return true;
+        else if (x[column] > y[column])
+            return false;
+    }
+    if (x.count() < y.count())
+        return true;
+    return false;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // TableIterator
