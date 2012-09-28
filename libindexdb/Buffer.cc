@@ -34,7 +34,8 @@ Buffer::Buffer(uint32_t size, int fillChar)
     }
 }
 
-Buffer::Buffer(Buffer &&other)
+Buffer::Buffer(Buffer &&other) :
+    m_data(NULL), m_size(0), m_capacity(0), m_isMapped(false)
 {
     *this = std::move(other);
 }
