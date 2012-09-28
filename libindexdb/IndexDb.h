@@ -116,6 +116,10 @@ public:
     TableIterator lowerBound(const Row &row);
     void dumpStats() const;
 
+    uint32_t size() const {
+        return m_readonly ? m_readonlySize : m_stringSetHash.size();
+    }
+
     uint32_t bufferSize() const {
         assert(m_readonly);
         return m_stringSetBuffer.size();
@@ -133,6 +137,7 @@ private:
     std::vector<std::string> m_columnNames;
     Buffer m_stringSetBuffer;
     StringTable m_stringSetHash;
+    uint32_t m_readonlySize;
     std::vector<char> m_tempEncodedRow;
 
     friend class Index;

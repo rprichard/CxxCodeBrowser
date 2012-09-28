@@ -2,16 +2,6 @@
 
 #include "../libindexdb/IndexDb.h"
 
-static int computeTableSize(const indexdb::Table &table)
-{
-    int size = 0;
-    for (auto it = table.begin(), itEnd = table.end(); it != itEnd;
-            ++it) {
-        size++;
-    }
-    return size;
-}
-
 static void dump(const std::string &path)
 {
     indexdb::Index index(path);
@@ -36,7 +26,7 @@ static void dump(const std::string &path)
         std::string name = index.tableName(tableIndex);
         indexdb::Table *table = index.table(name);
         printf("    %-20s  %10d  %10d\n",
-               name.c_str(), computeTableSize(*table), table->bufferSize());
+               name.c_str(), table->size(), table->bufferSize());
     }
 }
 

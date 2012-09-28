@@ -134,6 +134,7 @@ int Table::columnCount() const
 
 Table::Table(Index *index, Reader &reader) : m_readonly(true)
 {
+    m_readonlySize = reader.readUInt32();
     uint32_t columns = reader.readUInt32();
     m_tempEncodedRow.resize(maxEncodedRowSize(columns) + 1);
     m_columnNames.resize(columns);
@@ -150,6 +151,7 @@ Table::Table(Index *index, Reader &reader) : m_readonly(true)
 void Table::write(Writer &writer)
 {
     assert(m_readonly);
+    writer.writeUInt32(m_readonlySize);
     writer.writeUInt32(m_columnNames.size());
     for (auto &name : m_columnNames) {
         writer.writeString(name);
@@ -159,6 +161,7 @@ void Table::write(Writer &writer)
 
 Table::Table(Index *index, const std::vector<std::string> &columnNames) :
     m_readonly(false),
+    m_readonlySize(0),
     m_tempEncodedRow(maxEncodedRowSize(columnNames.size()) + 1)
 {
     assert(columnNames.size() >= 1);
@@ -280,6 +283,7 @@ void Table::setReadOnly(
     }
 
     m_readonly = true;
+    m_readonlySize = rowCount;
 }
 
 // Find the first iterator that is greater than or equal to the given row.
