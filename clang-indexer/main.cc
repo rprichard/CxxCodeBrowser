@@ -197,7 +197,9 @@ static bool canReuseExistingIndexFile(
     return true;
 }
 
-static std::string indexFile(DaemonPool *daemonPool, SourceFileInfo *sfi)
+static std::string indexProjectFile(
+        DaemonPool *daemonPool,
+        SourceFileInfo *sfi)
 {
     if (sfi->indexFilePath.empty()) {
         // TODO: In theory, these temporary files could take up an arbitrarily
@@ -251,7 +253,7 @@ static int indexProject(const std::string &argv0, bool incremental)
             futures.push_back(std::make_pair(sfi.sourceFilePath, future));
         } else {
             QFuture<std::string> future = QtConcurrent::run(
-                        indexFile, &daemonPool, &sfi);
+                        indexProjectFile, &daemonPool, &sfi);
             futures.push_back(std::make_pair(sfi.sourceFilePath, future));
         }
     }
