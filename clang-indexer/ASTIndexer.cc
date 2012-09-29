@@ -28,6 +28,30 @@ namespace indexer {
 ///////////////////////////////////////////////////////////////////////////////
 // Misc routines
 
+ASTIndexer::ASTIndexer(IndexerContext &indexerContext) :
+    m_indexerContext(indexerContext),
+    m_thisContext(0),
+    m_childContext(0),
+    m_typeContext(RT_Reference)
+{
+    auto &b = m_indexerContext.indexBuilder();
+    m_refTypeIDs[RT_AddressTaken]   = b.insertRefType("Address-Taken");
+    m_refTypeIDs[RT_Assigned]       = b.insertRefType("Assigned");
+    m_refTypeIDs[RT_BaseClass]      = b.insertRefType("Base-Class");
+    m_refTypeIDs[RT_Called]         = b.insertRefType("Called");
+    m_refTypeIDs[RT_Declaration]    = b.insertRefType("Declaration");
+    m_refTypeIDs[RT_Definition]     = b.insertRefType("Definition");
+    m_refTypeIDs[RT_Initialized]    = b.insertRefType("Initialized");
+    m_refTypeIDs[RT_Modified]       = b.insertRefType("Modified");
+    m_refTypeIDs[RT_NamespaceAlias] = b.insertRefType("Namespace-Alias");
+    m_refTypeIDs[RT_Other]          = b.insertRefType("Other");
+    m_refTypeIDs[RT_Qualifier]      = b.insertRefType("Qualifier");
+    m_refTypeIDs[RT_Read]           = b.insertRefType("Read");
+    m_refTypeIDs[RT_Reference]      = b.insertRefType("Reference");
+    m_refTypeIDs[RT_Using]          = b.insertRefType("Using");
+    m_refTypeIDs[RT_UsingDirective] = b.insertRefType("Using-Directive");
+}
+
 bool ASTIndexer::shouldUseDataRecursionFor(clang::Stmt *s) const
 {
     if (s == NULL || !base::shouldUseDataRecursionFor(s))
@@ -59,7 +83,7 @@ bool ASTIndexer::TraverseStmt(clang::Stmt *stmt)
 
     if (clang::Expr *e = llvm::dyn_cast<clang::Expr>(stmt)) {
         if (e->isRValue())
-            m_thisContext &= ~(CF_AddressTaken | CF_Assigned | CF_Mutated);
+            m_thisContext &= ~(CF_AddressTaken | CF_Assigned | CF_Modified);
     } else {
         m_thisContext = 0;
     }
@@ -208,7 +232,7 @@ bool ASTIndexer::TraverseConstructorInitializer(clang::CXXCtorInitializer *init)
     if (init->getMember() != NULL) {
         RecordDeclRef(init->getMember(),
                       init->getMemberLocation(),
-                      "Initialized");
+                      RT_Initialized);
     }
 
     // See comment for VisitDeclStmt.
@@ -235,8 +259,8 @@ bool ASTIndexer::VisitMemberExpr(clang::MemberExpr *e)
         m_childContext = 0;
         if (m_thisContext & CF_AddressTaken)
             m_childContext |= CF_AddressTaken;
-        if (m_thisContext & (CF_Assigned | CF_Mutated))
-            m_childContext |= CF_Mutated;
+        if (m_thisContext & (CF_Assigned | CF_Modified))
+            m_childContext |= CF_Modified;
         if (m_thisContext & CF_Read)
             m_childContext |= CF_Read;
         if (m_thisContext & CF_Called) {
@@ -263,22 +287,22 @@ void ASTIndexer::RecordDeclRefExpr(clang::NamedDecl *d, clang::SourceLocation lo
     if (llvm::isa<clang::FunctionDecl>(*d)) {
         // XXX: This code seems sloppy, but I suspect it will work well enough.
         if (context & CF_Called)
-            RecordDeclRef(d, loc, "Called");
+            RecordDeclRef(d, loc, RT_Called);
         if (!(context & CF_Called) || (context & (CF_Read | CF_AddressTaken)))
-            RecordDeclRef(d, loc, "Address-Taken");
+            RecordDeclRef(d, loc, RT_AddressTaken);
     } else {
         if (context & CF_Called)
-            RecordDeclRef(d, loc, "Called");
+            RecordDeclRef(d, loc, RT_Called);
         if (context & CF_Read)
-            RecordDeclRef(d, loc, "Read");
+            RecordDeclRef(d, loc, RT_Read);
         if (context & CF_AddressTaken)
-            RecordDeclRef(d, loc, "Address-Taken");
+            RecordDeclRef(d, loc, RT_AddressTaken);
         if (context & CF_Assigned)
-            RecordDeclRef(d, loc, "Assigned");
-        if (context & CF_Mutated)
-            RecordDeclRef(d, loc, "Modified");
+            RecordDeclRef(d, loc, RT_Assigned);
+        if (context & CF_Modified)
+            RecordDeclRef(d, loc, RT_Modified);
         if (context == 0)
-            RecordDeclRef(d, loc, e->isRValue() ? "Read" : "Other");
+            RecordDeclRef(d, loc, e->isRValue() ? RT_Read : RT_Other);
     }
 }
 
@@ -295,23 +319,23 @@ bool ASTIndexer::TraverseNestedNameSpecifierLoc(
         case clang::NestedNameSpecifier::Namespace:
             RecordDeclRef(nns->getAsNamespace(),
                           qualifier.getLocalBeginLoc(),
-                          "Qualifier");
+                          RT_Qualifier);
             break;
         case clang::NestedNameSpecifier::NamespaceAlias:
             RecordDeclRef(nns->getAsNamespaceAlias(),
                           qualifier.getLocalBeginLoc(),
-                          "Qualifier");
+                          RT_Qualifier);
             break;
         case clang::NestedNameSpecifier::TypeSpec:
         case clang::NestedNameSpecifier::TypeSpecWithTemplate:
             if (const clang::TypedefType *tt = nns->getAsType()->getAs<clang::TypedefType>()) {
                 RecordDeclRef(tt->getDecl(),
                               qualifier.getLocalBeginLoc(),
-                              "Qualifier");
+                              RT_Qualifier);
             } else if (const clang::RecordType *rt = nns->getAsType()->getAs<clang::RecordType>()) {
                 RecordDeclRef(rt->getDecl(),
                               qualifier.getLocalBeginLoc(),
-                              "Qualifier");
+                              RT_Qualifier);
             } else if (const clang::TemplateSpecializationType *tst =
                        nns->getAsType()->getAs<clang::TemplateSpecializationType>()) {
 
@@ -319,7 +343,7 @@ bool ASTIndexer::TraverseNestedNameSpecifierLoc(
                     if (clang::NamedDecl *templatedDecl = decl->getTemplatedDecl()) {
                         RecordDeclRef(templatedDecl,
                                       qualifier.getLocalBeginLoc(),
-                                      "Qualifier");
+                                      RT_Qualifier);
 
                     }
                 }
@@ -364,7 +388,7 @@ bool ASTIndexer::TraverseCXXRecordDecl(clang::CXXRecordDecl *d)
                 it != d->bases_end();
                 ++it) {
             clang::CXXBaseSpecifier *baseSpecifier = it;
-            Switcher<const char*> sw(m_typeContext, "Base-Class");
+            Switcher<RefType> sw(m_typeContext, RT_BaseClass);
             TraverseTypeLoc(baseSpecifier->getTypeSourceInfo()->getTypeLoc());
         }
     }
@@ -433,9 +457,9 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
                 // Vector::A.
                 templateParameterListsHelper(fd);
 #endif
-                const char *kind;
-                kind = fd->isThisDeclarationADefinition() ? "Definition" : "Declaration";
-                RecordDeclRef(nd, loc, kind);
+                RefType refType;
+                refType = fd->isThisDeclarationADefinition() ? RT_Definition : RT_Declaration;
+                RecordDeclRef(nd, loc, refType);
             }
         } else if (clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(d)) {
             // Don't record the parameter definitions in a function declaration
@@ -454,35 +478,35 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
                     omitParmVar = true;
             }
             if (!omitParmVar) {
-                const char *kind;
+                RefType refType;
                 if (vd->isThisDeclarationADefinition() == clang::VarDecl::DeclarationOnly) {
-                    kind = "Declaration";
+                    refType = RT_Declaration;
                 } else {
-                    kind = "Definition";
+                    refType = RT_Definition;
                 }
-                RecordDeclRef(nd, loc, kind);
+                RecordDeclRef(nd, loc, refType);
             }
         } else if (clang::TagDecl *td = llvm::dyn_cast<clang::TagDecl>(d)) {
             // TODO: Handle the C++11 fixed underlying type of enumeration
             // declarations.
-            const char *kind;
-            kind = td->isThisDeclarationADefinition() ? "Definition" : "Declaration";
-            RecordDeclRef(nd, loc, kind);
+            RefType refType;
+            refType = td->isThisDeclarationADefinition() ? RT_Definition : RT_Declaration;
+            RecordDeclRef(nd, loc, refType);
         } else if (clang::UsingDirectiveDecl *ud = llvm::dyn_cast<clang::UsingDirectiveDecl>(d)) {
             RecordDeclRef(
                         ud->getNominatedNamespaceAsWritten(),
-                        loc, "Using-Directive");
+                        loc, RT_UsingDirective);
         } else if (clang::UsingDecl *usd = llvm::dyn_cast<clang::UsingDecl>(d)) {
             for (auto it = usd->shadow_begin(), itEnd = usd->shadow_end();
                     it != itEnd; ++it) {
                 clang::UsingShadowDecl *shadow = *it;
-                RecordDeclRef(shadow->getTargetDecl(), loc, "Using");
+                RecordDeclRef(shadow->getTargetDecl(), loc, RT_Using);
             }
         } else if (clang::NamespaceAliasDecl *nad = llvm::dyn_cast<clang::NamespaceAliasDecl>(d)) {
-            RecordDeclRef(nad, loc, "Declaration");
+            RecordDeclRef(nad, loc, RT_Declaration);
             RecordDeclRef(nad->getAliasedNamespace(),
                           nad->getTargetNameLoc(),
-                          "Namespace-Alias");
+                          RT_NamespaceAlias);
         } else if (llvm::isa<clang::FunctionTemplateDecl>(d)) {
             // Do nothing.  The function will be recorded when it appears as a
             // FunctionDecl.
@@ -490,7 +514,7 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
             // Do nothing.  The class will be recorded when it appears as a
             // RecordDecl.
         } else {
-            RecordDeclRef(nd, loc, "Declaration");
+            RecordDeclRef(nd, loc, RT_Declaration);
         }
     }
 
@@ -620,18 +644,36 @@ std::pair<Location, Location> ASTIndexer::getDeclRefRange(
 void ASTIndexer::RecordDeclRef(
         clang::NamedDecl *d,
         clang::SourceLocation beginLoc,
-        const char *kind)
+        RefType refType)
 {
+    assert(d != NULL);
+
     // Skip references to unnamed declarations.  This is expected to skip the
     // definitions of unnamed types (structs/unions/enums).
     if (isNamedDeclUnnamed(d))
         return;
 
-    std::string symbol;
-    getDeclName(d, symbol);
+    // Get the symbolID for the declaration.
+    indexdb::ID symbolID;
+    auto it = m_declNameCache.find(d);
+    if (it != m_declNameCache.end()) {
+        symbolID = it->second;
+    } else {
+        m_tempSymbolName.clear();
+        getDeclName(d, m_tempSymbolName);
+        symbolID = m_indexerContext.indexBuilder().insertSymbol(
+                    m_tempSymbolName.c_str());
+        m_declNameCache[d] = symbolID;
+    }
+
     std::pair<Location, Location> range = getDeclRefRange(d, beginLoc);
+
+    // Pass the prepared data to the IndexBuilder to record a ref.
     m_indexerContext.indexBuilder().recordRef(
-                symbol.c_str(), range.first, range.second, kind);
+                symbolID,
+                range.first,
+                range.second,
+                m_refTypeIDs[refType]);
 }
 
 } // namespace indexer

@@ -9,38 +9,51 @@
 
 namespace indexer {
 
+IndexerPPCallbacks::IndexerPPCallbacks(IndexerContext &context) :
+    m_context(context)
+{
+    auto &builder = m_context.indexBuilder();
+    m_refTypeExpansion = builder.insertRefType("Expansion");
+    m_refTypeDefinition = builder.insertRefType("Definition");
+    m_refTypeDefinedTest = builder.insertRefType("Defined-Test");
+}
+
 void IndexerPPCallbacks::MacroExpands(
         const clang::Token &macroNameToken,
         const clang::MacroInfo *mi,
         clang::SourceRange range)
 {
-    recordReference(macroNameToken, "Expansion");
+    recordReference(macroNameToken, m_refTypeExpansion);
 }
 
 void IndexerPPCallbacks::MacroDefined(
         const clang::Token &macroNameToken,
         const clang::MacroInfo *mi)
 {
-    recordReference(macroNameToken, "Definition");
+    recordReference(macroNameToken, m_refTypeDefinition);
 }
 
 void IndexerPPCallbacks::Defined(const clang::Token &macroNameToken)
 {
-    recordReference(macroNameToken, "Defined-Test");
+    recordReference(macroNameToken, m_refTypeDefinedTest);
 }
 
 void IndexerPPCallbacks::recordReference(
         const clang::Token &macroNameToken,
-        const char *kind)
+        indexdb::ID refTypeID)
 {
-    std::string symbolName = "@";
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
-    symbolName.append(macroName.data(), macroName.size());
+    m_tempSymbolName.clear();
+    m_tempSymbolName.push_back('@');
+    m_tempSymbolName.append(macroName.data(), macroName.size());
     Location start = m_context.locationConverter().convert(
                 macroNameToken.getLocation());
     Location end = start;
     end.column += macroName.size();
-    m_context.indexBuilder().recordRef(symbolName.c_str(), start, end, kind);
+    m_context.indexBuilder().recordRef(
+                m_context.indexBuilder().insertSymbol(
+                    m_tempSymbolName.c_str()),
+                start, end, refTypeID);
 }
 
 } // namespace indexer

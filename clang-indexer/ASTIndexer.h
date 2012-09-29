@@ -1,10 +1,13 @@
 #ifndef INDEXER_ASTINDEXER_H
 #define INDEXER_ASTINDEXER_H
 
+#include <unordered_map>
+
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/Basic/SourceLocation.h>
 #include <clang/Basic/SourceManager.h>
 
+#include "../libindexdb/IndexDb.h"
 #include "Location.h"
 
 namespace indexer {
@@ -15,19 +18,33 @@ class IndexerContext;
 class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
 {
 public:
-    ASTIndexer(IndexerContext &indexerContext) :
-        m_indexerContext(indexerContext),
-        m_thisContext(0),
-        m_childContext(0),
-        m_typeContext("Reference")
-    {
-    }
-
+    ASTIndexer(IndexerContext &indexerContext);
     void indexDecl(clang::Decl *d) { TraverseDecl(d); }
 
 private:
     typedef clang::RecursiveASTVisitor<ASTIndexer> base;
     friend class clang::RecursiveASTVisitor<ASTIndexer>;
+
+    enum RefType {
+        RT_AddressTaken,
+        RT_Assigned,
+        RT_BaseClass,
+        RT_Called,
+        RT_Declaration,
+        RT_Definition,
+        RT_Initialized,
+        RT_Modified,
+        RT_NamespaceAlias,
+        RT_Other,
+        RT_Qualifier,
+        RT_Read,
+        RT_Reference,
+        RT_Using,
+        RT_UsingDirective,
+        RT_Max
+    };
+
+    indexdb::ID m_refTypeIDs[RT_Max];
 
     // XXX: The CF_Read flag is useful mostly for lvalues -- for rvalues, we
     // don't set the CF_Read flag, but the rvalue is assumed to be read anyway.
@@ -37,7 +54,7 @@ private:
         CF_Read         = 0x2,      // the value is read for any other use
         CF_AddressTaken = 0x4,      // the gl-value's address escapes
         CF_Assigned     = 0x8,      // the gl-value is assigned to
-        CF_Mutated      = 0x10      // the gl-value is updated (i.e. compound assignment)
+        CF_Modified     = 0x10      // the gl-value is updated (i.e. compound assignment)
     };
 
     typedef unsigned int Context;
@@ -45,7 +62,9 @@ private:
     IndexerContext &m_indexerContext;
     Context m_thisContext;
     Context m_childContext;
-    const char *m_typeContext;
+    RefType m_typeContext;
+    std::string m_tempSymbolName;
+    std::unordered_map<clang::NamedDecl*, indexdb::ID> m_declNameCache;
 
     // Misc routines
     bool shouldVisitTemplateInstantiations() const { return true; }
@@ -63,7 +82,7 @@ private:
     bool TraverseCXXOperatorCallExpr(clang::CXXOperatorCallExpr *e) { return TraverseCallCommon(e); }
     bool TraverseBinComma(clang::BinaryOperator *s);
     bool TraverseBinAssign(clang::BinaryOperator *e) { return TraverseAssignCommon(e, CF_Assigned); }
-#define OPERATOR(NAME) bool TraverseBin##NAME##Assign(clang::CompoundAssignOperator *e) { return TraverseAssignCommon(e, CF_Mutated); }
+#define OPERATOR(NAME) bool TraverseBin##NAME##Assign(clang::CompoundAssignOperator *e) { return TraverseAssignCommon(e, CF_Modified); }
     OPERATOR(Mul) OPERATOR(Div) OPERATOR(Rem) OPERATOR(Add) OPERATOR(Sub)
     OPERATOR(Shl) OPERATOR(Shr) OPERATOR(And) OPERATOR(Or)  OPERATOR(Xor)
 #undef OPERATOR
@@ -104,7 +123,7 @@ private:
     void RecordDeclRef(
             clang::NamedDecl *d,
             clang::SourceLocation beginLoc,
-            const char *kind);
+            RefType refType);
 };
 
 } // namespace indexer

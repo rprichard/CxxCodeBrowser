@@ -132,16 +132,6 @@ SomeType::~SomeType coming from?  Implicit conversions are probably related.
 
 Optimization:
 
-Improve run-time by generating a symbol ID just once per decl.  Consider
-calling getCanonicalDecl first, so that multiple decls of the same thing still
-use the same cache entry.  The two major questionsa are: (1) Is there ever a
-case where the canonical Decl of a Decl should have a different name, and (2)
-Is calling getCanonicalDecl slower than generating a symbol ID?
-
-----
-
-Optimization:
-
 Don't create the SymbolToReference table for each translation unit's index.
 Instead, wait until the translation units are merged, *then* create this table.
 Within each translation unit, create a LocationToReference table.

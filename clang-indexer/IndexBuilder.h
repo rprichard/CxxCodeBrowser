@@ -15,13 +15,18 @@ class IndexBuilder
 public:
     IndexBuilder(indexdb::Index &index);
     void recordRef(
-            const char *symbolName,
+            indexdb::ID symbolID,
             const Location &start,
             const Location &end,
-            const char *refType);
+            indexdb::ID refTypeID);
     void recordSymbol(
-            const char *symbolName,
-            const char *symbolType);
+            indexdb::ID symbolID,
+            indexdb::ID symbolTypeID);
+
+    indexdb::ID insertSymbol(const char *symbol) { return m_symbolStringTable->insert(symbol); }
+    indexdb::ID insertRefType(const char *refType) { return m_referenceTypeStringTable->insert(refType); }
+    indexdb::ID insertSymbolType(const char *symbolType) { return m_symbolTypeStringTable->insert(symbolType); }
+
     indexdb::ID insertPath(const char *path) { return m_pathStringTable->insert(path); }
     const char *lookupPath(indexdb::ID pathID) { return m_pathStringTable->item(pathID); }
 

@@ -98,14 +98,11 @@ IndexBuilder::IndexBuilder(indexdb::Index &index) : m_index(index)
 }
 
 void IndexBuilder::recordRef(
-        const char *symbolName,
+        indexdb::ID symbolID,
         const Location &start,
         const Location &end,
-        const char *refType)
+        indexdb::ID refTypeID)
 {
-    indexdb::ID symbolID = m_symbolStringTable->insert(symbolName);
-    indexdb::ID refTypeID = m_referenceTypeStringTable->insert(refType);
-
     int startColumn = start.column;
     int endColumn = start.column;
     if (end.fileID == start.fileID && end.line == start.line)
@@ -134,12 +131,12 @@ void IndexBuilder::recordRef(
 }
 
 void IndexBuilder::recordSymbol(
-        const char *symbolName,
-        const char *symbolType)
+        indexdb::ID symbolID,
+        indexdb::ID symbolTypeID)
 {
     indexdb::Row symbol(2);
-    symbol[0] = m_symbolStringTable->insert(symbolName);
-    symbol[1] = m_symbolTypeStringTable->insert(symbolType);
+    symbol[0] = symbolID;
+    symbol[1] = symbolTypeID;
     m_symbolTable->add(symbol);
 }
 
