@@ -20,11 +20,32 @@ const ID kInvalidID = static_cast<ID>(-1);
 class StringTable
 {
 private:
+    // This class's in-memory representation has the same endianness as the
+    // string table's on-disk representation, but its methods operate on
+    // integers with normal host endianness.  The intent is that a table can be
+    // memory-mapped and cast to an EncodedUInt32*, and correct endianness
+    // handling will be ensured.
+    //
+    // It also means that clients can sometimes avoid superfluous byte-swapping
+    // by using the EncodedUInt32 type instead of the uint32_t type, without
+    // danger of getting the number of swaps wrong.
+    class EncodedUInt32 {
+    public:
+        EncodedUInt32() {}
+        EncodedUInt32(uint32_t val) : m_val(HostToLE32(val)) {}
+        uint32_t get() const { return LEToHost32(m_val); }
+        operator uint32_t() const { return get(); }
+    private:
+        uint32_t m_val;
+    };
+
+    typedef EncodedUInt32 EncodedID;
+
     struct TableNode {
-        uint32_t offset;
-        uint32_t size;
-        uint32_t hash;
-        ID indexNext;
+        EncodedUInt32 offset;
+        EncodedUInt32 size;
+        EncodedUInt32 hash;
+        EncodedID indexNext;
     };
 
 private:
@@ -43,8 +64,8 @@ private:
     TableNode *tablePtr()             { return static_cast<TableNode*>(m_table.data()); }
     const TableNode *tablePtr() const { return static_cast<const TableNode*>(m_table.data()); }
 
-    ID *indexPtr()             { return static_cast<ID*>(m_index.data()); }
-    const ID *indexPtr() const { return static_cast<const ID*>(m_index.data()); }
+    EncodedID *indexPtr()             { return static_cast<EncodedID*>(m_index.data()); }
+    const EncodedID *indexPtr() const { return static_cast<const EncodedID*>(m_index.data()); }
 
     uint32_t indexSize() const { return m_index.size() / sizeof(ID); }
     void resizeHashTable(uint32_t newIndexSize);
@@ -64,17 +85,17 @@ public:
 
     const char *item(ID id) const {
         assert(id < size());
-        return dataPtr() + LEToHost32(tablePtr()[id].offset);
+        return dataPtr() + tablePtr()[id].offset;
     }
 
     uint32_t itemSize(ID id) const {
         assert(id < size());
-        return LEToHost32(tablePtr()[id].size);
+        return tablePtr()[id].size;
     }
 
     uint32_t itemHash(ID id) const {
         assert(id < size());
-        return LEToHost32(tablePtr()[id].hash);
+        return tablePtr()[id].hash;
     }
 
     uint32_t size() const { return m_table.size() / sizeof(TableNode); }

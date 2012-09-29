@@ -102,12 +102,12 @@ inline ID StringTable::lookup(
     m_probes++;
 #endif
     uint32_t index = hash % indexSize();
-    for (ID tableIndex = LEToHost32(indexPtr()[index]);
+    for (ID tableIndex = indexPtr()[index];
             tableIndex != kInvalidID;
-            tableIndex = LEToHost32(tablePtr()[tableIndex].indexNext)) {
+            tableIndex = tablePtr()[tableIndex].indexNext) {
         const TableNode *n = &tablePtr()[tableIndex];
-        if (LEToHost32(n->hash) == hash && LEToHost32(n->size) == dataSize &&
-                memcmp(dataPtr() + LEToHost32(n->offset),
+        if (n->hash == hash && n->size == dataSize &&
+                memcmp(dataPtr() + n->offset,
                        data,
                        dataSize) == 0) {
             return tableIndex;
@@ -138,11 +138,11 @@ ID StringTable::insert(const char *data, uint32_t dataSize, uint32_t hash)
 
     ID newNodeID = size();
     TableNode newNode;
-    newNode.offset = HostToLE32(m_data.size());
-    newNode.size = HostToLE32(dataSize);
-    newNode.hash = HostToLE32(hash);
-    newNode.indexNext = HostToLE32(indexPtr()[index]);
-    indexPtr()[index] = HostToLE32(newNodeID);
+    newNode.offset = m_data.size();
+    newNode.size = dataSize;
+    newNode.hash = hash;
+    newNode.indexNext = indexPtr()[index];
+    indexPtr()[index] = newNodeID;
     m_data.append(data, dataSize);
     if (m_nullTerminateStrings)
         m_data.append("", 1); // Append NUL-terminator.
@@ -181,13 +181,13 @@ void StringTable::resizeHashTable(uint32_t newIndexSize)
 {
     m_index = Buffer(newIndexSize * sizeof(ID), 0xFF);
     for (ID i = 0; i < size(); ++i) {
-        tablePtr()[i].indexNext = HostToLE32(kInvalidID);
+        tablePtr()[i].indexNext = kInvalidID;
     }
     for (ID i = 0; i < size(); ++i) {
         TableNode *n = &tablePtr()[i];
-        uint32_t indexIndex = LEToHost32(n->hash) % newIndexSize;
+        uint32_t indexIndex = n->hash % newIndexSize;
         n->indexNext = indexPtr()[indexIndex];
-        indexPtr()[indexIndex] = HostToLE32(i);
+        indexPtr()[indexIndex] = i;
     }
 }
 
@@ -196,7 +196,7 @@ void StringTable::dumpStats() const
 {
     uint32_t emptyCells = 0;
     for (uint32_t i = 0; i < indexSize(); ++i) {
-         if (indexPtr()[i] == HostToLE32(kInvalidID))
+         if (indexPtr()[i] == kInvalidID)
              emptyCells++;
     }
     printf("size=%d indexSize=%d emptyCells=%d accesses=%llu "
