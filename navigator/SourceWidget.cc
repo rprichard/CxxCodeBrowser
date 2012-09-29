@@ -380,7 +380,7 @@ void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
             QAction *action = menu->addAction("No symbols found");
             action->setEnabled(false);
         } else {
-            for (QString symbol : symbols) {
+            for (const QString &symbol : symbols) {
                 QAction *action = menu->addAction(symbol);
                 action->setEnabled(false);
                 //action->setSeparator(true);

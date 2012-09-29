@@ -28,7 +28,7 @@ static QString convertFilterIntoRegex(const QString &filter)
     QString regex;
 
     if (words.size() > 0) {
-        for (QString word : words) {
+        for (const QString &word : words) {
             regex += "[^()]*";
             regex += "\\b";
             for (QChar ch : word) {

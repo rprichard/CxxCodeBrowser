@@ -257,7 +257,7 @@ static int indexProject(const std::string &argv0, bool incremental)
             futures.push_back(std::make_pair(sfi.sourceFilePath, future));
         }
     }
-    for (auto &p : futures) {
+    for (const auto &p : futures) {
         std::string indexPath = p.second.result();
         std::cout << "Indexed " << p.first;
         if (incremental)

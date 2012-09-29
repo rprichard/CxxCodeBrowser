@@ -153,7 +153,7 @@ void Table::write(Writer &writer)
     assert(m_readonly);
     writer.writeUInt32(m_readonlySize);
     writer.writeUInt32(m_columnNames.size());
-    for (auto &name : m_columnNames) {
+    for (const auto &name : m_columnNames) {
         writer.writeString(name);
     }
     writer.writeBuffer(m_stringSetBuffer);
@@ -357,12 +357,12 @@ Index::Index(const std::string &path) : m_readonly(true)
 
 Index::~Index()
 {
-    for (auto &it : m_stringTables) {
+    for (const auto &it : m_stringTables) {
         StringTable *hashSet = it.second;
         delete hashSet;
     }
 
-    for (auto &it : m_tables) {
+    for (const auto &it : m_tables) {
         Table *table = it.second;
         delete table;
     }
@@ -375,12 +375,12 @@ void Index::save(const std::string &path)
     assert(m_readonly);
     Writer writer(path);
     writer.writeUInt32(m_stringTables.size());
-    for (auto &pair : m_stringTables) {
+    for (const auto &pair : m_stringTables) {
         writer.writeString(pair.first);
         pair.second->write(writer);
     }
     writer.writeUInt32(m_tables.size());
-    for (auto &pair : m_tables) {
+    for (const auto &pair : m_tables) {
         writer.writeString(pair.first);
         pair.second->write(writer);
     }
@@ -396,7 +396,7 @@ void Index::merge(const Index &other)
     // For each string table in "other", add all of the strings to the
     // corresponding string table in "this", while also building a table
     // mapping each of the "other" IDs into "this" IDs.
-    for (auto pair : other.m_stringTables) {
+    for (const auto &pair : other.m_stringTables) {
         idMap[pair.first] = std::vector<ID>();
         std::vector<ID> &stringTableIdMap = idMap[pair.first];
         StringTable *destStringTable = addStringTable(pair.first);
@@ -413,7 +413,7 @@ void Index::merge(const Index &other)
 
     // For each row in each "other" table, add the row to the corresponding
     // table in "this", after remapping IDs.
-    for (auto tablePair : other.m_tables) {
+    for (const auto &tablePair : other.m_tables) {
         Table *srcTable = tablePair.second;
         Table *destTable = addTable(tablePair.first, srcTable->m_columnNames);
         mergeTable(destTable, srcTable, idMap);
@@ -574,7 +574,7 @@ void Index::setReadOnly()
 
     // Sort the string tables.
     std::map<std::string, std::vector<ID> > idMap;
-    for (std::pair<std::string, StringTable*> table : m_stringTables) {
+    for (const auto &table : m_stringTables) {
         std::pair<StringTable, std::vector<ID> > pair =
                 sortStringTable(*table.second);
         *table.second = std::move(pair.first);
@@ -582,7 +582,7 @@ void Index::setReadOnly()
     }
 
     // Transform the tables themselves and update them with the new string IDs.
-    for (auto table : m_tables) {
+    for (const auto &table : m_tables) {
         table.second->setReadOnly(idMap);
     }
 }
