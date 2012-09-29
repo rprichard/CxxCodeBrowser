@@ -88,6 +88,7 @@ uint32_t Reader::readUInt32()
         m_bufferPointer += sizeof(uint32_t) - padAmount;
     }
     // TODO: Is this type punning safe?
+    assert(m_bufferPointer + sizeof(uint32_t) <= m_bufferSize);
     uint32_t result = *reinterpret_cast<uint32_t*>(m_buffer + m_bufferPointer);
     m_bufferPointer += sizeof(uint32_t);
     result = LEToHost32(result);
@@ -104,8 +105,11 @@ std::string Reader::readString()
 // (The entire file is mapped into memory.)
 void *Reader::readData(size_t size)
 {
+    size_t originalPointer = m_bufferPointer;
     void *result = &m_buffer[m_bufferPointer];
     m_bufferPointer += size;
+    assert(m_bufferPointer >= originalPointer &&
+           m_bufferPointer <= m_bufferSize);
     return result;
 }
 
