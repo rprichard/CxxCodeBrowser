@@ -2,7 +2,6 @@
 #define INDEXER_NAMEGENERATOR_H
 
 #include <clang/AST/Decl.h>
-//#include <llvm/ADT/SmallString.h>
 
 namespace indexer {
 
