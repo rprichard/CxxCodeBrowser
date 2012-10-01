@@ -6,6 +6,7 @@
 #include <cstring>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -19,6 +20,8 @@
 #include <json/reader.h>
 #include <clang-c/Index.h>
 
+#include "../libindexdb/IndexArchiveBuilder.h"
+#include "../libindexdb/IndexArchiveReader.h"
 #include "../libindexdb/IndexDb.h"
 #include "DaemonPool.h"
 #include "IndexBuilder.h"
@@ -184,10 +187,9 @@ static bool canReuseExistingIndexFile(
     time_t indexTime = getPathModTime(sfi.indexFilePath);
     if (indexTime == kInvalidTime)
         return false;
-    indexdb::Index fileIndex(sfi.indexFilePath);
-    indexdb::StringTable *pathTable = fileIndex.stringTable("Path");
-    for (uint32_t i = 0, iEnd = pathTable->size(); i < iEnd; ++i) {
-        std::string path = pathTable->item(i);
+    indexdb::IndexArchiveReader archive(sfi.indexFilePath);
+    for (int i = 0, iEnd = archive.size(); i < iEnd; ++i) {
+        std::string path = archive.entry(i).name;
         if (path[0] == '\0' || path[0] == '<')
             continue;
         time_t inputTime = getCachedPathModTime(fileTimeCache, path);
@@ -257,6 +259,9 @@ static int indexProject(const std::string &argv0, bool incremental)
             futures.push_back(std::make_pair(sfi.sourceFilePath, future));
         }
     }
+
+    std::unordered_set<std::string> mergedEntrySet;
+
     for (const auto &p : futures) {
         std::string indexPath = p.second.result();
         std::cout << "Indexed " << p.first;
@@ -264,15 +269,23 @@ static int indexProject(const std::string &argv0, bool incremental)
             std::cout << " (" << indexPath << ")";
         std::cout << std::endl;
         {
-            indexdb::Index fileIndex(indexPath);
-            mergedIndex->merge(fileIndex);
+            indexdb::IndexArchiveReader archive(indexPath);
+            for (int i = 0; i < archive.size(); ++i) {
+                if (mergedEntrySet.find(archive.entry(i).hash) !=
+                        mergedEntrySet.end())
+                    continue;
+                mergedEntrySet.insert(archive.entry(i).hash);
+                indexdb::Index *fileIndex = archive.openEntry(i);
+                mergedIndex->merge(*fileIndex);
+                delete fileIndex;
+            }
         }
         if (!incremental)
             QFile(QString::fromStdString(indexPath)).remove();
     }
 
     mergedIndex->setReadOnly();
-    mergedIndex->save("index");
+    mergedIndex->write("index");
 
     return 0;
 }
@@ -314,11 +327,10 @@ static int runCommand(const std::vector<std::string> &argv)
         std::string outputFile = argv[2];
         std::vector<std::string> clangArgv = argv;
         clangArgv.erase(clangArgv.begin(), clangArgv.begin() + 4);
-        indexdb::Index *index = newIndex();
-        indexTranslationUnit(clangArgv, *index);
-        index->setReadOnly();
-        index->save(outputFile);
-        delete index;
+        indexdb::IndexArchiveBuilder archive;
+        indexTranslationUnit(clangArgv, archive);
+        archive.setReadOnly();
+        archive.write(outputFile);
         return 0;
     } else {
         printf(kUsageTextPattern, argv[0].c_str());

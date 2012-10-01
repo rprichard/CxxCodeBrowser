@@ -17,12 +17,17 @@
 #include <vector>
 
 #include "../libindexdb/IndexDb.h"
+#include "../libindexdb/IndexArchiveBuilder.h"
 #include "ASTIndexer.h"
 #include "IndexBuilder.h"
 #include "IndexerContext.h"
 #include "IndexerPPCallbacks.h"
 
 namespace indexer {
+
+
+///////////////////////////////////////////////////////////////////////////////
+// IndexerASTConsumer
 
 class IndexerASTConsumer : public clang::ASTConsumer {
 public:
@@ -31,7 +36,7 @@ public:
 private:
     void HandleTranslationUnit(clang::ASTContext &ctx);
 
-    IndexerContext m_context;
+    IndexerContext &m_context;
 };
 
 void IndexerASTConsumer::HandleTranslationUnit(clang::ASTContext &ctx)
@@ -40,10 +45,14 @@ void IndexerASTConsumer::HandleTranslationUnit(clang::ASTContext &ctx)
     iv.indexDecl(ctx.getTranslationUnitDecl());
 }
 
+
+///////////////////////////////////////////////////////////////////////////////
+// IndexerAction
+
 class IndexerAction : public clang::ASTFrontendAction {
 public:
-    IndexerAction(indexdb::Index &index) :
-        m_index(index), m_context(NULL)
+    IndexerAction(indexdb::IndexArchiveBuilder &archive) :
+        m_archive(archive), m_context(NULL)
     {
     }
 
@@ -56,7 +65,9 @@ private:
     IndexerContext &getContext(clang::CompilerInstance &ci) {
         if (m_context == NULL) {
             m_context = new IndexerContext(
-                        ci.getSourceManager(), ci.getPreprocessor(), m_index);
+                        ci.getSourceManager(),
+                        ci.getPreprocessor(),
+                        m_archive);
         }
         return *m_context;
     }
@@ -75,16 +86,20 @@ private:
         return true;
     }
 
-    indexdb::Index &m_index;
+    indexdb::IndexArchiveBuilder &m_archive;
     IndexerContext *m_context;
 };
 
+
+///////////////////////////////////////////////////////////////////////////////
+// indexTranslationUnit
+
 void indexTranslationUnit(
         const std::vector<std::string> &argv,
-        indexdb::Index &index)
+        indexdb::IndexArchiveBuilder &archive)
 {
     llvm::OwningPtr<clang::FileManager> fm(new clang::FileManager(clang::FileSystemOptions()));
-    llvm::OwningPtr<IndexerAction> action(new IndexerAction(index));
+    llvm::OwningPtr<IndexerAction> action(new IndexerAction(archive));
     clang::tooling::ToolInvocation ti(argv, action.take(), fm.get());
     ti.run();
 }

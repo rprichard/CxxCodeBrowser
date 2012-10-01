@@ -6,7 +6,6 @@ TEMPLATE = app
 SOURCES += \
     main.cc \
     ASTIndexer.cc \
-    Location.cc \
     IndexerPPCallbacks.cc \
     TUIndexer.cc \
     IndexBuilder.cc \

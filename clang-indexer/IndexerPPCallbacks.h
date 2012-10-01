@@ -12,6 +12,7 @@
 namespace indexer {
 
 class IndexerContext;
+enum RefType : int;
 
 class IndexerPPCallbacks : public clang::PPCallbacks
 {
@@ -28,13 +29,10 @@ private:
     virtual void Ifdef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
     virtual void Ifndef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
 
-    void recordReference(const clang::Token &macroNameToken, indexdb::ID refTypeID);
+    void recordReference(const clang::Token &macroNameToken, RefType refType);
 
     IndexerContext &m_context;
     std::string m_tempSymbolName;
-    indexdb::ID m_refTypeExpansion;
-    indexdb::ID m_refTypeDefinition;
-    indexdb::ID m_refTypeDefinedTest;
 };
 
 } // namespace indexer

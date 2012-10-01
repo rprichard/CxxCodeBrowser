@@ -5,12 +5,14 @@
 #include <vector>
 
 namespace indexdb {
-    class Index;
+    class IndexArchiveBuilder;
 }
 
 namespace indexer {
 
-void indexTranslationUnit(const std::vector<std::string> &argv, indexdb::Index &index);
+void indexTranslationUnit(
+        const std::vector<std::string> &argv,
+        indexdb::IndexArchiveBuilder &archive);
 
 } // namespace indexer
 

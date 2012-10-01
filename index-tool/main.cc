@@ -1,18 +1,18 @@
 #include <iostream>
 
+#include "../libindexdb/FileIo.h"
+#include "../libindexdb/IndexArchiveReader.h"
 #include "../libindexdb/IndexDb.h"
 
-static void dump(const std::string &path)
+static void dump(const indexdb::Index &index)
 {
-    indexdb::Index index(path);
-
     printf("String Tables:\n\n");
     printf("    %-20s  %10s  %10s\n", "Name", "Count", "ContentSize");
     printf("    %-20s  %10s  %10s\n", "====", "=====", "===========");
     for (size_t tableIndex = 0; tableIndex < index.stringTableCount();
             ++tableIndex) {
         std::string name = index.stringTableName(tableIndex);
-        indexdb::StringTable *table = index.stringTable(name);
+        const indexdb::StringTable *table = index.stringTable(name);
         printf("    %-20s  %10u  %10u\n",
                name.c_str(), table->size(), table->contentByteSize());
 
@@ -24,16 +24,14 @@ static void dump(const std::string &path)
     for (size_t tableIndex = 0; tableIndex < index.tableCount();
             ++tableIndex) {
         std::string name = index.tableName(tableIndex);
-        indexdb::Table *table = index.table(name);
+        const indexdb::Table *table = index.table(name);
         printf("    %-20s  %10d  %10d\n",
                name.c_str(), table->size(), table->bufferSize());
     }
 }
 
-static void dumpJson(const std::string &path)
+static void dumpJson(const indexdb::Index &index)
 {
-    indexdb::Index index(path);
-
     std::cout << "{" << std::endl;
 
     std::cout << "\"StringTables\" : {" << std::endl;
@@ -41,7 +39,7 @@ static void dumpJson(const std::string &path)
             ++tableIndex) {
         std::string name = index.stringTableName(tableIndex);
         std::cout << "  \"" << name << "\" : [" << std::endl;
-        indexdb::StringTable *table = index.stringTable(name);
+        const indexdb::StringTable *table = index.stringTable(name);
         for (size_t stringIndex = 0, stringCount = table->size();
                 stringIndex < stringCount; ++stringIndex) {
             std::cout << "    \"" << table->item(stringIndex) << "\"";
@@ -63,9 +61,9 @@ static void dumpJson(const std::string &path)
         std::cout << "  \"" << tableName << "\" : {" << std::endl;
 
         std::cout << "    \"ColumnStringTables\" : [" << std::endl;
-        indexdb::Table *table = index.table(tableName);
+        const indexdb::Table *table = index.table(tableName);
         const int columnCount = table->columnCount();
-        std::vector<indexdb::StringTable*> columnStringTables(columnCount);
+        std::vector<const indexdb::StringTable*> columnStringTables(columnCount);
         for (int columnIndex = 0; columnIndex < columnCount; ++columnIndex) {
             std::string columnName = table->columnName(columnIndex);
             std::cout << "      \"" << columnName << '"';
@@ -89,7 +87,7 @@ static void dumpJson(const std::string &path)
                 std::cout << "      [";
                 for (int columnIndex = 0; columnIndex < columnCount;
                         ++columnIndex) {
-                    indexdb::StringTable *stringTable =
+                    const indexdb::StringTable *stringTable =
                             columnStringTables[columnIndex];
                     if (stringTable != NULL) {
                         std::cout << '"'
@@ -121,10 +119,64 @@ static void dumpJson(const std::string &path)
 
 int main(int argc, char *argv[])
 {
+    // TODO: Improve argument parsing.
+    // TODO: Refactor this pile of code.
+
     if (argc == 3 && !strcmp(argv[1], "--dump")) {
-        dump(argv[2]);
+        std::string path = argv[2];
+        indexdb::Reader reader(path);
+        if (reader.peekSignature(indexdb::kIndexSignature)) {
+            indexdb::Index index(path);
+            dump(index);
+        } else if (reader.peekSignature(indexdb::kIndexArchiveSignature)) {
+
+            // This code was copied-and-pasted to below.
+
+            indexdb::IndexArchiveReader archive(path);
+            for (int i = 0; i < archive.size(); ++i) {
+                std::cout << "FILE: " << archive.entry(i).name;
+                std::string hash = archive.entry(i).hash;
+                if (!hash.empty()) {
+                    std::cout << " (hash: ";
+                    for (size_t j = 0; j < hash.size(); ++j) {
+                        char tmp[30];
+                        sprintf(tmp, "%02x", (unsigned char)hash[j]);
+                        std::cout << tmp;
+                    }
+                }
+                std::cout << std::endl;
+                std::cout << std::endl;
+                indexdb::Index *index = archive.openEntry(i);
+                dump(*index);
+                std::cout << std::endl;
+                delete index;
+            }
+        } else {
+            std::cerr << "error: " << path << " is not an index file."
+                      << std::endl;
+        }
     } else if (argc == 3 && !strcmp(argv[1], "--dump-json")) {
-        dumpJson(argv[2]);
+        std::string path = argv[2];
+        indexdb::Reader reader(path);
+        if (reader.peekSignature(indexdb::kIndexSignature)) {
+            indexdb::Index index(path);
+            dumpJson(index);
+        } else if (reader.peekSignature(indexdb::kIndexArchiveSignature)) {
+
+            // This code was copied-and-pasted from above.
+            // TODO: It's not even trying to be a JSON file.  Fix it.
+
+            indexdb::IndexArchiveReader archive(path);
+            for (int i = 0; i < archive.size(); ++i) {
+                std::cout << "FILE: " << archive.entry(i).name << std::endl;
+                indexdb::Index *index = archive.openEntry(i);
+                dumpJson(*index);
+                delete index;
+            }
+        } else {
+            std::cerr << "error: " << path << " is not an index file."
+                      << std::endl;
+        }
     } else {
         std::cout << "Usage:" << argv[0] << " (--dump|--dump-json) indexdb-file"
                   << std::endl;

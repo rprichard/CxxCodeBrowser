@@ -34,22 +34,6 @@ ASTIndexer::ASTIndexer(IndexerContext &indexerContext) :
     m_childContext(0),
     m_typeContext(RT_Reference)
 {
-    auto &b = m_indexerContext.indexBuilder();
-    m_refTypeIDs[RT_AddressTaken]   = b.insertRefType("Address-Taken");
-    m_refTypeIDs[RT_Assigned]       = b.insertRefType("Assigned");
-    m_refTypeIDs[RT_BaseClass]      = b.insertRefType("Base-Class");
-    m_refTypeIDs[RT_Called]         = b.insertRefType("Called");
-    m_refTypeIDs[RT_Declaration]    = b.insertRefType("Declaration");
-    m_refTypeIDs[RT_Definition]     = b.insertRefType("Definition");
-    m_refTypeIDs[RT_Initialized]    = b.insertRefType("Initialized");
-    m_refTypeIDs[RT_Modified]       = b.insertRefType("Modified");
-    m_refTypeIDs[RT_NamespaceAlias] = b.insertRefType("Namespace-Alias");
-    m_refTypeIDs[RT_Other]          = b.insertRefType("Other");
-    m_refTypeIDs[RT_Qualifier]      = b.insertRefType("Qualifier");
-    m_refTypeIDs[RT_Read]           = b.insertRefType("Read");
-    m_refTypeIDs[RT_Reference]      = b.insertRefType("Reference");
-    m_refTypeIDs[RT_Using]          = b.insertRefType("Using");
-    m_refTypeIDs[RT_UsingDirective] = b.insertRefType("Using-Directive");
 }
 
 bool ASTIndexer::shouldUseDataRecursionFor(clang::Stmt *s) const
@@ -561,12 +545,13 @@ static inline bool isNamedDeclUnnamed(clang::NamedDecl *d)
 }
 
 std::pair<Location, Location> ASTIndexer::getDeclRefRange(
+        IndexerFileContext &fileContext,
         clang::NamedDecl *decl,
         clang::SourceLocation loc)
 {
     clang::SourceLocation sloc =
             m_indexerContext.sourceManager().getSpellingLoc(loc);
-    Location beginLoc = m_indexerContext.locationConverter().convert(sloc);
+    Location beginLoc = fileContext.location(sloc);
     clang::DeclarationName name = decl->getDeclName();
     clang::DeclarationName::NameKind nameKind = name.getNameKind();
 
@@ -637,7 +622,7 @@ std::pair<Location, Location> ASTIndexer::getDeclRefRange(
     // General case -- find the end of the token starting at loc.
     clang::SourceLocation endSloc =
             m_indexerContext.preprocessor().getLocForEndOfToken(sloc);
-    Location endLoc = m_indexerContext.locationConverter().convert(endSloc);
+    Location endLoc = fileContext.location(endSloc);
     return std::make_pair(beginLoc, endLoc);
 }
 
@@ -653,27 +638,20 @@ void ASTIndexer::RecordDeclRef(
     if (isNamedDeclUnnamed(d))
         return;
 
-    // Get the symbolID for the declaration.
-    indexdb::ID symbolID;
-    auto it = m_declNameCache.find(d);
-    if (it != m_declNameCache.end()) {
-        symbolID = it->second;
-    } else {
-        m_tempSymbolName.clear();
-        getDeclName(d, m_tempSymbolName);
-        symbolID = m_indexerContext.indexBuilder().insertSymbol(
-                    m_tempSymbolName.c_str());
-        m_declNameCache[d] = symbolID;
-    }
-
-    std::pair<Location, Location> range = getDeclRefRange(d, beginLoc);
+    beginLoc = m_indexerContext.sourceManager().getSpellingLoc(beginLoc);
+    clang::FileID fileID;
+    if (beginLoc.isValid())
+        fileID = m_indexerContext.sourceManager().getFileID(beginLoc);
+    IndexerFileContext &fileContext = m_indexerContext.fileContext(fileID);
+    indexdb::ID symbolID = fileContext.getDeclSymbolID(d);
+    std::pair<Location, Location> range = getDeclRefRange(fileContext, d, beginLoc);
 
     // Pass the prepared data to the IndexBuilder to record a ref.
-    m_indexerContext.indexBuilder().recordRef(
+    fileContext.builder().recordRef(
                 symbolID,
                 range.first,
                 range.second,
-                m_refTypeIDs[refType]);
+                fileContext.getRefTypeID(refType));
 }
 
 } // namespace indexer

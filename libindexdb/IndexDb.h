@@ -21,6 +21,13 @@ class Table;
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// Miscellaneous
+
+const char kIndexSignature[]        = "\x7fIDX";
+const char kIndexArchiveSignature[] = "\x7fIAR";
+
+
+///////////////////////////////////////////////////////////////////////////////
 // Row
 
 class Row {
@@ -153,24 +160,27 @@ public:
     // Operations on the index as a whole.
     Index();
     explicit Index(const std::string &path);
+    explicit Index(Reader *reader);
     ~Index();
-    void save(const std::string &path);
+    void write(const std::string &path);
+    void write(Writer &writer);
     void merge(const Index &other);
 
     // Add/query values.
-    size_t stringTableCount();
-    std::string stringTableName(size_t index);
+    size_t stringTableCount() const;
+    std::string stringTableName(size_t index) const;
     StringTable *addStringTable(const std::string &name);
     StringTable *stringTable(const std::string &name);
     const StringTable *stringTable(const std::string &name) const;
-    size_t tableCount();
-    std::string tableName(size_t index);
+    size_t tableCount() const;
+    std::string tableName(size_t index) const;
     Table *addTable(const std::string &name, const std::vector<std::string> &names);
     Table *table(const std::string &name);
     const Table *table(const std::string &name) const;
     void setReadOnly();
 
 private:
+    void init(Reader *reader);
     void mergeTable(
             Table *destTable,
             Table *srcTable,

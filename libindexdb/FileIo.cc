@@ -1,6 +1,7 @@
 #include "FileIo.h"
 
 #include <cassert>
+#include <cstring>
 
 // UNIX headers
 #include <sys/mman.h>
@@ -10,11 +11,16 @@
 #include <unistd.h>
 
 #include "Buffer.h"
+#include "FileIo64BitSupport.h"
 #include "Util.h"
 
 namespace indexdb {
 
-Writer::Writer(const std::string &path)
+
+///////////////////////////////////////////////////////////////////////////////
+// Writer
+
+Writer::Writer(const std::string &path) : m_sha256(NULL)
 {
     const char *pathPtr = path.c_str();
 #ifdef __unix__
@@ -43,7 +49,7 @@ void Writer::writeUInt32(uint32_t val)
         m_writeOffset += padAmount;
     }
     val = HostToLE32(val);
-    fwrite(&val, 1, sizeof(val), m_fp);
+    writeData(&val, sizeof(val));
 }
 
 void Writer::writeString(const std::string &string)
@@ -54,6 +60,8 @@ void Writer::writeString(const std::string &string)
 
 void Writer::writeData(const void *data, size_t count)
 {
+    if (m_sha256 != NULL)
+        sha256_update(m_sha256, static_cast<const unsigned char*>(data), count);
     fwrite(data, 1, count, m_fp);
     m_writeOffset += count;
 }
@@ -64,12 +72,41 @@ void Writer::writeBuffer(const Buffer &buffer)
     writeData(buffer.data(), buffer.size());
 }
 
+void Writer::writeSignature(const char *signature)
+{
+    writeData(signature, strlen(signature));
+}
+
+uint64_t Writer::tell()
+{
+    return m_writeOffset;
+}
+
+void Writer::seek(uint64_t offset)
+{
+    Seek64(m_fp, offset, SEEK_SET);
+    assert(Tell64(m_fp) == offset);
+    m_writeOffset = offset;
+}
+
+// Configure the Writer with a SHA-256 hash context.  If sha is non-NULL, then
+// the hash context will be updated with every written byte.  The Writer does
+// not take ownership of the hash context.
+void Writer::setSha256Hash(sha256_ctx *sha256)
+{
+    m_sha256 = sha256;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Reader
+
 Reader::Reader(const std::string &path)
 {
     int fd = EINTR_LOOP(open(path.c_str(), O_RDONLY | O_CLOEXEC));
     assert(fd != -1);
     m_bufferPointer = 0;
-    m_bufferSize = lseek(fd, 0, SEEK_END); // TODO: allow 64-bit offset
+    m_bufferSize = LSeek64(fd, 0, SEEK_END);
     m_buffer = static_cast<char*>(
                 mmap(NULL, m_bufferSize, PROT_READ, MAP_PRIVATE, fd, 0));
     assert(m_buffer != reinterpret_cast<void*>(-1));
@@ -121,6 +158,33 @@ Buffer Reader::readBuffer()
 {
     uint32_t size = readUInt32();
     return Buffer::fromMappedBuffer(readData(size), size);
+}
+
+void Reader::readSignature(const char *signature)
+{
+    const char *actual = static_cast<const char*>(readData(strlen(signature)));
+    assert(memcmp(actual, signature, strlen(signature)) == 0);
+}
+
+// Look for the signature without advancing the buffer pointer.  Returns true
+// if the signature exists.
+bool Reader::peekSignature(const char *signature)
+{
+    size_t len = strlen(signature);
+    if (m_bufferPointer + len > m_bufferSize)
+        return false;
+    return memcmp(m_buffer + m_bufferPointer, signature, len) == 0;
+}
+
+uint64_t Reader::tell()
+{
+    return m_bufferPointer;
+}
+
+void Reader::seek(uint64_t offset)
+{
+    assert(offset <= m_bufferSize);
+    m_bufferPointer = offset;
 }
 
 } // namespace indexdb

@@ -338,7 +338,19 @@ Index::Index() : m_reader(NULL), m_readonly(false)
 
 Index::Index(const std::string &path) : m_readonly(true)
 {
-    m_reader = new Reader(path);
+    init(new Reader(path));
+}
+
+// The Index object takes ownership of the Reader object.
+Index::Index(Reader *reader) : m_readonly(true)
+{
+    init(reader);
+}
+
+void Index::init(Reader *reader)
+{
+    m_reader = reader;
+    m_reader->readSignature(kIndexSignature);
 
     uint32_t tableCount;
 
@@ -370,10 +382,17 @@ Index::~Index()
     delete m_reader;
 }
 
-void Index::save(const std::string &path)
+void Index::write(const std::string &path)
 {
     assert(m_readonly);
     Writer writer(path);
+    write(writer);
+}
+
+void Index::write(Writer &writer)
+{
+    assert(m_readonly);
+    writer.writeSignature(kIndexSignature);
     writer.writeUInt32(m_stringTables.size());
     for (const auto &pair : m_stringTables) {
         writer.writeString(pair.first);
@@ -479,12 +498,12 @@ Index::sortStringTable(const StringTable &input)
     return std::make_pair(std::move(newTable), std::move(idMap));
 }
 
-size_t Index::stringTableCount()
+size_t Index::stringTableCount() const
 {
     return m_stringTables.size();
 }
 
-std::string Index::stringTableName(size_t index)
+std::string Index::stringTableName(size_t index) const
 {
     auto it = m_stringTables.begin(), itEnd = m_stringTables.end();
     while (assert(it != itEnd), index > 0) {
@@ -520,12 +539,12 @@ const StringTable *Index::stringTable(const std::string &name) const
     return (it != m_stringTables.end()) ? it->second : NULL;
 }
 
-size_t Index::tableCount()
+size_t Index::tableCount() const
 {
     return m_tables.size();
 }
 
-std::string Index::tableName(size_t index)
+std::string Index::tableName(size_t index) const
 {
     auto it = m_tables.begin(), itEnd = m_tables.end();
     while (assert(it != itEnd), index > 0) {

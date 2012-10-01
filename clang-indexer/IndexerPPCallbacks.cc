@@ -12,10 +12,6 @@ namespace indexer {
 IndexerPPCallbacks::IndexerPPCallbacks(IndexerContext &context) :
     m_context(context)
 {
-    auto &builder = m_context.indexBuilder();
-    m_refTypeExpansion = builder.insertRefType("Expansion");
-    m_refTypeDefinition = builder.insertRefType("Definition");
-    m_refTypeDefinedTest = builder.insertRefType("Defined-Test");
 }
 
 void IndexerPPCallbacks::MacroExpands(
@@ -23,37 +19,42 @@ void IndexerPPCallbacks::MacroExpands(
         const clang::MacroInfo *mi,
         clang::SourceRange range)
 {
-    recordReference(macroNameToken, m_refTypeExpansion);
+    recordReference(macroNameToken, RT_Expansion);
 }
 
 void IndexerPPCallbacks::MacroDefined(
         const clang::Token &macroNameToken,
         const clang::MacroInfo *mi)
 {
-    recordReference(macroNameToken, m_refTypeDefinition);
+    recordReference(macroNameToken, RT_Definition);
 }
 
 void IndexerPPCallbacks::Defined(const clang::Token &macroNameToken)
 {
-    recordReference(macroNameToken, m_refTypeDefinedTest);
+    recordReference(macroNameToken, RT_DefinedTest);
 }
 
 void IndexerPPCallbacks::recordReference(
         const clang::Token &macroNameToken,
-        indexdb::ID refTypeID)
+        RefType refType)
 {
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
     m_tempSymbolName.clear();
     m_tempSymbolName.push_back('@');
     m_tempSymbolName.append(macroName.data(), macroName.size());
-    Location start = m_context.locationConverter().convert(
+    clang::FileID fileID;
+    clang::SourceLocation sloc = m_context.sourceManager().getSpellingLoc(
                 macroNameToken.getLocation());
+    if (sloc.isValid())
+        fileID = m_context.sourceManager().getFileID(sloc);
+    IndexerFileContext &fileContext = m_context.fileContext(fileID);
+    Location start = fileContext.location(sloc);
     Location end = start;
     end.column += macroName.size();
-    m_context.indexBuilder().recordRef(
-                m_context.indexBuilder().insertSymbol(
+    fileContext.builder().recordRef(
+                fileContext.builder().insertSymbol(
                     m_tempSymbolName.c_str()),
-                start, end, refTypeID);
+                start, end, fileContext.getRefTypeID(refType));
 }
 
 } // namespace indexer

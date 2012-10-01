@@ -14,6 +14,8 @@ namespace indexer {
 
 class IndexBuilder;
 class IndexerContext;
+class IndexerFileContext;
+enum RefType : int;
 
 class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
 {
@@ -24,27 +26,6 @@ public:
 private:
     typedef clang::RecursiveASTVisitor<ASTIndexer> base;
     friend class clang::RecursiveASTVisitor<ASTIndexer>;
-
-    enum RefType {
-        RT_AddressTaken,
-        RT_Assigned,
-        RT_BaseClass,
-        RT_Called,
-        RT_Declaration,
-        RT_Definition,
-        RT_Initialized,
-        RT_Modified,
-        RT_NamespaceAlias,
-        RT_Other,
-        RT_Qualifier,
-        RT_Read,
-        RT_Reference,
-        RT_Using,
-        RT_UsingDirective,
-        RT_Max
-    };
-
-    indexdb::ID m_refTypeIDs[RT_Max];
 
     // XXX: The CF_Read flag is useful mostly for lvalues -- for rvalues, we
     // don't set the CF_Read flag, but the rvalue is assumed to be read anyway.
@@ -63,8 +44,6 @@ private:
     Context m_thisContext;
     Context m_childContext;
     RefType m_typeContext;
-    std::string m_tempSymbolName;
-    std::unordered_map<clang::NamedDecl*, indexdb::ID> m_declNameCache;
 
     // Misc routines
     bool shouldVisitTemplateInstantiations() const { return true; }
@@ -118,6 +97,7 @@ private:
 
     // Reference recording
     std::pair<Location, Location> getDeclRefRange(
+            IndexerFileContext &fileContext,
             clang::NamedDecl *decl,
             clang::SourceLocation loc);
     void RecordDeclRef(
