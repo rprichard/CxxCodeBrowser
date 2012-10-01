@@ -9,12 +9,12 @@ QMAKE_CXXFLAGS += -fPIC -fvisibility-inlines-hidden -fno-rtti -fno-exceptions -p
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-strict-aliasing
 DEFINES += _GNU_SOURCE __STDC_CONSTANT_MACROS __STDC_FORMAT_MACROS __STDC_LIMIT_MACROS
 
-LIBS += \
-    -ldl \
-    -L$${LLVM_DIR}/lib
+LIBS += -L$${LLVM_DIR}/lib
 
 LIBS += -lclangFrontend -lclangSerialization -lclangDriver \
            -lclangTooling -lclangParse -lclangSema -lclangAnalysis \
            -lclangEdit -lclangAST -lclangLex -lclangBasic
 
 LIBS += -lLLVMMC -lLLVMObject -lLLVMSupport
+
+LIBS += -ldl
