@@ -264,10 +264,7 @@ static int indexProject(const std::string &argv0, bool incremental)
 
     for (const auto &p : futures) {
         std::string indexPath = p.second.result();
-        std::cout << "Indexed " << p.first;
-        if (incremental)
-            std::cout << " (" << indexPath << ")";
-        std::cout << std::endl;
+        std::cout << "Indexed " << p.first << std::endl;
         {
             indexdb::IndexArchiveReader archive(indexPath);
             for (int i = 0; i < archive.size(); ++i) {
