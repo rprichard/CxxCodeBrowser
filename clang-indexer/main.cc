@@ -18,7 +18,6 @@
 #endif
 
 #include <json/reader.h>
-#include <clang-c/Index.h>
 
 #include "../libindexdb/IndexArchiveBuilder.h"
 #include "../libindexdb/IndexArchiveReader.h"
