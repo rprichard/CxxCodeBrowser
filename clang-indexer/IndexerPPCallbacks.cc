@@ -29,6 +29,13 @@ void IndexerPPCallbacks::MacroDefined(
     recordReference(macroNameToken, RT_Definition);
 }
 
+void IndexerPPCallbacks::MacroUndefined(
+        const clang::Token &macroNameToken,
+        const clang::MacroInfo *mi)
+{
+    recordReference(macroNameToken, RT_Undefinition);
+}
+
 void IndexerPPCallbacks::Defined(const clang::Token &macroNameToken)
 {
     recordReference(macroNameToken, RT_DefinedTest);

@@ -25,6 +25,8 @@ private:
                               clang::SourceRange range);
     virtual void MacroDefined(const clang::Token &macroNameToken,
                               const clang::MacroInfo *mi);
+    virtual void MacroUndefined(const clang::Token &macroNameTok,
+                                const clang::MacroInfo *mi);
     virtual void Defined(const clang::Token &macroNameToken);
     virtual void Ifdef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
     virtual void Ifndef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }

@@ -28,6 +28,7 @@ const char *refTypeNames[] = {
     "Qualifier",
     "Read",
     "Reference",
+    "Undefinition",
     "Using",
     "Using-Directive",
 };

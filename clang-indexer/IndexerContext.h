@@ -45,6 +45,7 @@ enum RefType : int {
     RT_Qualifier,
     RT_Read,
     RT_Reference,
+    RT_Undefinition,
     RT_Using,
     RT_UsingDirective,
     RT_Max
