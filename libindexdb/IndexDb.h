@@ -7,6 +7,7 @@
 #include <cstring>
 #include <map>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -132,6 +133,8 @@ public:
         return m_stringSetBuffer.size();
     }
 
+    bool isReadOnly() const { return m_readonly; }
+
 private:
     Table(Index *index, Reader &reader);
     void write(Writer &writer);
@@ -177,7 +180,7 @@ public:
     Table *addTable(const std::string &name, const std::vector<std::string> &names);
     Table *table(const std::string &name);
     const Table *table(const std::string &name) const;
-    void setReadOnly();
+    void finalizeTables();
 
 private:
     void init(Reader *reader);
@@ -185,14 +188,12 @@ private:
             Table *destTable,
             Table *srcTable,
             std::map<std::string, std::vector<indexdb::ID> > &idMap);
-    std::pair<StringTable, std::vector<ID> > sortStringTable(
-            const StringTable &input);
 
     Reader *m_reader;
 
-    bool m_readonly;
     std::map<std::string, StringTable*> m_stringTables;
     std::map<std::string, Table*> m_tables;
+    std::unordered_set<std::string> m_finalizedStringTables;
 };
 
 } // namespace indexdb

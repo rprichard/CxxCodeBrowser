@@ -1,5 +1,6 @@
 #include "StringTable.h"
 
+#include <algorithm>
 #include <cassert>
 #include <cstring>
 #include <iostream>
@@ -52,7 +53,7 @@ static uint32_t nextPrimeSize(uint32_t size)
 }
 
 StringTable::StringTable(bool nullTerminateStrings) :
-    m_index(1024, 0xFF),
+    m_index(32, 0xFF),
     m_nullTerminateStrings(nullTerminateStrings)
 {
 #if STRING_TABLE_STATS
@@ -149,6 +150,43 @@ ID StringTable::insert(const char *data, uint32_t dataSize, uint32_t hash)
     m_table.append(&newNode, sizeof(newNode));
 
     return newNodeID;
+}
+
+// Finalize the string table.  Return a sorted string table and a vector
+// mapping from indices in the original string table to indices in the new
+// sorted table.
+std::pair<StringTable, std::vector<ID> >
+StringTable::finalized()
+{
+    const uint32_t stringCount = size();
+
+    // Construct a table of sorted indexes to original indexes.
+    std::vector<uint32_t> sortedStrings(stringCount);
+    for (uint32_t i = 0; i < stringCount; ++i)
+        sortedStrings[i] = i;
+    struct CompareFunc {
+        const StringTable *input;
+        bool operator()(uint32_t x, uint32_t y) {
+            return strcmp(input->item(x), input->item(y)) < 0;
+        }
+    };
+    CompareFunc func;
+    func.input = this;
+    std::sort(&sortedStrings[0], &sortedStrings[stringCount], func);
+
+    // Copy each string into the new StringTable.
+    StringTable newTable;
+    std::vector<ID> idMap(stringCount);
+    for (uint32_t newIndex = 0; newIndex < stringCount; ++newIndex) {
+        uint32_t oldIndex = sortedStrings[newIndex];
+        idMap[oldIndex] = newIndex;
+        newTable.insert(
+                    item(oldIndex),
+                    itemSize(oldIndex),
+                    itemHash(oldIndex));
+    }
+
+    return std::make_pair(std::move(newTable), std::move(idMap));
 }
 
 ID StringTable::id(const char *string) const

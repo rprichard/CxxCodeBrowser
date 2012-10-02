@@ -7,18 +7,14 @@ namespace indexer {
 
 class Location;
 
-// Creates a new indexdb::Index with empty tables.
-indexdb::Index *newIndex();
-
 // This class creates indexdb databases with the appropriate scheme and
 // provides methods to populate the database.  It should be mostly independent
 // of the indexed language.
 class IndexBuilder
 {
 public:
-    // Constructs an IndexBuilder that populates the given Index.  It does not
-    // take ownership of the Index object.
-    IndexBuilder(indexdb::Index &index);
+    IndexBuilder(indexdb::Index &index, bool createLocationTables=true);
+    void populateLocationTables();
 
     void recordRef(
             indexdb::ID symbolID,
@@ -49,7 +45,7 @@ private:
     indexdb::Table *m_symbolTable;
     indexdb::Table *m_globalSymbolTable;
     indexdb::Table *m_includeToReferenceTable;
-    indexdb::Table *m_locationToInclude;
+    indexdb::Table *m_locationToIncludeTable;
 };
 
 } // namespace indexer

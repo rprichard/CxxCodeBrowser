@@ -240,7 +240,7 @@ static int indexProject(const std::string &argv0, bool incremental)
     readSourcesJson(std::string("compile_commands.json"), sourceFiles);
 
     DaemonPool daemonPool;
-    indexdb::Index *mergedIndex = newIndex();
+    indexdb::Index *mergedIndex = new indexdb::Index;
     std::vector<std::pair<std::string, QFuture<std::string> > > futures;
     std::unordered_map<std::string, time_t> fileTimeCache;
 
@@ -281,9 +281,25 @@ static int indexProject(const std::string &argv0, bool incremental)
             QFile(QString::fromStdString(indexPath)).remove();
     }
 
-    mergedIndex->setReadOnly();
+    mergedIndex->finalizeTables();
+    {
+        IndexBuilder locationPopulator(*mergedIndex);
+        locationPopulator.populateLocationTables();
+    }
+    mergedIndex->finalizeTables();
     mergedIndex->write("index");
 
+    return 0;
+}
+
+static int indexFile(
+        const std::string &outputFile,
+        const std::vector<std::string> &clangArgv)
+{
+    indexdb::IndexArchiveBuilder archive;
+    indexTranslationUnit(clangArgv, archive);
+    archive.finalize();
+    archive.write(outputFile, /*compressed=*/true);
     return 0;
 }
 
@@ -324,11 +340,7 @@ static int runCommand(const std::vector<std::string> &argv)
         std::string outputFile = argv[2];
         std::vector<std::string> clangArgv = argv;
         clangArgv.erase(clangArgv.begin(), clangArgv.begin() + 4);
-        indexdb::IndexArchiveBuilder archive;
-        indexTranslationUnit(clangArgv, archive);
-        archive.setReadOnly();
-        archive.write(outputFile);
-        return 0;
+        return indexFile(outputFile, clangArgv);
     } else {
         printf(kUsageTextPattern, argv[0].c_str());
         return 0;

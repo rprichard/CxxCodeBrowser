@@ -182,7 +182,8 @@ std::vector<const std::vector<ID>*> Table::createTableSpecificIdMap(
     std::vector<const std::vector<ID>*> tableIdMap(columnCount());
     for (int i = 0; i < columnCount(); ++i) {
         std::string name = columnName(i);
-        if (!name.empty())
+        auto it = idMap.find(name);
+        if (it != idMap.end())
             tableIdMap[i] = &idMap.at(name);
     }
     return tableIdMap;
@@ -332,17 +333,17 @@ void Table::dumpStats() const
 ///////////////////////////////////////////////////////////////////////////////
 // Index
 
-Index::Index() : m_reader(NULL), m_readonly(false)
+Index::Index() : m_reader(NULL)
 {
 }
 
-Index::Index(const std::string &path) : m_readonly(true)
+Index::Index(const std::string &path)
 {
     init(new Reader(path));
 }
 
 // The Index object takes ownership of the Reader object.
-Index::Index(Reader *reader) : m_readonly(true)
+Index::Index(Reader *reader)
 {
     init(reader);
 }
@@ -384,14 +385,12 @@ Index::~Index()
 
 void Index::write(const std::string &path)
 {
-    assert(m_readonly);
     Writer writer(path);
     write(writer);
 }
 
 void Index::write(Writer &writer)
 {
-    assert(m_readonly);
     writer.writeSignature(kIndexSignature);
     writer.writeUInt32(m_stringTables.size());
     for (const auto &pair : m_stringTables) {
@@ -464,40 +463,6 @@ void Index::mergeTable(
     }
 }
 
-std::pair<StringTable, std::vector<ID> >
-Index::sortStringTable(const StringTable &input)
-{
-    const uint32_t stringCount = input.size();
-
-    // Construct a table of sorted indexes to original indexes.
-    std::vector<uint32_t> sortedStrings(stringCount);
-    for (uint32_t i = 0; i < stringCount; ++i)
-        sortedStrings[i] = i;
-    struct CompareFunc {
-        const StringTable *input;
-        bool operator()(uint32_t x, uint32_t y) {
-            return strcmp(input->item(x), input->item(y)) < 0;
-        }
-    };
-    CompareFunc func;
-    func.input = &input;
-    std::sort(&sortedStrings[0], &sortedStrings[stringCount], func);
-
-    // Copy each string into the new StringTable.
-    StringTable newTable;
-    std::vector<ID> idMap(stringCount);
-    for (uint32_t newIndex = 0; newIndex < stringCount; ++newIndex) {
-        uint32_t oldIndex = sortedStrings[newIndex];
-        idMap[oldIndex] = newIndex;
-        newTable.insert(
-                    input.item(oldIndex),
-                    input.itemSize(oldIndex),
-                    input.itemHash(oldIndex));
-    }
-
-    return std::make_pair(std::move(newTable), std::move(idMap));
-}
-
 size_t Index::stringTableCount() const
 {
     return m_stringTables.size();
@@ -517,7 +482,6 @@ std::string Index::stringTableName(size_t index) const
 // not exist.  The index must be writable to call this method.
 StringTable *Index::addStringTable(const std::string &name)
 {
-    assert(!m_readonly);
     auto it = m_stringTables.find(name);
     if (it != m_stringTables.end())
         return it->second;
@@ -559,7 +523,6 @@ std::string Index::tableName(size_t index) const
 // index must be writable to call this method.
 Table *Index::addTable(const std::string &name, const std::vector<std::string> &names)
 {
-    assert(!m_readonly);
     auto it = m_tables.find(name);
     if (it != m_tables.end()) {
         assert(it->second->m_columnNames == names);
@@ -584,24 +547,31 @@ Table *Index::table(const std::string &name)
     return (it != m_tables.end()) ? it->second : NULL;
 }
 
-void Index::setReadOnly()
+// Finalize string and non-string tables.  After calling this routine, the
+// tables can be written to disk, but they must not be modified.
+//
+// It is still possible to add new tables (string and non-string) after calling
+// this method.  In that case, finalizeTables should be called again to
+// finalize the new tables.
+void Index::finalizeTables()
 {
-    if (m_readonly)
-        return;
-
-    m_readonly = true;
-
     // Sort the string tables.
     std::map<std::string, std::vector<ID> > idMap;
     for (const auto &table : m_stringTables) {
+        if (m_finalizedStringTables.find(table.first) !=
+                m_finalizedStringTables.end())
+            continue;
+        m_finalizedStringTables.insert(table.first);
         std::pair<StringTable, std::vector<ID> > pair =
-                sortStringTable(*table.second);
+                table.second->finalized();
         *table.second = std::move(pair.first);
         idMap[table.first] = std::move(pair.second);
     }
 
     // Transform the tables themselves and update them with the new string IDs.
     for (const auto &table : m_tables) {
+        if (table.second->isReadOnly())
+            continue;
         table.second->setReadOnly(idMap);
     }
 }

@@ -2,6 +2,7 @@
 #define INDEXDB_FILEIO_H
 
 #include <string>
+#include <vector>
 #include <stdint.h>
 
 #include "sha2.h"
@@ -18,6 +19,8 @@ class Writer {
 public:
     Writer(const std::string &path);
     ~Writer();
+    void align(int multiple);
+    void writeUInt8(uint8_t val);
     void writeUInt32(uint32_t val);
     void writeString(const std::string &string);
     void writeData(const void *data, size_t count);
@@ -26,10 +29,13 @@ public:
     uint64_t tell();
     void seek(uint64_t offset);
     void setSha256Hash(sha256_ctx *sha256);
+    void setCompressed(bool compressed);
 private:
     sha256_ctx *m_sha256;
+    bool m_compressed;
     FILE *m_fp;
     uint64_t m_writeOffset;
+    std::vector<char> m_tempCompressionBuffer;
 };
 
 
@@ -40,6 +46,8 @@ class Reader {
 public:
     Reader(const std::string &path);
     ~Reader();
+    void align(int multiple);
+    uint8_t readUInt8();
     uint32_t readUInt32();
     std::string readString();
     void readLine(const char *&line, size_t &size);

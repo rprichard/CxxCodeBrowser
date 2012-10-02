@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <snappy.h>
 
 // UNIX headers
 #include <sys/mman.h>
@@ -20,7 +21,7 @@ namespace indexdb {
 ///////////////////////////////////////////////////////////////////////////////
 // Writer
 
-Writer::Writer(const std::string &path) : m_sha256(NULL)
+Writer::Writer(const std::string &path) : m_sha256(NULL), m_compressed(false)
 {
     const char *pathPtr = path.c_str();
 #ifdef __unix__
@@ -39,15 +40,27 @@ Writer::~Writer()
     fclose(m_fp);
 }
 
+// Write padding bytes until the output is aligned to the given power of 2.
+// The power of 2 must be in the range [1..8].
+void Writer::align(int multiple)
+{
+    assert(multiple >= 1 && multiple <= 8 && (multiple & (multiple - 1)) == 0);
+    static const char padding[7] = { 0 };
+    uint32_t padAmount = m_writeOffset & (multiple - 1);
+    if (padAmount != 0) {
+        padAmount = multiple - padAmount;
+        writeData(padding, padAmount);
+    }
+}
+
+void Writer::writeUInt8(uint8_t val)
+{
+    writeData(&val, sizeof(val));
+}
+
 void Writer::writeUInt32(uint32_t val)
 {
-    static const char padding[sizeof(uint32_t) - 1] = { 0 };
-    uint32_t padAmount = m_writeOffset & (sizeof(uint32_t) - 1);
-    if (padAmount != 0) {
-        padAmount = sizeof(uint32_t) - padAmount;
-        fwrite(padding, 1, padAmount, m_fp);
-        m_writeOffset += padAmount;
-    }
+    align(sizeof(uint32_t));
     val = HostToLE32(val);
     writeData(&val, sizeof(val));
 }
@@ -68,8 +81,23 @@ void Writer::writeData(const void *data, size_t count)
 
 void Writer::writeBuffer(const Buffer &buffer)
 {
-    writeUInt32(buffer.size());
-    writeData(buffer.data(), buffer.size());
+    writeUInt8(m_compressed);
+
+    if (m_compressed) {
+        size_t maxLength = snappy::MaxCompressedLength(buffer.size());
+        if (m_tempCompressionBuffer.size() < maxLength)
+            m_tempCompressionBuffer.resize(maxLength);
+        size_t length = 0;
+        snappy::RawCompress(
+                    static_cast<const char*>(buffer.data()), buffer.size(),
+                    &m_tempCompressionBuffer[0], &length);
+        writeUInt32(length);
+        writeData(m_tempCompressionBuffer.data(), length);
+    } else {
+        writeUInt32(buffer.size());
+        align(8);
+        writeData(buffer.data(), buffer.size());
+    }
 }
 
 void Writer::writeSignature(const char *signature)
@@ -97,6 +125,13 @@ void Writer::setSha256Hash(sha256_ctx *sha256)
     m_sha256 = sha256;
 }
 
+// Enable or disable compression.  Compression is done on a buffer-by-buffer
+// basis, so this flag may be toggled while writing a file.
+void Writer::setCompressed(bool compressed)
+{
+    m_compressed = compressed;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Reader
@@ -118,16 +153,25 @@ Reader::~Reader()
     munmap(m_buffer, m_bufferSize);
 }
 
+void Reader::align(int multiple)
+{
+    assert(multiple >= 1 && multiple <= 8 && (multiple & (multiple - 1)) == 0);
+    uint32_t padAmount = m_bufferPointer & (multiple - 1);
+    if (padAmount != 0) {
+        m_bufferPointer += multiple - padAmount;
+        assert(m_bufferPointer <= m_bufferSize);
+    }
+}
+
+uint8_t Reader::readUInt8()
+{
+    return *static_cast<uint8_t*>(readData(sizeof(uint8_t)));
+}
+
 uint32_t Reader::readUInt32()
 {
-    uint32_t padAmount = m_bufferPointer & (sizeof(uint32_t) - 1);
-    if (padAmount != 0) {
-        m_bufferPointer += sizeof(uint32_t) - padAmount;
-    }
-    // TODO: Is this type punning safe?
-    assert(m_bufferPointer + sizeof(uint32_t) <= m_bufferSize);
-    uint32_t result = *reinterpret_cast<uint32_t*>(m_buffer + m_bufferPointer);
-    m_bufferPointer += sizeof(uint32_t);
+    align(sizeof(uint32_t));
+    uint32_t result = *static_cast<uint32_t*>(readData(sizeof(uint32_t)));
     result = LEToHost32(result);
     return result;
 }
@@ -152,12 +196,26 @@ void *Reader::readData(size_t size)
 
 // The returned Buffer has pointers into the Reader's memory-mapped buffer,
 // so it should be freed before the Reader.
-// TODO: Consider some way of automatically keeping the Reader or mmap region
-// alive, like reference counting?
 Buffer Reader::readBuffer()
 {
-    uint32_t size = readUInt32();
-    return Buffer::fromMappedBuffer(readData(size), size);
+    bool isCompressed = readUInt8();
+    if (isCompressed) {
+        uint32_t compressedLength = readUInt32();
+        char *compressedData = static_cast<char*>(readData(compressedLength));
+        size_t length = 0;
+        bool success = snappy::GetUncompressedLength(
+                    compressedData, compressedLength, &length);
+        assert(success);
+        Buffer buffer(length);
+        success = snappy::RawUncompress(compressedData, compressedLength,
+                                        static_cast<char*>(buffer.data()));
+        assert(success);
+        return std::move(buffer);
+    } else {
+        uint32_t size = readUInt32();
+        align(8);
+        return Buffer::fromMappedBuffer(readData(size), size);
+    }
 }
 
 void Reader::readSignature(const char *signature)

@@ -5,14 +5,20 @@
 
 namespace indexer {
 
-indexdb::Index *newIndex()
+// Constructs an IndexBuilder that populates the given Index.  It does not
+// take ownership of the Index object.  If createLocationTables is false, the
+// IndexBuilder does not build or populate the LocationToSymbol and
+// LocationToInclude tables.  These tables can be generated later by inverting
+// the SymbolToReference and IncludeToReference tables (typically after merging
+// indices).
+IndexBuilder::IndexBuilder(indexdb::Index &index, bool createLocationTables) :
+    m_index(index)
 {
-    indexdb::Index *index = new indexdb::Index;
-
-    index->addStringTable("Path");
-    index->addStringTable("Symbol");
-    index->addStringTable("SymbolType");
-    index->addStringTable("ReferenceType");
+    // String tables.
+    m_pathStringTable =             index.addStringTable("Path");
+    m_symbolStringTable =           index.addStringTable("Symbol");
+    m_symbolTypeStringTable =       index.addStringTable("SymbolType");
+    m_referenceTypeStringTable =    index.addStringTable("ReferenceType");
 
     // A list of all references to a symbol.  A reference is a location and a
     // type (such as Definition, Declaration, Call).
@@ -23,16 +29,20 @@ indexdb::Index *newIndex()
     symbolToReference.push_back(""); // Line (1-based)
     symbolToReference.push_back(""); // StartColumn (1-based)
     symbolToReference.push_back(""); // EndColumn (1-based)
-    index->addTable("SymbolToReference", symbolToReference);
+    m_symbolToReferenceTable = index.addTable("SymbolToReference", symbolToReference);
 
-    // This table is an index of SymbolToReference by location.
-    std::vector<std::string> locationToSymbol;
-    locationToSymbol.push_back("Path");
-    locationToSymbol.push_back(""); // Line (1-based)
-    locationToSymbol.push_back(""); // StartColumn (1-based)
-    locationToSymbol.push_back(""); // EndColumn (1-based)
-    locationToSymbol.push_back("Symbol");
-    index->addTable("LocationToSymbol", locationToSymbol);
+    if (createLocationTables) {
+        // This table is an index of SymbolToReference by location.
+        std::vector<std::string> locationToSymbol;
+        locationToSymbol.push_back("Path");
+        locationToSymbol.push_back(""); // Line (1-based)
+        locationToSymbol.push_back(""); // StartColumn (1-based)
+        locationToSymbol.push_back(""); // EndColumn (1-based)
+        locationToSymbol.push_back("Symbol");
+        m_locationToSymbolTable = m_index.addTable("LocationToSymbol", locationToSymbol);
+    } else {
+        m_locationToSymbolTable = NULL;
+    }
 
     // For every symbol in SymbolToReference, this table provides a type (such
     // as Type, Function, Member, LocalVariable).  (TODO: Work out the exact
@@ -42,13 +52,13 @@ indexdb::Index *newIndex()
     std::vector<std::string> symbol;
     symbol.push_back("Symbol");
     symbol.push_back("SymbolType");
-    index->addTable("Symbol", symbol);
+    m_symbolTable = index.addTable("Symbol", symbol);
 
     // A list of "global" symbols, mostly useful for the "Go to symbol" dialog.
     // It should exclude parameters and local variables.
     std::vector<std::string> globalSymbolList;
     globalSymbolList.push_back("Symbol");
-    index->addTable("GlobalSymbol", globalSymbolList);
+    m_globalSymbolTable = index.addTable("GlobalSymbol", globalSymbolList);
 
     // The information in the IncludeToReference and LocationToInclude tables
     // could be folded into the corresponding tables for symbols (by using a
@@ -67,34 +77,59 @@ indexdb::Index *newIndex()
     includeToReference.push_back("");       // Including file Line (1-based)
     includeToReference.push_back("");       // Including file StartColumn (1-based)
     includeToReference.push_back("");       // Including file EndColumn (1-based)
-    index->addTable("IncludeToReference", includeToReference);
+    m_includeToReferenceTable = index.addTable("IncludeToReference", includeToReference);
 
-    std::vector<std::string> locationToInclude;
-    locationToInclude.push_back("Path");     // File
-    locationToInclude.push_back("");         // Line (1-based)
-    locationToInclude.push_back("");         // StartColumn (1-based)
-    locationToInclude.push_back("");         // EndColumn (1-based)
-    locationToInclude.push_back("Path");     // Included file
-    index->addTable("LocationToInclude", locationToInclude);
-
-    return index;
+    if (createLocationTables) {
+        std::vector<std::string> locationToInclude;
+        locationToInclude.push_back("Path");     // File
+        locationToInclude.push_back("");         // Line (1-based)
+        locationToInclude.push_back("");         // StartColumn (1-based)
+        locationToInclude.push_back("");         // EndColumn (1-based)
+        locationToInclude.push_back("Path");     // Included file
+        m_locationToIncludeTable = m_index.addTable("LocationToInclude", locationToInclude);
+    } else {
+        m_locationToIncludeTable = NULL;
+    }
 }
 
-IndexBuilder::IndexBuilder(indexdb::Index &index) : m_index(index)
+void IndexBuilder::populateLocationTables()
 {
-    // String tables.
-    m_pathStringTable           = m_index.stringTable("Path");
-    m_symbolStringTable         = m_index.stringTable("Symbol");
-    m_symbolTypeStringTable     = m_index.stringTable("SymbolType");
-    m_referenceTypeStringTable  = m_index.stringTable("ReferenceType");
+    assert(m_symbolToReferenceTable->isReadOnly());
+    assert(m_includeToReferenceTable->isReadOnly());
+    assert(!m_locationToSymbolTable->isReadOnly());
+    assert(!m_locationToIncludeTable->isReadOnly());
 
-    // Tables.
-    m_symbolToReferenceTable    = m_index.table("SymbolToReference");
-    m_locationToSymbolTable     = m_index.table("LocationToSymbol");
-    m_symbolTable               = m_index.table("Symbol");
-    m_globalSymbolTable         = m_index.table("GlobalSymbol");
-    m_includeToReferenceTable   = m_index.table("IncludeToReference");
-    m_locationToInclude         = m_index.table("LocationToInclude");
+    {
+        indexdb::Row srcRow(m_symbolToReferenceTable->columnCount());
+        indexdb::Row destRow(m_locationToSymbolTable->columnCount());
+        for (auto it = m_symbolToReferenceTable->begin(),
+                itEnd = m_symbolToReferenceTable->end();
+                it != itEnd; ++it) {
+            it.value(srcRow);
+            destRow[0] = srcRow[2];
+            destRow[1] = srcRow[3];
+            destRow[2] = srcRow[4];
+            destRow[3] = srcRow[5];
+            destRow[4] = srcRow[0];
+            m_locationToSymbolTable->add(destRow);
+        }
+    }
+
+    {
+        indexdb::Row srcRow(m_includeToReferenceTable->columnCount());
+        indexdb::Row destRow(m_locationToIncludeTable->columnCount());
+        for (auto it = m_includeToReferenceTable->begin(),
+                itEnd = m_includeToReferenceTable->end();
+                it != itEnd; ++it) {
+            it.value(srcRow);
+            destRow[0] = srcRow[1];
+            destRow[1] = srcRow[2];
+            destRow[2] = srcRow[3];
+            destRow[3] = srcRow[4];
+            destRow[4] = srcRow[0];
+            m_locationToSymbolTable->add(destRow);
+        }
+    }
 }
 
 void IndexBuilder::recordRef(
@@ -119,7 +154,7 @@ void IndexBuilder::recordRef(
         m_symbolToReferenceTable->add(symbolToReference);
     }
 
-    {
+    if (m_locationToSymbolTable != NULL) {
         indexdb::Row locationToSymbol(5);
         locationToSymbol[0] = start.fileID;
         locationToSymbol[1] = start.line;

@@ -75,9 +75,9 @@ IndexerFileContext::IndexerFileContext(
     m_context(context),
     m_clangFileID(fileID),
     m_path(path),
-    m_index(newIndex()),
+    m_index(new indexdb::Index),
     m_indexPathID(indexdb::kInvalidID),
-    m_builder(*m_index)
+    m_builder(*m_index, /*createLocationTables=*/false)
 {
     std::fill(&m_refTypeIDs[0], &m_refTypeIDs[RT_Max], indexdb::kInvalidID);
     m_indexPathID = m_builder.insertPath(m_path.c_str());

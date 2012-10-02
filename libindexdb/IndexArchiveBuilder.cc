@@ -26,13 +26,13 @@ Index *IndexArchiveBuilder::lookup(const std::string &entryName)
     return (it != m_indices.end()) ? it->second : NULL;
 }
 
-void IndexArchiveBuilder::setReadOnly()
+void IndexArchiveBuilder::finalize()
 {
     for (const auto &pair : m_indices)
-        pair.second->setReadOnly();
+        pair.second->finalizeTables();
 }
 
-void IndexArchiveBuilder::write(const std::string &path)
+void IndexArchiveBuilder::write(const std::string &path, bool compressed)
 {
     const int kHashByteSize = 256 / 8;
     std::string zeroHash;
@@ -41,6 +41,7 @@ void IndexArchiveBuilder::write(const std::string &path)
     Writer writer(path);
     writer.writeSignature(kIndexArchiveSignature);
     writer.writeUInt32(m_indices.size());
+    writer.setCompressed(compressed);
 
     std::vector<std::string> entryHashes;
     std::vector<uint64_t> entryOffsets;

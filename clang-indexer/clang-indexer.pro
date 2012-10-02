@@ -21,6 +21,8 @@ PKGCONFIG += jsoncpp
 PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
 LIBS +=           $${OUT_PWD}/../libindexdb/libindexdb.a
 
+LIBS += -lsnappy
+
 target.path = /
 INSTALLS += target
 

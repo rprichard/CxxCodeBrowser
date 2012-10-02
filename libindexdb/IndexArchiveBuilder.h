@@ -14,8 +14,8 @@ public:
     ~IndexArchiveBuilder();
     void insert(const std::string &entryName, Index *index);
     Index *lookup(const std::string &entryName);
-    void setReadOnly();
-    void write(const std::string &path);
+    void finalize();
+    void write(const std::string &path, bool compressed=false);
 
 private:
     std::map<std::string, Index*> m_indices;

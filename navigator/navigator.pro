@@ -59,6 +59,8 @@ PRE_TARGETDEPS += $${OUT_PWD}/../libre2/libre2.a
 LIBS +=           $${OUT_PWD}/../libre2/libre2.a
 INCLUDEPATH += ../libre2
 
+LIBS += -lsnappy
+
 target.path = /
 INSTALLS += target
 

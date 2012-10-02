@@ -4,6 +4,7 @@
 #include <cassert>
 #include <stdint.h>
 #include <utility>
+#include <vector>
 
 #include "Buffer.h"
 #include "Util.h"
@@ -71,6 +72,7 @@ private:
     void resizeHashTable(uint32_t newIndexSize);
     inline ID lookup(const char *data, uint32_t dataSize, uint32_t hash) const;
     ID insert(const char *data, uint32_t dataSize, uint32_t hash);
+    std::pair<StringTable, std::vector<ID> > finalized();
 
 public:
     explicit StringTable(bool nullTerminateStrings=true);
