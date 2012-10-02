@@ -5,7 +5,6 @@
 
 namespace indexdb {
 
-
 IndexArchiveReader::IndexArchiveReader(const std::string &path) : m_path(path)
 {
     // TODO: Don't memory map the entire file just to read the
