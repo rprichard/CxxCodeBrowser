@@ -7,8 +7,8 @@ namespace indexer {
 
 struct Location {
     indexdb::ID fileID;
-    unsigned int line;
-    int column;
+    unsigned int line;  // 1-based
+    int column;         // 1-based
 };
 
 } // namespace indexer

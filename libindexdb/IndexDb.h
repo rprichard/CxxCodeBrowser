@@ -169,6 +169,10 @@ public:
     void write(Writer &writer);
     void merge(const Index &other);
 
+    // Disable copying.
+    Index(const Index &other) = delete;
+    Index &operator=(const Index &other) = delete;
+
     // Add/query values.
     size_t stringTableCount() const;
     std::string stringTableName(size_t index) const;

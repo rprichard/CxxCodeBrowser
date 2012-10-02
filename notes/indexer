@@ -127,3 +127,9 @@ from the refs info.  Also review whether calls to dtors are in the refs info.
 This might be a difficult thing to fix -- a lot of these calls are implicit.
 Image what happens with std::vector<SomeType> -- where are calls to
 SomeType::~SomeType coming from?  Implicit conversions are probably related.
+
+----
+
+This is probably mentioned elsewhere, but record it here anyway.  The Curiously
+Recurring Template Pattern appears repeatedly in LLVM+Clang, and the Derived
+class appears as a Base-Class ref.  It should appear as just a Reference.

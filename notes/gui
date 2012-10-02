@@ -107,3 +107,21 @@ SYMBOL NAVIGATION
    symbols are not expanded.  In GotoWindow, hitting Enter on a ref shows you
    the symbol.  Hitting Enter on a mere symbol shows the cross-reference window.
    Hitting Shift-Enter always shows the cross-reference window?
+
+----
+
+When drawing a custom highlight box, make it brighter when the toplevel window
+is active.  (i.e. Figure out what flag to pass to the theming code that says
+the toplevel window is active.)
+
+----
+
+Clicking the already selected row in the ref list window should still jump to
+that ref.
+
+----
+
+Do an xref on "dyn_cast".  Two issues:
+ - This takes a really long time (minutes?) to open the ref window.
+ - When the window finally does open, there don't seem to be that many refs
+   in the window.  Maybe they're getting lost somehow?
