@@ -1,13 +1,14 @@
 #ifndef INDEXER_INDEXERPPCALLBACKS_H
 #define INDEXER_INDEXERPPCALLBACKS_H
 
-#include "../libindexdb/IndexDb.h"
-
 #include <clang/Basic/SourceLocation.h>
 #include <clang/Basic/SourceManager.h>
 #include <clang/Lex/MacroInfo.h>
 #include <clang/Lex/PPCallbacks.h>
 #include <clang/Lex/Token.h>
+
+#include "../libindexdb/IndexDb.h"
+#include "Location.h"
 
 namespace indexer {
 
@@ -20,6 +21,17 @@ public:
     IndexerPPCallbacks(IndexerContext &context);
 
 private:
+    virtual void InclusionDirective(clang::SourceLocation hashLoc,
+                                    const clang::Token &includeTok,
+                                    llvm::StringRef fileName,
+                                    bool isAngled,
+                                    const clang::FileEntry *file,
+                                    clang::SourceLocation endLoc,
+                                    llvm::StringRef searchPath,
+                                    llvm::StringRef relativePath);
+    std::pair<Location, Location> getIncludeFilenameLoc(
+            bool isAngled,
+            clang::SourceLocation endLoc);
     virtual void MacroExpands(const clang::Token &macroNameToken,
                               const clang::MacroInfo *mi,
                               clang::SourceRange range);
