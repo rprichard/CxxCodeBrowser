@@ -13,8 +13,8 @@ class Location;
 class IndexBuilder
 {
 public:
-    IndexBuilder(indexdb::Index &index, bool createLocationTables=true);
-    void populateLocationTables();
+    IndexBuilder(indexdb::Index &index, bool createIndexTables=true);
+    void populateIndexTables();
 
     void recordRef(
             indexdb::ID symbolID,
@@ -26,26 +26,22 @@ public:
             indexdb::ID symbolTypeID);
 
     indexdb::ID insertSymbol(const char *symbol) { return m_symbolStringTable->insert(symbol); }
-    indexdb::ID insertRefType(const char *refType) { return m_referenceTypeStringTable->insert(refType); }
+    indexdb::ID insertRefType(const char *refType) { return m_refTypeStringTable->insert(refType); }
     indexdb::ID insertSymbolType(const char *symbolType) { return m_symbolTypeStringTable->insert(symbolType); }
-
-    indexdb::ID insertPath(const char *path) { return m_pathStringTable->insert(path); }
-    const char *lookupPath(indexdb::ID pathID) { return m_pathStringTable->item(pathID); }
+    const char *lookupSymbol(indexdb::ID symbolID) { return m_symbolStringTable->item(symbolID); }
 
 private:
     // The IndexBuilder instance does not own m_index.
     indexdb::Index &m_index;
 
-    indexdb::StringTable *m_pathStringTable;
     indexdb::StringTable *m_symbolStringTable;
     indexdb::StringTable *m_symbolTypeStringTable;
-    indexdb::StringTable *m_referenceTypeStringTable;
-    indexdb::Table *m_symbolToReferenceTable;
-    indexdb::Table *m_locationToSymbolTable;
+    indexdb::StringTable *m_refTypeStringTable;
+    indexdb::Table *m_refTable;
+    indexdb::Table *m_refIndexTable;
     indexdb::Table *m_symbolTable;
+    indexdb::Table *m_symbolTypeIndexTable;
     indexdb::Table *m_globalSymbolTable;
-    indexdb::Table *m_includeToReferenceTable;
-    indexdb::Table *m_locationToIncludeTable;
 };
 
 } // namespace indexer

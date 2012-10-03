@@ -78,10 +78,12 @@ IndexerFileContext::IndexerFileContext(
     m_path(path),
     m_index(new indexdb::Index),
     m_indexPathID(indexdb::kInvalidID),
-    m_builder(*m_index, /*createLocationTables=*/false)
+    m_builder(*m_index, /*createIndexTables=*/false)
 {
     std::fill(&m_refTypeIDs[0], &m_refTypeIDs[RT_Max], indexdb::kInvalidID);
-    m_indexPathID = m_builder.insertPath(m_path.c_str());
+    m_indexPathID = m_builder.insertSymbol(m_path.c_str());
+    m_builder.recordSymbol(m_indexPathID,
+                           m_builder.insertSymbolType("Path"));
 }
 
 indexdb::ID IndexerFileContext::createRefTypeID(RefType refType)
@@ -117,20 +119,20 @@ IndexerFileContext &IndexerContext::fileContext(clang::FileID fileID)
     }
 
     // Get the name for the file.
-    std::string name;
+    std::string name = "@";
     {
         const clang::FileEntry *pFE =
                 m_sourceManager.getFileEntryForID(fileID);
         if (pFE != NULL) {
             char *filename = realpath(pFE->getName(), NULL);
             if (filename != NULL) {
-                name = filename;
+                name += filename;
                 free(filename);
             } else {
-                name = "<invalid>";
+                name += "<invalid>";
             }
         } else {
-            name = m_sourceManager.getBuffer(fileID)->getBufferIdentifier();
+            name += m_sourceManager.getBuffer(fileID)->getBufferIdentifier();
         }
     }
 

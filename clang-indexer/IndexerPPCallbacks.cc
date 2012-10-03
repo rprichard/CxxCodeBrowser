@@ -156,7 +156,7 @@ void IndexerPPCallbacks::recordReference(
 {
     llvm::StringRef macroName = macroNameToken.getIdentifierInfo()->getName();
     m_tempSymbolName.clear();
-    m_tempSymbolName.push_back('@');
+    m_tempSymbolName.push_back('#');
     m_tempSymbolName.append(macroName.data(), macroName.size());
     clang::FileID fileID;
     clang::SourceLocation sloc = m_context.sourceManager().getSpellingLoc(

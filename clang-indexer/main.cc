@@ -283,7 +283,7 @@ static int indexProject(const std::string &argv0, bool incremental)
     mergedIndex->finalizeTables();
     {
         IndexBuilder locationPopulator(*mergedIndex);
-        locationPopulator.populateLocationTables();
+        locationPopulator.populateIndexTables();
     }
     mergedIndex->finalizeTables();
     mergedIndex->write("index");
