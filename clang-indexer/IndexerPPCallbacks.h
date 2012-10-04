@@ -6,6 +6,8 @@
 #include <clang/Lex/MacroInfo.h>
 #include <clang/Lex/PPCallbacks.h>
 #include <clang/Lex/Token.h>
+#include <tuple>
+#include <unordered_map>
 
 #include "../libindexdb/IndexDb.h"
 #include "Location.h"
@@ -13,6 +15,7 @@
 namespace indexer {
 
 class IndexerContext;
+class IndexerFileContext;
 enum RefType : int;
 
 class IndexerPPCallbacks : public clang::PPCallbacks
@@ -29,7 +32,8 @@ private:
                                     clang::SourceLocation endLoc,
                                     llvm::StringRef searchPath,
                                     llvm::StringRef relativePath);
-    std::pair<Location, Location> getIncludeFilenameLoc(
+    std::tuple<IndexerFileContext*, Location, Location>
+    getIncludeFilenameLoc(
             bool isAngled,
             clang::SourceLocation endLoc);
     virtual void MacroExpands(const clang::Token &macroNameToken,
@@ -47,6 +51,7 @@ private:
 
     IndexerContext &m_context;
     std::string m_tempSymbolName;
+    std::unordered_map<const clang::FileEntry*, std::string> m_includePathMap;
 };
 
 } // namespace indexer

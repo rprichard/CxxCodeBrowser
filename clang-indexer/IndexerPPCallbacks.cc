@@ -25,9 +25,34 @@ void IndexerPPCallbacks::InclusionDirective(
         llvm::StringRef searchPath,
         llvm::StringRef relativePath)
 {
+    // Get the location of the #include filename.
+    auto range = getIncludeFilenameLoc(isAngled, endLoc);
+    IndexerFileContext &fileContext = *std::get<0>(range);
+
+    // Get the path ID of the included file.
+    indexdb::ID symbolID;
+    auto it = m_includePathMap.find(file);
+    if (it == m_includePathMap.end()) {
+        std::string symbol = "@";
+        char *path = realpath(file->getName(), NULL);
+        symbol += path;
+        free(path);
+        m_includePathMap[file] = symbol;
+        symbolID = fileContext.builder().insertSymbol(symbol.c_str());
+    } else {
+        symbolID = fileContext.builder().insertSymbol(it->second.c_str());
+    }
+
+    // Insert the ref.
+    fileContext.builder().recordRef(
+                symbolID,
+                std::get<1>(range),
+                std::get<2>(range),
+                fileContext.getRefTypeID(RT_Included));
 }
 
-std::pair<Location, Location> IndexerPPCallbacks::getIncludeFilenameLoc(
+std::tuple<IndexerFileContext*, Location, Location>
+IndexerPPCallbacks::getIncludeFilenameLoc(
         bool isAngled,
         clang::SourceLocation endLoc)
 {
@@ -120,7 +145,7 @@ std::pair<Location, Location> IndexerPPCallbacks::getIncludeFilenameLoc(
         }
     }
 
-    return std::make_pair(startIdxLoc, endIdxLoc);
+    return std::make_tuple(&fileContext, startIdxLoc, endIdxLoc);
 }
 
 void IndexerPPCallbacks::MacroExpands(

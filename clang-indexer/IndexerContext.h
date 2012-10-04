@@ -38,6 +38,7 @@ enum RefType : int {
     RT_DefinedTest,
     RT_Definition,
     RT_Expansion,
+    RT_Included,
     RT_Initialized,
     RT_Modified,
     RT_NamespaceAlias,

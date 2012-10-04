@@ -21,6 +21,7 @@ const char *refTypeNames[] = {
     "Defined-Test",
     "Definition",
     "Expansion",
+    "Included",
     "Initialized",
     "Modified",
     "Namespace-Alias",
