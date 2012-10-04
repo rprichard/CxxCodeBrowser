@@ -10,6 +10,7 @@
 namespace indexdb {
 
 class Buffer;
+const int kMaxAlign = 8;
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -44,27 +45,73 @@ private:
 
 class Reader {
 public:
-    Reader(const std::string &path);
-    ~Reader();
+    virtual ~Reader() {}
+
+    // Virtual pure methods.
+    virtual uint64_t size() = 0;
+    virtual uint64_t tell() = 0;
+    virtual void seek(uint64_t offset) = 0;
+    virtual Buffer readData(size_t size) = 0;
+
+    // Overridable methods.
+    virtual void readData(void *output, size_t size);
+
+    // Shared method implementations.
     void align(int multiple);
     uint8_t readUInt8();
     uint32_t readUInt32();
     std::string readString();
-    void readLine(const char *&line, size_t &size);
-    void *readData(size_t size);
     Buffer readBuffer();
     void readSignature(const char *signature);
     bool peekSignature(const char *signature);
-    uint64_t tell();
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+// MappedReader
+
+class MappedReader : public Reader {
+public:
+    MappedReader(const std::string &path, size_t offset=0, size_t size=-1);
+    virtual ~MappedReader();
+
+    // Implementation of Reader methods.
+    uint64_t size()                             { return m_viewSize; }
+    uint64_t tell()                             { return m_offset; }
     void seek(uint64_t offset);
+    Buffer readData(size_t size);
+    void readData(void *output, size_t size);
+
 private:
-    inline char readChar();
-    char readCharFull();
-    void loadChunk();
+    inline char *readDataInternal(size_t size);
+
+    char *m_mapBuffer;
+    size_t m_mapBufferSize;
+    char *m_viewBuffer;
+    size_t m_viewSize;
+    size_t m_offset;
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
+// UnmappedReader
+
+class UnmappedReader : public Reader {
+public:
+    UnmappedReader(const std::string &path);
+    virtual ~UnmappedReader();
+
+    // Implementation of Reader methods.
+    uint64_t size()                             { return m_fileSize; }
+    uint64_t tell()                             { return m_offset; }
+    void seek(uint64_t offset);
+    Buffer readData(size_t size);
+    void readData(void *output, size_t size);
+
 private:
-    char *m_buffer;
-    size_t m_bufferSize;
-    size_t m_bufferPointer;
+    FILE *m_fp;
+    uint64_t m_fileSize;
+    uint64_t m_offset;
 };
 
 } // namespace indexdb

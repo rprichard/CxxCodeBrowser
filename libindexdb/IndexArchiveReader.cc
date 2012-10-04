@@ -7,11 +7,7 @@ namespace indexdb {
 
 IndexArchiveReader::IndexArchiveReader(const std::string &path) : m_path(path)
 {
-    // TODO: Don't memory map the entire file just to read the
-    // table-of-contents.  (i.e. Use a Reader-variant that uses fread instead
-    // of mmap.)
-
-    Reader reader(path);
+    UnmappedReader reader(path);
     reader.readSignature(kIndexArchiveSignature);
     uint32_t entryCount = reader.readUInt32();
     for (uint32_t i = 0; i < entryCount; ++i) {
@@ -49,9 +45,10 @@ int IndexArchiveReader::indexOf(const std::string &entryName)
 
 Index *IndexArchiveReader::openEntry(int index)
 {
-    // TODO: We should use a reader here that doesn't map all of memory.
-    Reader *reader = new Reader(m_path);
-    reader->seek(m_entries[index]->fileOffset);
+    MappedReader *reader = new MappedReader(
+                m_path,
+                m_entries[index]->fileOffset,
+                m_entries[index]->fileLength);
     return new Index(reader);
 }
 

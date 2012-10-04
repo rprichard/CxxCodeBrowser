@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
 
     if (argc == 3 && !strcmp(argv[1], "--dump")) {
         std::string path = argv[2];
-        indexdb::Reader reader(path);
+        indexdb::UnmappedReader reader(path);
         if (reader.peekSignature(indexdb::kIndexSignature)) {
             indexdb::Index index(path);
             dump(index);
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
         }
     } else if (argc == 3 && !strcmp(argv[1], "--dump-json")) {
         std::string path = argv[2];
-        indexdb::Reader reader(path);
+        indexdb::UnmappedReader reader(path);
         if (reader.peekSignature(indexdb::kIndexSignature)) {
             indexdb::Index index(path);
             dumpJson(index);

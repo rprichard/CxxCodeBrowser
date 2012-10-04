@@ -60,7 +60,7 @@ void IndexArchiveBuilder::write(const std::string &path, bool compressed)
 
     // Write each file.
     for (const auto &pair : m_indices) {
-        writer.align(8);
+        writer.align(kMaxAlign);
 
         sha256_ctx hashContext;
         sha256_init(&hashContext);

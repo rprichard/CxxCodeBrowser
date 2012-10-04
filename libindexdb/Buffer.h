@@ -1,6 +1,8 @@
 #ifndef INDEXDB_BUFFER_H
 #define INDEXDB_BUFFER_H
 
+#include <cstring>
+
 #include <stdint.h>
 
 namespace indexdb {
@@ -27,6 +29,10 @@ private:
     uint32_t m_capacity;
     bool m_isMapped;
 };
+
+inline bool operator==(const Buffer &x, const Buffer &y) {
+    return x.size() == y.size() && !memcmp(x.data(), y.data(), x.size());
+}
 
 } // namespace indexdb
 

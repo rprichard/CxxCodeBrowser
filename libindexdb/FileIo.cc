@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstring>
+#include <memory>
 #include <snappy.h>
 
 // UNIX headers
@@ -31,7 +32,7 @@ Writer::Writer(const std::string &path) : m_sha256(NULL), m_compressed(false)
 #else
     m_fp = fopen(pathPtr, "w");
 #endif
-    assert(m_fp);
+    assert(m_fp != NULL);
     m_writeOffset = 0;
 }
 
@@ -41,10 +42,11 @@ Writer::~Writer()
 }
 
 // Write padding bytes until the output is aligned to the given power of 2.
-// The power of 2 must be in the range [1..8].
+// The power of 2 must be in the range [1..kMaxAlign].
 void Writer::align(int multiple)
 {
-    assert(multiple >= 1 && multiple <= 8 && (multiple & (multiple - 1)) == 0);
+    assert(multiple >= 1 && multiple <= kMaxAlign &&
+           (multiple & (multiple - 1)) == 0);
     static const char padding[7] = { 0 };
     uint32_t padAmount = m_writeOffset & (multiple - 1);
     if (padAmount != 0) {
@@ -95,7 +97,7 @@ void Writer::writeBuffer(const Buffer &buffer)
         writeData(m_tempCompressionBuffer.data(), length);
     } else {
         writeUInt32(buffer.size());
-        align(8);
+        align(kMaxAlign);
         writeData(buffer.data(), buffer.size());
     }
 }
@@ -136,92 +138,79 @@ void Writer::setCompressed(bool compressed)
 ///////////////////////////////////////////////////////////////////////////////
 // Reader
 
-Reader::Reader(const std::string &path)
+void Reader::readData(void *output, size_t size)
 {
-    int fd = EINTR_LOOP(open(path.c_str(), O_RDONLY | O_CLOEXEC));
-    assert(fd != -1);
-    m_bufferPointer = 0;
-    m_bufferSize = LSeek64(fd, 0, SEEK_END);
-    m_buffer = static_cast<char*>(
-                mmap(NULL, m_bufferSize, PROT_READ, MAP_PRIVATE, fd, 0));
-    assert(m_buffer != reinterpret_cast<void*>(-1));
-    close(fd);
-}
-
-Reader::~Reader()
-{
-    munmap(m_buffer, m_bufferSize);
+    Buffer tmp = readData(size);
+    memcpy(output, tmp.data(), size);
 }
 
 void Reader::align(int multiple)
 {
-    assert(multiple >= 1 && multiple <= 8 && (multiple & (multiple - 1)) == 0);
-    uint32_t padAmount = m_bufferPointer & (multiple - 1);
+    assert(multiple >= 1 && multiple <= kMaxAlign &&
+           (multiple & (multiple - 1)) == 0);
+    uint32_t padAmount = tell() & (multiple - 1);
     if (padAmount != 0) {
-        m_bufferPointer += multiple - padAmount;
-        assert(m_bufferPointer <= m_bufferSize);
+        seek(tell() + (multiple - padAmount));
     }
 }
 
 uint8_t Reader::readUInt8()
 {
-    return *static_cast<uint8_t*>(readData(sizeof(uint8_t)));
+    uint8_t ret;
+    readData(&ret, sizeof(ret));
+    return ret;
 }
 
 uint32_t Reader::readUInt32()
 {
     align(sizeof(uint32_t));
-    uint32_t result = *static_cast<uint32_t*>(readData(sizeof(uint32_t)));
-    result = LEToHost32(result);
-    return result;
+    uint32_t ret;
+    readData(&ret, sizeof(ret));
+    return LEToHost32(ret);
 }
 
 std::string Reader::readString()
 {
     uint32_t amount = readUInt32();
-    return std::string(static_cast<char*>(readData(amount)), amount);
-}
-
-// The returned buffer is valid until the Reader is freed.
-// (The entire file is mapped into memory.)
-void *Reader::readData(size_t size)
-{
-    size_t originalPointer = m_bufferPointer;
-    void *result = &m_buffer[m_bufferPointer];
-    m_bufferPointer += size;
-    assert(m_bufferPointer >= originalPointer &&
-           m_bufferPointer <= m_bufferSize);
-    return result;
+    std::unique_ptr<char[]> buf(new char[amount]);
+    readData(buf.get(), amount);
+    return std::string(buf.get(), amount);
 }
 
 // The returned Buffer has pointers into the Reader's memory-mapped buffer,
-// so it should be freed before the Reader.
+// so it must be freed before the Reader.
 Buffer Reader::readBuffer()
 {
     bool isCompressed = readUInt8();
     if (isCompressed) {
-        uint32_t compressedLength = readUInt32();
-        char *compressedData = static_cast<char*>(readData(compressedLength));
+        size_t compressedLength = readUInt32(); // TODO: Make 64-bit
+        Buffer compressedData = readData(compressedLength);
         size_t length = 0;
         bool success = snappy::GetUncompressedLength(
-                    compressedData, compressedLength, &length);
+                    static_cast<char*>(compressedData.data()),
+                    compressedLength,
+                    &length);
         assert(success);
         Buffer buffer(length);
-        success = snappy::RawUncompress(compressedData, compressedLength,
-                                        static_cast<char*>(buffer.data()));
+        success = snappy::RawUncompress(
+                    static_cast<char*>(compressedData.data()),
+                    compressedLength,
+                    static_cast<char*>(buffer.data()));
         assert(success);
         return std::move(buffer);
     } else {
         uint32_t size = readUInt32();
-        align(8);
-        return Buffer::fromMappedBuffer(readData(size), size);
+        align(kMaxAlign);
+        return readData(size);
     }
 }
 
 void Reader::readSignature(const char *signature)
 {
-    const char *actual = static_cast<const char*>(readData(strlen(signature)));
-    assert(memcmp(actual, signature, strlen(signature)) == 0);
+    size_t len = strlen(signature);
+    Buffer actual = readData(len);
+    assert(actual == Buffer::fromMappedBuffer(
+               const_cast<char*>(signature), len));
 }
 
 // Look for the signature without advancing the buffer pointer.  Returns true
@@ -229,20 +218,128 @@ void Reader::readSignature(const char *signature)
 bool Reader::peekSignature(const char *signature)
 {
     size_t len = strlen(signature);
-    if (m_bufferPointer + len > m_bufferSize)
+    if (size() - tell() < len)
         return false;
-    return memcmp(m_buffer + m_bufferPointer, signature, len) == 0;
+    Buffer actual = readData(len);
+    seek(tell() - len);
+    return actual == Buffer::fromMappedBuffer(
+                const_cast<char*>(signature), len);
 }
 
-uint64_t Reader::tell()
+
+///////////////////////////////////////////////////////////////////////////////
+// MappedReader
+
+// offset need not be page-aligned, but it must be no greater than the file
+// size.  (offset + size) may exceed the file size -- the memory-mapped region
+// is limited to the file size.
+MappedReader::MappedReader(const std::string &path, size_t offset, size_t size)
 {
-    return m_bufferPointer;
+    // The view offset must be aligned to at least kMaxAlign bytes, because the
+    // align method operates upon the offset within the mapped view rather than
+    // the offset within the mapped file.  Files within the archive are also
+    // aligned to kMaxAlign bytes.
+    assert((offset & (kMaxAlign - 1)) == 0);
+
+    // XXX: What about a size of 0?
+    // XXX: What about an offset equal to the file size?
+    const int kPageSize = sysconf(_SC_PAGESIZE);
+    int fd = EINTR_LOOP(open(path.c_str(), O_RDONLY | O_CLOEXEC));
+    assert(fd != -1);
+    uint64_t fileSize = LSeek64(fd, 0, SEEK_END);
+    assert(offset <= fileSize);
+    m_viewSize = std::min(size, fileSize - offset);
+    size_t alignOffset = offset & (kPageSize - 1);
+    m_mapBufferSize = m_viewSize + alignOffset;
+    uint64_t mapOffset = offset - alignOffset;
+    m_mapBuffer = static_cast<char*>(
+                mmap(NULL, m_mapBufferSize, PROT_READ,
+                     MAP_PRIVATE, fd, mapOffset));
+    assert(m_mapBuffer != reinterpret_cast<void*>(-1));
+    close(fd);
+    m_viewBuffer = m_mapBuffer + alignOffset;
+    m_offset = 0;
 }
 
-void Reader::seek(uint64_t offset)
+MappedReader::~MappedReader()
 {
-    assert(offset <= m_bufferSize);
-    m_bufferPointer = offset;
+    munmap(m_mapBuffer, m_mapBufferSize);
+}
+
+void MappedReader::seek(uint64_t offset)
+{
+    assert(offset <= m_viewSize);
+    m_offset = offset;
+}
+
+char *MappedReader::readDataInternal(size_t size)
+{
+    size_t newOffset = m_offset + size;
+    assert(newOffset >= m_offset && newOffset <= m_viewSize);
+    size_t origOffset = m_offset;
+    m_offset += size;
+    return m_viewBuffer + origOffset;
+}
+
+Buffer MappedReader::readData(size_t size)
+{
+    return Buffer::fromMappedBuffer(readDataInternal(size), size);
+}
+
+void MappedReader::readData(void *output, size_t size)
+{
+    memcpy(output, readDataInternal(size), size);
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// UnmappedReader
+
+UnmappedReader::UnmappedReader(const std::string &path)
+{
+    const char *pathPtr = path.c_str();
+#ifdef __unix__
+    int fd = EINTR_LOOP(open(pathPtr, O_RDONLY | O_CLOEXEC));
+    m_fp = fdopen(fd, "r");
+#else
+    m_fp = fopen(pathPtr, "r");
+#endif
+    assert(m_fp != NULL);
+    Seek64(m_fp, 0, SEEK_END);
+    m_fileSize = Tell64(m_fp);
+    Seek64(m_fp, 0, SEEK_SET);
+    m_offset = 0;
+}
+
+UnmappedReader::~UnmappedReader()
+{
+    fclose(m_fp);
+}
+
+void UnmappedReader::seek(uint64_t offset)
+{
+    if (offset - m_offset < static_cast<uint64_t>(kMaxAlign)) {
+        char padding[kMaxAlign];
+        readData(padding, offset - m_offset);
+    } else {
+        Seek64(m_fp, offset, SEEK_SET);
+        assert(Tell64(m_fp) == offset);
+        m_offset = offset;
+    }
+}
+
+Buffer UnmappedReader::readData(size_t size)
+{
+    Buffer tmp(size);
+    readData(tmp.data(), size);
+    return std::move(tmp);
+}
+
+void UnmappedReader::readData(void *output, size_t size)
+{
+    size_t amount = fread(output, 1, size, m_fp);
+    assert(amount == size);
+    m_offset += size;
 }
 
 } // namespace indexdb

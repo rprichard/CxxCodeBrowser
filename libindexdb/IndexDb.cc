@@ -339,7 +339,7 @@ Index::Index() : m_reader(NULL)
 
 Index::Index(const std::string &path)
 {
-    init(new Reader(path));
+    init(new MappedReader(path));
 }
 
 // The Index object takes ownership of the Reader object.
