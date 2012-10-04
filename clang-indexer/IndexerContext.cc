@@ -72,16 +72,15 @@ indexdb::ID IndexerFileContext::getDeclSymbolID(clang::NamedDecl *decl)
 IndexerFileContext::IndexerFileContext(
         IndexerContext &context,
         clang::FileID fileID,
-        const std::string &path) :
+        const std::string &pathSymbolName) :
     m_context(context),
     m_clangFileID(fileID),
-    m_path(path),
     m_index(new indexdb::Index),
     m_indexPathID(indexdb::kInvalidID),
     m_builder(*m_index, /*createIndexTables=*/false)
 {
     std::fill(&m_refTypeIDs[0], &m_refTypeIDs[RT_Max], indexdb::kInvalidID);
-    m_indexPathID = m_builder.insertSymbol(m_path.c_str());
+    m_indexPathID = m_builder.insertSymbol(pathSymbolName.c_str());
     m_builder.recordSymbol(m_indexPathID,
                            m_builder.insertSymbolType("Path"));
 }
@@ -119,36 +118,38 @@ IndexerFileContext &IndexerContext::fileContext(clang::FileID fileID)
     }
 
     // Get the name for the file.
-    std::string name = "@";
+    std::string pathSymbolName = "@";
     {
         const clang::FileEntry *pFE =
                 m_sourceManager.getFileEntryForID(fileID);
         if (pFE != NULL) {
             char *filename = realpath(pFE->getName(), NULL);
             if (filename != NULL) {
-                name += filename;
+                pathSymbolName += filename;
                 free(filename);
             } else {
-                name += "<invalid>";
+                pathSymbolName += "<invalid>";
             }
         } else {
-            name += m_sourceManager.getBuffer(fileID)->getBufferIdentifier();
+            pathSymbolName +=
+                    m_sourceManager.getBuffer(fileID)->getBufferIdentifier();
         }
     }
 
     IndexerFileContext *ret = NULL;
 
     {
-        auto it = m_fileNameMap.find(name);
+        auto it = m_fileNameMap.find(pathSymbolName);
         if (it != m_fileNameMap.end())
             ret = it->second;
     }
 
     if (ret == NULL) {
-        ret = new IndexerFileContext(*this, fileID, name);
-        m_fileNameMap[name] = ret;
+        ret = new IndexerFileContext(*this, fileID, pathSymbolName);
+        m_fileNameMap[pathSymbolName] = ret;
         m_fileContextSet.insert(ret);
-        m_archive.insert(name, ret->index());
+        assert(pathSymbolName[0] == '@');
+        m_archive.insert(pathSymbolName.substr(1), ret->index());
     }
 
     m_fileIDMap[fileID] = ret;

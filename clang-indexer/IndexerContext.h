@@ -78,12 +78,11 @@ private:
     IndexerFileContext(
             IndexerContext &context,
             clang::FileID fileID,
-            const std::string &path);
+            const std::string &pathSymbolName);
     indexdb::ID createRefTypeID(RefType refType);
 
     IndexerContext &m_context;
     clang::FileID m_clangFileID;
-    std::string m_path;
     indexdb::Index *m_index;
     indexdb::ID m_indexPathID;
     IndexBuilder m_builder;
