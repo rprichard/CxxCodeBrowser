@@ -248,7 +248,7 @@ MappedReader::MappedReader(const std::string &path, size_t offset, size_t size)
     assert(fd != -1);
     uint64_t fileSize = LSeek64(fd, 0, SEEK_END);
     assert(offset <= fileSize);
-    m_viewSize = std::min(size, fileSize - offset);
+    m_viewSize = std::min<size_t>(size, fileSize - offset);
     size_t alignOffset = offset & (kPageSize - 1);
     m_mapBufferSize = m_viewSize + alignOffset;
     uint64_t mapOffset = offset - alignOffset;
