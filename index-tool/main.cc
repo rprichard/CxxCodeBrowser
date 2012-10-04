@@ -143,6 +143,7 @@ int main(int argc, char *argv[])
                         sprintf(tmp, "%02x", (unsigned char)hash[j]);
                         std::cout << tmp;
                     }
+                    std::cout << ")";
                 }
                 std::cout << std::endl;
                 std::cout << std::endl;
