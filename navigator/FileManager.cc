@@ -18,7 +18,7 @@ namespace Nav {
 
 FileManager::FileManager(
         const QString &projectRootPath,
-        const QList<QString> &indexPaths)
+        const QStringList &indexPaths)
 {
     m_categoryProject = new Folder(NULL, "", "Project");
     m_categoryOutside = new Folder(NULL, "", "Outside");

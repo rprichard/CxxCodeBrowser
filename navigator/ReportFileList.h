@@ -25,7 +25,7 @@ public:
 
 private:
     Project *m_project;
-    QList<File*> m_files;
+    QStringList m_paths;
 };
 
 } // namespace Nav

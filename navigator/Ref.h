@@ -50,7 +50,7 @@ public:
     }
 
     File &file() const {
-        const char *fileName = m_project->pathStringTable().item(m_fileID);
+        QString fileName = m_project->fileName(m_fileID);
         return m_project->fileManager().file(fileName);
     }
 
@@ -58,7 +58,7 @@ public:
     int column() const { return m_column; }
 
     QString kind() const {
-        return m_project->referenceTypeStringTable().item(m_kindID);
+        return m_project->refTypeStringTable().item(m_kindID);
     }
 
 private:

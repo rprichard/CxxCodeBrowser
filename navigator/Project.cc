@@ -14,22 +14,27 @@
 
 namespace Nav {
 
-// LocationToSymbol table
-const int kLocColumns           = 5;
-const int kLocColumnFile        = 0;
-const int kLocColumnLine        = 1;
-const int kLocColumnStartColumn = 2;
-const int kLocColumnEndColumn   = 3;
-const int kLocColumnSymbol      = 4;
+// Reference table
+enum RefColumn {
+    RC_File         = 0,
+    RC_Line         = 1,
+    RC_StartColumn  = 2,
+    RC_EndColumn    = 3,
+    RC_Symbol       = 4,
+    RC_RefType      = 5,
+    RC_Count        = 6
+};
 
-// SymbolToReference table
-const int kRefColumns           = 6;
-const int kRefColumnSymbol      = 0;
-const int kRefColumnKind        = 1;
-const int kRefColumnFile        = 2;
-const int kRefColumnLine        = 3;
-const int kRefColumnStartColumn = 4;
-const int kRefColumnEndColumn   = 5;
+// ReferenceIndex table
+enum RefIndexColumn {
+    RIC_Symbol      = 0,
+    RIC_RefType     = 1,
+    RIC_File        = 2,
+    RIC_Line        = 3,
+    RIC_StartColumn = 4,
+    RIC_EndColumn   = 5,
+    RIC_Count       = 6
+};
 
 Project *theProject;
 
@@ -37,25 +42,25 @@ Project::Project(const QString &path)
 {
     m_index = new indexdb::Index(path.toStdString());
     m_symbolStringTable = m_index->stringTable("Symbol");
-    m_pathStringTable = m_index->stringTable("Path");
-    m_referenceTypeStringTable = m_index->stringTable("ReferenceType");
+    m_symbolTypeStringTable = m_index->stringTable("SymbolType");
+    m_refTypeStringTable = m_index->stringTable("ReferenceType");
+    m_refTable = m_index->table("Reference");
+    m_refIndexTable = m_index->table("ReferenceIndex");
+    m_symbolTypeIndexTable = m_index->table("SymbolTypeIndex");
     assert(m_symbolStringTable != NULL);
-    assert(m_pathStringTable != NULL);
-    assert(m_referenceTypeStringTable != NULL);
+    assert(m_symbolTypeStringTable != NULL);
+    assert(m_refTypeStringTable != NULL);
+    assert(m_refTable != NULL);
+    assert(m_refIndexTable != NULL);
+    assert(m_symbolTypeIndexTable != NULL);
 
     m_sortedSymbolsInited =
             QtConcurrent::run(this, &Project::initSortedSymbols);
 
     // Query all the paths, then use that to initialize the FileManager.
-    QList<QString> allPaths;
-    indexdb::StringTable *pathTable = m_pathStringTable;
-    for (uint32_t i = 0; i < pathTable->size(); ++i) {
-        const char *path = pathTable->item(i);
-        allPaths.append(path);
-    }
     m_fileManager = new FileManager(
                 QFileInfo(path).absolutePath(),
-                allPaths);
+                queryAllPaths());
 }
 
 Project::~Project()
@@ -74,21 +79,21 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
         return result;
 
     indexdb::Row rowLookup(1);
-    assert(kRefColumnSymbol == 0);
-    rowLookup[kRefColumnSymbol] = symbolID;
+    assert(RIC_Symbol == 0);
+    rowLookup[RIC_Symbol] = symbolID;
 
-    indexdb::Row rowItem(kRefColumns);
-    indexdb::TableIterator itEnd = m_index->table("SymbolToReference")->end();
-    indexdb::TableIterator it = m_index->table("SymbolToReference")->lowerBound(rowLookup);
+    indexdb::Row rowItem(RIC_Count);
+    indexdb::TableIterator itEnd = m_refIndexTable->end();
+    indexdb::TableIterator it = m_refIndexTable->lowerBound(rowLookup);
     for (; it != itEnd; ++it) {
         it.value(rowItem);
-        if (rowLookup[kRefColumnSymbol] != rowItem[kRefColumnSymbol])
+        if (rowLookup[RIC_Symbol] != rowItem[RIC_Symbol])
             break;
 
-        indexdb::ID fileID = rowItem[kRefColumnFile];
-        int line = rowItem[kRefColumnLine];
-        int column = rowItem[kRefColumnStartColumn];
-        indexdb::ID kindID = rowItem[kRefColumnKind];
+        indexdb::ID fileID = rowItem[RIC_File];
+        int line = rowItem[RIC_Line];
+        int column = rowItem[RIC_StartColumn];
+        indexdb::ID kindID = rowItem[RIC_RefType];
 
         result << Ref(*this,
                       symbolID,
@@ -105,28 +110,28 @@ QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
 {
     QStringList result;
 
-    indexdb::ID fileID = m_pathStringTable->id(file->path().toStdString().c_str());
+    indexdb::ID fileID = this->fileID(file->path());
     if (fileID == indexdb::kInvalidID)
         return result;
 
     indexdb::Row rowLookup(3);
-    assert(kLocColumnFile < 3);
-    assert(kLocColumnLine < 3);
-    assert(kLocColumnStartColumn < 3);
-    rowLookup[kLocColumnFile] = fileID;
-    rowLookup[kLocColumnLine] = line;
-    rowLookup[kLocColumnStartColumn] = column;
+    assert(RC_File < 3);
+    assert(RC_Line < 3);
+    assert(RC_StartColumn < 3);
+    rowLookup[RC_File] = fileID;
+    rowLookup[RC_Line] = line;
+    rowLookup[RC_StartColumn] = column;
 
-    indexdb::TableIterator itEnd = m_index->table("LocationToSymbol")->end();
-    indexdb::TableIterator it = m_index->table("LocationToSymbol")->lowerBound(rowLookup);
+    indexdb::TableIterator itEnd = m_refTable->end();
+    indexdb::TableIterator it = m_refTable->lowerBound(rowLookup);
     for (; it != itEnd; ++it) {
-        indexdb::Row rowItem(kLocColumns);
+        indexdb::Row rowItem(RC_Count);
         it.value(rowItem);
-        if (rowLookup[kLocColumnFile] != rowItem[kLocColumnFile] ||
-                rowLookup[kLocColumnLine] != rowItem[kLocColumnLine] ||
-                rowLookup[kLocColumnStartColumn] != rowItem[kLocColumnStartColumn])
+        if (rowLookup[RC_File] != rowItem[RC_File] ||
+                rowLookup[RC_Line] != rowItem[RC_Line] ||
+                rowLookup[RC_StartColumn] != rowItem[RC_StartColumn])
             break;
-        result << m_symbolStringTable->item(rowItem[kLocColumnSymbol]);
+        result << m_symbolStringTable->item(rowItem[RC_Symbol]);
     }
 
     return result;
@@ -164,15 +169,24 @@ void Project::queryAllSymbolsSorted(std::vector<const char*> &output)
     output = m_sortedSymbols;
 }
 
-QList<File*> Project::queryAllFiles()
+QStringList Project::queryAllPaths()
 {
-    QList<File*> result;
-    for (uint32_t i = 0; i < m_pathStringTable->size(); ++i) {
-        const char *path = m_pathStringTable->item(i);
-        if (path[0] != '\0') {
-            File *file = &m_fileManager->file(path);
-            result << file;
-        }
+    const indexdb::ID pathTypeID = m_symbolTypeStringTable->id("Path");
+    if (pathTypeID == indexdb::kInvalidID)
+        return QStringList();
+    indexdb::Row row(2);
+    row[0] = pathTypeID;
+    row[1] = 0;
+    indexdb::TableIterator itEnd = m_symbolTypeIndexTable->end();
+    indexdb::TableIterator it = m_symbolTypeIndexTable->lowerBound(row);
+    QStringList result;
+    for (; it != itEnd; ++it) {
+        it.value(row);
+        if (row[0] != pathTypeID)
+            break;
+        const char *path = m_symbolStringTable->item(row[1]);
+        assert(path[0] == '@');
+        result.append(path + 1);
     }
     return result;
 }
@@ -209,25 +223,38 @@ QList<Ref> Project::queryAllSymbolDefinitions()
 {
     QList<Ref> result;
 
-    indexdb::ID defnKindID = m_referenceTypeStringTable->id("Definition");
-    indexdb::TableIterator itEnd = m_index->table("SymbolToReference")->end();
-    indexdb::TableIterator it = m_index->table("SymbolToReference")->begin();
+    indexdb::ID defnKindID = m_refTypeStringTable->id("Definition");
+    indexdb::TableIterator itEnd = m_refIndexTable->end();
+    indexdb::TableIterator it = m_refIndexTable->begin();
 
     for (; it != itEnd; ++it) {
-        indexdb::Row rowItem(kRefColumns);
+        indexdb::Row rowItem(RIC_Count);
         it.value(rowItem);
-        if (rowItem[kRefColumnKind] != defnKindID)
+        if (rowItem[RIC_RefType] != defnKindID)
             continue;
-        indexdb::ID symbolID = rowItem[kRefColumnSymbol];
-        indexdb::ID fileID = rowItem[kRefColumnFile];
-        int line = rowItem[kRefColumnLine];
-        int column = rowItem[kRefColumnStartColumn];
-        indexdb::ID kindID = rowItem[kRefColumnKind];
+        indexdb::ID symbolID = rowItem[RIC_Symbol];
+        indexdb::ID fileID = rowItem[RIC_File];
+        int line = rowItem[RIC_Line];
+        int column = rowItem[RIC_StartColumn];
+        indexdb::ID kindID = rowItem[RIC_RefType];
 
         result << Ref(*this, symbolID, fileID, line, column, kindID);
     }
 
     return result;
+}
+
+indexdb::ID Project::fileID(const QString &path)
+{
+    QString symbol = "@" + path;
+    return m_symbolStringTable->id(symbol.toStdString().c_str());
+}
+
+QString Project::fileName(indexdb::ID fileID)
+{
+    const char *name = m_symbolStringTable->item(fileID);
+    assert(name[0] == '@');
+    return name + 1;
 }
 
 } // namespace Nav

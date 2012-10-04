@@ -5,9 +5,12 @@
 #include <QList>
 #include <QStringList>
 
+#include "../libindexdb/IndexDb.h"
+
 namespace indexdb {
     class Index;
     class StringTable;
+    class Table;
 }
 
 namespace Nav {
@@ -29,14 +32,15 @@ public:
     QList<Ref> queryReferencesOfSymbol(const QString &symbol);
     QStringList querySymbolsAtLocation(File *file, int line, int column);
     void queryAllSymbolsSorted(std::vector<const char*> &output);
-    QList<File*> queryAllFiles();
+    QStringList queryAllPaths();
     Ref findSingleDefinitionOfSymbol(const QString &symbol);
     QList<Ref> queryAllSymbolDefinitions();
+    indexdb::ID fileID(const QString &path);
+    QString fileName(indexdb::ID fileID);
 
     indexdb::StringTable &symbolStringTable() { return *m_symbolStringTable; }
-    indexdb::StringTable &pathStringTable() { return *m_pathStringTable; }
-    indexdb::StringTable &referenceTypeStringTable() {
-        return *m_referenceTypeStringTable;
+    indexdb::StringTable &refTypeStringTable() {
+        return *m_refTypeStringTable;
     }
 
 private:
@@ -48,8 +52,11 @@ private:
     FileManager *m_fileManager;
     indexdb::Index *m_index;
     indexdb::StringTable *m_symbolStringTable;
-    indexdb::StringTable *m_pathStringTable;
-    indexdb::StringTable *m_referenceTypeStringTable;
+    indexdb::StringTable *m_symbolTypeStringTable;
+    indexdb::StringTable *m_refTypeStringTable;
+    indexdb::Table *m_refTable;
+    indexdb::Table *m_refIndexTable;
+    indexdb::Table *m_symbolTypeIndexTable;
 };
 
 } // namespace Nav

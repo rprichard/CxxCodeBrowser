@@ -14,7 +14,7 @@ class FolderItem;
 class FileManager
 {
 public:
-    FileManager(const QString &projectRootPath, const QList<QString> &indexPaths);
+    FileManager(const QString &projectRootPath, const QStringList &indexPaths);
     ~FileManager();
     File &file(const QString &path);
     QList<Folder*> roots();
