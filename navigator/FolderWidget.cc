@@ -321,6 +321,8 @@ void FolderWidgetView::paintFolderItem(
         QStyleOptionViewItemV4 option;
         option.rect = QRect(0, state.origin.y(), width(), state.itemLS);
         option.state |= QStyle::State_Selected;
+        if (isActiveWindow())
+            option.state |= QStyle::State_Active;
         style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, state.painter, this);
 
         // Use the selection text color.

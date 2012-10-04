@@ -312,6 +312,8 @@ void GotoWindowResults::paintEvent(QPaintEvent *event)
                 QStyleOptionViewItemV4 option;
                 option.rect = QRect(0, item * itemHeight, width(), itemHeight);
                 option.state |= QStyle::State_Selected;
+                if (isActiveWindow())
+                    option.state |= QStyle::State_Active;
                 style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, &p, this);
 
                 // Use the selection text color.
