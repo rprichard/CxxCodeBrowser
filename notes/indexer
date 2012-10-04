@@ -102,26 +102,6 @@ There is no ref on SmallVectorTemplateBase or value.
 
 ----
 
-New uint32_t encoding:
-
-0xxxxxxx
-10xxxxxx xxxxxxxx
-110xxxxx xxxxxxxx xxxxxxxx
-1110xxxx xxxxxxxx xxxxxxxx xxxxxxxx
-1111000x xxxxxxxx xxxxxxxx xxxxxxxx xxxxxxxx
-
-This variable-length encoding ensures that a sequence of numbers has the same
-order as its encoded byte-string (which is the concatenation of the VLE-encoded
-numbers).
-
-Each xxxxxxxx represents 255 values rather than 256, to avoid NUL bytes.  This
-will require division to encode a number and multiplication to decode a number.
-
-The encoding handles the values [0..2**32-1].  To encode zero without using a
-NUL byte, one is added to the value before encoding it.
-
-----
-
 Calls to the clang::VarDecl(Kind, DeclContext, ...) ctor seem to be missing
 from the refs info.  Also review whether calls to dtors are in the refs info.
 This might be a difficult thing to fix -- a lot of these calls are implicit.
@@ -133,29 +113,3 @@ SomeType::~SomeType coming from?  Implicit conversions are probably related.
 This is probably mentioned elsewhere, but record it here anyway.  The Curiously
 Recurring Template Pattern appears repeatedly in LLVM+Clang, and the Derived
 class appears as a Base-Class ref.  It should appear as just a Reference.
-
-----
-
-    // TODO: On second thought, I now think two changes should be made:
-    //  * The location->symbol table should also include a reftype, and it
-    //    should become the primary table (i.e. it should exist in the TU
-    //    indices, rather than the symbol->reference table).  The
-    //    symbol->reference table is really an "inverted index".
-    //  * Treating an include as a kind of reference in the source code makes
-    //    enough sense to avoid duplicating the tables.  If they're duplicated,
-    //    they'll just have to be smashed back together in the navigator.
-    // The SymbolType for each path symbol should be either File or Path.
-    // The idea that we need these separate tables for an efficient include
-    // graph is weakened by the idea that an #include-reference might refer to
-    // a filename provided by a macro in a different file.  e.g.:
-    //
-    // file1.h
-    //    #define FILE2 "file2.h"
-    // file1.c
-    //    #include "file1.h"
-    //    #include FILE2
-    //
-    // FILE2 will be associated with the macro defined in file1.h.  It is
-    // reasonable (and my currently planned action) to associate the file2.h
-    // inclusion with the "file2.h" string literal rather than with something
-    // in file1.c.
