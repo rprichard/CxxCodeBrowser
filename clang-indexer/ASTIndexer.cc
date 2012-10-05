@@ -23,7 +23,6 @@ namespace indexer {
 // doing the same for the other overloadable operators.
 
 // TODO: Unary ++ and --
-// TODO: templates
 // TODO: Fix local extern variables.  e.g. void func() { extern int var; }
 //     Consider extern "C", functions nested within classes or namespaces.
 
