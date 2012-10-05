@@ -6,9 +6,6 @@ namespace Nav {
 
 bool operator<(const Ref &x, const Ref &y)
 {
-    // TODO: This code could be a lot faster if the string tables for symbols,
-    // paths, and kinds were in sorted order.
-
 #define COMPARE(EXPR)       \
     do {                    \
         auto tmp = (EXPR);  \
@@ -18,14 +15,14 @@ bool operator<(const Ref &x, const Ref &y)
             return false;   \
     } while(0)
 
-    if (x.m_symbolID != y.m_symbolID)
-        COMPARE(x.symbol().compare(y.symbol()));
-    if (x.m_fileID != y.m_fileID)
-        COMPARE(x.file().path().compare(y.file().path()));
+    COMPARE(static_cast<int64_t>(x.m_symbolID) -
+            static_cast<int64_t>(y.m_symbolID));
+    COMPARE(static_cast<int64_t>(x.m_fileID) -
+            static_cast<int64_t>(y.m_fileID));
     COMPARE(x.line() - y.line());
     COMPARE(x.column() - y.column());
-    if (x.m_kindID != y.m_kindID)
-        COMPARE(x.kind().compare(y.kind()));
+    COMPARE(static_cast<int64_t>(x.m_kindID) -
+            static_cast<int64_t>(y.m_kindID));
 #undef COMPARE
 
     return false;
