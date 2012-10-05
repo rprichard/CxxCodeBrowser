@@ -54,20 +54,21 @@ Project::Project(const QString &path)
     assert(m_refIndexTable != NULL);
     assert(m_symbolTypeIndexTable != NULL);
 
-    m_sortedSymbolsInited =
-            QtConcurrent::run(this, &Project::initSortedSymbols);
-
     // Query all the paths, then use that to initialize the FileManager.
     m_fileManager = new FileManager(
                 QFileInfo(path).absolutePath(),
                 queryAllPaths());
+
+    // Start this query in the background.
+    m_globalSymbolDefinitions =
+            QtConcurrent::run(this, &Project::queryGlobalSymbolDefinitions);
 }
 
 Project::~Project()
 {
-    m_sortedSymbolsInited.waitForFinished();
     delete m_fileManager;
     delete m_index;
+    delete m_globalSymbolDefinitions.result();
 }
 
 QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
@@ -108,11 +109,11 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
 
 QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
 {
-    QStringList result;
+    QSet<QString> result;
 
     indexdb::ID fileID = this->fileID(file->path());
     if (fileID == indexdb::kInvalidID)
-        return result;
+        return QStringList();
 
     indexdb::Row rowLookup(3);
     assert(RC_File < 3);
@@ -134,39 +135,18 @@ QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
         result << m_symbolStringTable->item(rowItem[RC_Symbol]);
     }
 
-    return result;
+    QStringList resultList = result.toList();
+    qSort(resultList);
+    return resultList;
 }
 
-// Sorting the symbols is slow (e.g. 800ms for LLVM+Clang), so do it just once,
-// when the navigator starts up, and start doing it in the background when the
-// application starts.
-//
-// XXX: Consider sorting the symbols in the index instead.
-// XXX: It's probably possible to write a parallel_sort that would be a
-// drop-in replacement for std::sort.
-void Project::initSortedSymbols()
+void Project::queryAllSymbols(std::vector<const char*> &output)
 {
-    m_sortedSymbols.resize(m_symbolStringTable->size());
+    output.resize(m_symbolStringTable->size());
     for (uint32_t i = 0, iEnd = m_symbolStringTable->size(); i < iEnd; ++i) {
         const char *symbol = m_symbolStringTable->item(i);
-        m_sortedSymbols[i] = symbol;
+        output[i] = symbol;
     }
-    struct ConstCharCompare {
-        bool operator()(const char *x, const char *y) {
-            return strcmp(x, y) < 0;
-        }
-    };
-    std::sort(m_sortedSymbols.begin(),
-              m_sortedSymbols.end(),
-              ConstCharCompare());
-}
-
-// XXX: This function could return a reference rather than copying the symbol
-// list.
-void Project::queryAllSymbolsSorted(std::vector<const char*> &output)
-{
-    m_sortedSymbolsInited.waitForFinished();
-    output = m_sortedSymbols;
 }
 
 QStringList Project::queryAllPaths()
@@ -219,29 +199,31 @@ Ref Project::findSingleDefinitionOfSymbol(const QString &symbol)
     }
 }
 
-QList<Ref> Project::queryAllSymbolDefinitions()
+std::vector<Ref> *Project::queryGlobalSymbolDefinitions()
 {
-    QList<Ref> result;
+    std::vector<Ref> *ret = new std::vector<Ref>;
 
     indexdb::ID defnKindID = m_refTypeStringTable->id("Definition");
     indexdb::TableIterator itEnd = m_refIndexTable->end();
     indexdb::TableIterator it = m_refIndexTable->begin();
 
+    indexdb::Row rowFilter(RIC_RefType);
+    indexdb::Row rowItem(RIC_Count);
     for (; it != itEnd; ++it) {
-        indexdb::Row rowItem(RIC_Count);
-        it.value(rowItem);
-        if (rowItem[RIC_RefType] != defnKindID)
+        it.value(rowFilter);
+        if (rowFilter[RIC_RefType] != defnKindID)
             continue;
+        it.value(rowItem);
         indexdb::ID symbolID = rowItem[RIC_Symbol];
         indexdb::ID fileID = rowItem[RIC_File];
         int line = rowItem[RIC_Line];
         int column = rowItem[RIC_StartColumn];
         indexdb::ID kindID = rowItem[RIC_RefType];
 
-        result << Ref(*this, symbolID, fileID, line, column, kindID);
+        ret->push_back(Ref(*this, symbolID, fileID, line, column, kindID));
     }
 
-    return result;
+    return ret;
 }
 
 indexdb::ID Project::fileID(const QString &path)
@@ -255,6 +237,11 @@ QString Project::fileName(indexdb::ID fileID)
     const char *name = m_symbolStringTable->item(fileID);
     assert(name[0] == '@');
     return name + 1;
+}
+
+const std::vector<Ref> &Project::globalSymbolDefinitions()
+{
+    return *m_globalSymbolDefinitions.result();
 }
 
 } // namespace Nav

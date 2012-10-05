@@ -414,7 +414,7 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     m_scrollArea->setBackgroundRole(QPalette::Base);
 
     setWindowTitle("Go to symbol...");
-    m_project.queryAllSymbolsSorted(m_symbols);
+    m_project.queryAllSymbols(m_symbols);
 
     // Imitate user input in the search box, but block until the GUI is
     // updated.

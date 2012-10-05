@@ -4,6 +4,7 @@
 #include <QFuture>
 #include <QList>
 #include <QStringList>
+#include <vector>
 
 #include "../libindexdb/IndexDb.h"
 
@@ -31,12 +32,12 @@ public:
 
     QList<Ref> queryReferencesOfSymbol(const QString &symbol);
     QStringList querySymbolsAtLocation(File *file, int line, int column);
-    void queryAllSymbolsSorted(std::vector<const char*> &output);
+    void queryAllSymbols(std::vector<const char*> &output);
     QStringList queryAllPaths();
     Ref findSingleDefinitionOfSymbol(const QString &symbol);
-    QList<Ref> queryAllSymbolDefinitions();
     indexdb::ID fileID(const QString &path);
     QString fileName(indexdb::ID fileID);
+    const std::vector<Ref> &globalSymbolDefinitions();
 
     indexdb::StringTable &symbolStringTable() { return *m_symbolStringTable; }
     indexdb::StringTable &refTypeStringTable() {
@@ -44,11 +45,9 @@ public:
     }
 
 private:
-    void initSortedSymbols();
+    std::vector<Ref> *queryGlobalSymbolDefinitions();
 
 private:
-    QFuture<void> m_sortedSymbolsInited;
-    std::vector<const char*> m_sortedSymbols;
     FileManager *m_fileManager;
     indexdb::Index *m_index;
     indexdb::StringTable *m_symbolStringTable;
@@ -57,6 +56,7 @@ private:
     indexdb::Table *m_refTable;
     indexdb::Table *m_refIndexTable;
     indexdb::Table *m_symbolTypeIndexTable;
+    QFuture<std::vector<Ref>*> m_globalSymbolDefinitions;
 };
 
 } // namespace Nav
