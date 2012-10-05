@@ -66,7 +66,6 @@ static inline void decodeRow(ID *output, int columnCount, const char *input)
         assert(temp != 0);
         output[i] = temp - 1;
     }
-    assert(*pinput == '\0');
 }
 
 static inline void encodeRow(const Row &input, char *output)
@@ -96,7 +95,6 @@ void Row::resize(int count)
 
 void TableIterator::value(Row &row)
 {
-    row.resize(m_table->columnCount());
     decodeRow(row, m_string);
 }
 
