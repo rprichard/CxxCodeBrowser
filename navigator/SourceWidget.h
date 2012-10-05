@@ -207,6 +207,7 @@ private slots:
     void layoutSourceWidget(void);
 
 private:
+    QWidget *m_lineAreaViewport;
     SourceWidgetLineArea *m_lineArea;
     Project &m_project;
     friend class SourceWidgetLineArea;

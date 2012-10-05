@@ -406,7 +406,10 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     connect(m_results, SIGNAL(selectionChanged(int)), SLOT(resultsSelectionChanged(int)));
     connect(m_results, SIGNAL(itemClicked(int)), SLOT(navigateToItem(int)));
 
-    m_scrollArea->setWidgetResizable(false);
+    // In general, let Qt figure out how to size the GotoWindowResults widget
+    // according to its size hint.  When the vertical scroll bar disappears,
+    // the GotoWindowResults widget's horizontal size sometimes expands.
+    m_scrollArea->setWidgetResizable(true);
     m_scrollArea->setFocusPolicy(Qt::NoFocus);
     m_scrollArea->setBackgroundRole(QPalette::Base);
 
@@ -484,17 +487,11 @@ void GotoWindow::keyPressEvent(QKeyEvent *event)
 
 void GotoWindow::resizeResultsWidget()
 {
-    // As in the SourceWidget, call resize manually instead of setting the
-    // widgetResizable property because we may need to scroll the window
-    // immediately afterwards.
+    // As in the SourceWidget, call resize manually because we may need to
+    // scroll the window immediately afterwards.
     QSize sizeHint = m_results->sizeHint();
     sizeHint = sizeHint.expandedTo(m_scrollArea->viewport()->size());
     m_results->resize(sizeHint);
-}
-
-void GotoWindow::resizeEvent(QResizeEvent *event)
-{
-    resizeResultsWidget();
 }
 
 void GotoWindow::textChanged()

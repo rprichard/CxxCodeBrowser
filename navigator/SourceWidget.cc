@@ -423,7 +423,8 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     setWidget(new SourceWidgetView(QMargins(4, 4, 4, 4), project));
     setBackgroundRole(QPalette::Base);
     setViewportMargins(30, 0, 0, 0);
-    m_lineArea = new SourceWidgetLineArea(QMargins(4, 5, 4, 4), this);
+    m_lineAreaViewport = new QWidget(this);
+    m_lineArea = new SourceWidgetLineArea(QMargins(4, 5, 4, 4), m_lineAreaViewport);
     connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(layoutSourceWidget()));
 
     // Configure the widgets to use a small monospace font.  Force characters
@@ -466,6 +467,11 @@ SourceWidgetView &SourceWidget::sourceWidgetView()
 void SourceWidget::layoutSourceWidget(void)
 {
     QSize lineAreaSizeHint = m_lineArea->sizeHint();
+    m_lineAreaViewport->setGeometry(
+                0,
+                viewport()->rect().top(),
+                lineAreaSizeHint.width(),
+                viewport()->rect().height());
     m_lineArea->setGeometry(
                 0,
                 -verticalScrollBar()->value(),

@@ -144,7 +144,6 @@ private:
     QSize sizeHint() const;
     void keyPressEvent(QKeyEvent *event);
     void resizeResultsWidget();
-    void resizeEvent(QResizeEvent *event);
 
 private slots:
     void textChanged();
