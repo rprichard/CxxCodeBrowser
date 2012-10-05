@@ -56,6 +56,7 @@ private:
     indexdb::Table *m_refTable;
     indexdb::Table *m_refIndexTable;
     indexdb::Table *m_symbolTypeIndexTable;
+    indexdb::Table *m_globalSymbolTable;
     QFuture<std::vector<Ref>*> m_globalSymbolDefinitions;
 };
 

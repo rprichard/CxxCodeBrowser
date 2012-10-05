@@ -51,7 +51,7 @@ static QString convertFilterIntoRegex(const QString &filter)
 
 FilteredSymbols::FilteredSymbols(
         TextWidthCalculator &textWidthCalculator,
-        std::vector<const char*> &symbols,
+        const std::vector<Ref> &symbols,
         const QString &regex) :
     m_textWidthCalculator(textWidthCalculator),
     m_symbols(symbols),
@@ -130,7 +130,7 @@ void FilteredSymbols::filterBatchThread(QString regex, Batch *batch)
         for (int i = batch->start; i < batch->stop; ++i) {
             if (batch->cancelFlag)
                 return;
-            const char *s = (*batch->symbols)[i];
+            const char *s = (*batch->symbols)[i].symbolCStr();
             if (pattern.Match(s, 0, strlen(s), RE2::UNANCHORED, NULL, 0))
                 filtered[filteredCount++] = i;
         }
@@ -142,7 +142,8 @@ void FilteredSymbols::filterBatchThread(QString regex, Batch *batch)
             return;
         batch->maxTextWidth = std::max(
                     batch->maxTextWidth,
-                    m_textWidthCalculator.calculate((*batch->symbols)[batch->filtered[i]]));
+                    m_textWidthCalculator.calculate(
+                        (*batch->symbols)[batch->filtered[i]].symbolCStr()));
     }
 }
 
@@ -214,7 +215,7 @@ void FilteredSymbols::waitForFinished()
     }
 }
 
-const char *FilteredSymbols::at(int index) const
+const Ref &FilteredSymbols::at(int index) const
 {
     assert(m_state == Done);
     return m_symbols[filteredIndexToFullIndex(index)];
@@ -323,7 +324,7 @@ void GotoWindowResults::paintEvent(QPaintEvent *event)
                 p.setPen(palette().color(QPalette::Text));
             }
             p.drawText(m_itemMargins.left(), firstBaseline + item * itemHeight,
-                       m_symbols->at(item));
+                       m_symbols->at(item).symbol());
         }
     }
     QWidget::paintEvent(event);
@@ -414,7 +415,6 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     m_scrollArea->setBackgroundRole(QPalette::Base);
 
     setWindowTitle("Go to symbol...");
-    m_project.queryAllSymbols(m_symbols);
 
     // Imitate user input in the search box, but block until the GUI is
     // updated.
@@ -423,6 +423,8 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     m_pendingFilteredSymbols->waitForFinished();
     assert(m_pendingFilteredSymbols == NULL);
     //symbolFilteringDone(m_pendingFilteredSymbols);
+
+    project.globalSymbolDefinitions();
 }
 
 GotoWindow::~GotoWindow()
@@ -501,7 +503,7 @@ void GotoWindow::textChanged()
     m_pendingFilteredSymbols =
             new FilteredSymbols(
                 TextWidthCalculator::getCachedTextWidthCalculator(font()),
-                m_symbols,
+                m_project.globalSymbolDefinitions(),
                 convertFilterIntoRegex(m_editor->text()));
     connect(m_pendingFilteredSymbols,
             SIGNAL(done(FilteredSymbols*)),
@@ -552,8 +554,7 @@ void GotoWindow::navigateToItem(int index)
     // Lookup the (first?) definition of the symbol and navigate to it.
     // TODO: What about multiple definitions of the same symbol?
     theMainWindow->navigateToRef(
-                m_project.findSingleDefinitionOfSymbol(
-                        m_results->filteredSymbols()->at(index)));
+                m_results->filteredSymbols()->at(index));
 }
 
 } // namespace Nav

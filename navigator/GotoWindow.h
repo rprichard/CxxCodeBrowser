@@ -10,6 +10,7 @@
 #include <QWidget>
 #include <vector>
 
+#include "Ref.h"
 #include "TextWidthCalculator.h"
 
 
@@ -30,13 +31,13 @@ class FilteredSymbols : public QObject {
 public:
     FilteredSymbols(
             TextWidthCalculator &textWidthCalculator,
-            std::vector<const char*> &symbols,
+            const std::vector<Ref> &symbols,
             const QString &regex);
     virtual ~FilteredSymbols();
     void start();
     void cancel();
     int size() const;
-    const char *at(int index) const;
+    const Ref &at(int index) const;
     int findFilteredIndex(int fullIndex) const;
     int filteredIndexToFullIndex(int index) const;
     int maxTextWidth() const;
@@ -49,7 +50,7 @@ private:
     struct Batch {
         QFuture<void> future;
         QFutureWatcher<void> watcher;
-        std::vector<const char*> *symbols;
+        const std::vector<Ref> *symbols;
         int start;
         int stop;
         int *filtered;
@@ -64,7 +65,7 @@ private slots:
 
 private:
     TextWidthCalculator &m_textWidthCalculator;
-    std::vector<const char*> &m_symbols;
+    const std::vector<Ref> &m_symbols;
     std::vector<Batch*> m_batches;
     QString m_regex;
     enum { NotStarted, Started, Done } m_state;
@@ -156,7 +157,6 @@ private:
     PlaceholderLineEdit *m_editor;
     QScrollArea *m_scrollArea;
     GotoWindowResults *m_results;
-    std::vector<const char*> m_symbols;
     FilteredSymbols *m_pendingFilteredSymbols;
     TextWidthCalculator *m_textWidthCalculator;
 };

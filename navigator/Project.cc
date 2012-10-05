@@ -1,8 +1,5 @@
 #include "Project.h"
 
-#include <QTime>
-#include <QDebug>
-
 #include <QFileInfo>
 #include <QtConcurrentRun>
 
@@ -47,6 +44,7 @@ Project::Project(const QString &path)
     m_refTable = m_index->table("Reference");
     m_refIndexTable = m_index->table("ReferenceIndex");
     m_symbolTypeIndexTable = m_index->table("SymbolTypeIndex");
+    m_globalSymbolTable = m_index->table("GlobalSymbol");
     assert(m_symbolStringTable != NULL);
     assert(m_symbolTypeStringTable != NULL);
     assert(m_refTypeStringTable != NULL);
@@ -204,23 +202,43 @@ std::vector<Ref> *Project::queryGlobalSymbolDefinitions()
     std::vector<Ref> *ret = new std::vector<Ref>;
 
     indexdb::ID defnKindID = m_refTypeStringTable->id("Definition");
-    indexdb::TableIterator itEnd = m_refIndexTable->end();
     indexdb::TableIterator it = m_refIndexTable->begin();
-
-    indexdb::Row rowFilter(RIC_RefType);
+    indexdb::TableIterator itEnd = m_refIndexTable->end();
+    indexdb::TableIterator git = m_globalSymbolTable->begin();
+    indexdb::TableIterator gitEnd = m_globalSymbolTable->end();
+    indexdb::Row rowGlobal(1);
+    indexdb::Row rowFilter(RIC_RefType + 1);
     indexdb::Row rowItem(RIC_Count);
-    for (; it != itEnd; ++it) {
-        it.value(rowFilter);
-        if (rowFilter[RIC_RefType] != defnKindID)
-            continue;
-        it.value(rowItem);
-        indexdb::ID symbolID = rowItem[RIC_Symbol];
-        indexdb::ID fileID = rowItem[RIC_File];
-        int line = rowItem[RIC_Line];
-        int column = rowItem[RIC_StartColumn];
-        indexdb::ID kindID = rowItem[RIC_RefType];
+    assert(RIC_Symbol < RIC_RefType);
 
-        ret->push_back(Ref(*this, symbolID, fileID, line, column, kindID));
+    if (git != gitEnd) {
+        git.value(rowGlobal);
+        for (; it != itEnd; ++it) {
+            it.value(rowFilter);
+
+            // Filter out non-definitions and definitions of non-global
+            // symbols.
+            if (rowFilter[RIC_RefType] != defnKindID)
+                continue;
+            while (rowFilter[RIC_Symbol] > rowGlobal[0]) {
+                ++git;
+                if (git == gitEnd)
+                    goto end;
+                git.value(rowGlobal);
+            }
+            if (rowFilter[RIC_Symbol] < rowGlobal[0])
+                continue;
+
+            // Record this global symbol definition.
+            it.value(rowItem);
+            indexdb::ID symbolID = rowItem[RIC_Symbol];
+            indexdb::ID fileID = rowItem[RIC_File];
+            int line = rowItem[RIC_Line];
+            int column = rowItem[RIC_StartColumn];
+            indexdb::ID kindID = rowItem[RIC_RefType];
+            ret->push_back(Ref(*this, symbolID, fileID, line, column, kindID));
+        }
+        end: ;
     }
 
     return ret;

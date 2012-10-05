@@ -45,9 +45,11 @@ public:
 
     bool isNull() const { return m_project == NULL; }
 
-    QString symbol() const {
+    const char *symbolCStr() const {
         return m_project->symbolStringTable().item(m_symbolID);
     }
+
+    QString symbol() const { return symbolCStr(); }
 
     File &file() const {
         QString fileName = m_project->fileName(m_fileID);
