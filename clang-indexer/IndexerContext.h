@@ -52,6 +52,26 @@ enum RefType : int {
     RT_Max
 };
 
+enum SymbolType : int {
+    ST_Class,
+    ST_Constructor,
+    ST_Destructor,
+    ST_Enum,
+    ST_Field,
+    ST_Function,
+    ST_GlobalVariable,
+    ST_LocalVariable,
+    ST_Macro,
+    ST_Method,
+    ST_Namespace,
+    ST_Parameter,
+    ST_Path,
+    ST_Struct,
+    ST_Typedef,
+    ST_Union,
+    ST_Max
+};
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // IndexerFileContext
@@ -68,6 +88,12 @@ public:
             return id;
         return createRefTypeID(refType);
     }
+    indexdb::ID getSymbolTypeID(SymbolType symbolType) {
+        indexdb::ID id = m_symbolTypeIDs[symbolType];
+        if (id != indexdb::kInvalidID)
+            return id;
+        return createSymbolTypeID(symbolType);
+    }
     Location location(clang::SourceLocation spellingLoc);
     indexdb::ID getDeclSymbolID(clang::NamedDecl *decl);
 
@@ -81,6 +107,7 @@ private:
             clang::FileID fileID,
             const std::string &pathSymbolName);
     indexdb::ID createRefTypeID(RefType refType);
+    indexdb::ID createSymbolTypeID(SymbolType symbolType);
 
     IndexerContext &m_context;
     clang::FileID m_clangFileID;
@@ -91,6 +118,7 @@ private:
     std::string m_tempSymbolName;
     std::unordered_map<clang::NamedDecl*, indexdb::ID> m_declNameCache;
     indexdb::ID m_refTypeIDs[RT_Max];
+    indexdb::ID m_symbolTypeIDs[ST_Max];
 };
 
 

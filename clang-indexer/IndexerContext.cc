@@ -12,7 +12,7 @@ namespace indexer {
 ///////////////////////////////////////////////////////////////////////////////
 // Reference Types
 
-const char *refTypeNames[] = {
+static const char *refTypeNames[] = {
     "Address-Taken",
     "Assigned",
     "Base-Class",
@@ -36,6 +36,28 @@ const char *refTypeNames[] = {
 
 static_assert(sizeof(refTypeNames) / sizeof(refTypeNames[0]) == RT_Max,
               "dimension of refTypeNames array does not equal RT_Max");
+
+static const char *symbolTypeNames[] = {
+    "Class",
+    "Constructor",
+    "Destructor",
+    "Enum",
+    "Field",
+    "Function",
+    "GlobalVariable",
+    "LocalVariable",
+    "Macro",
+    "Method",
+    "Namespace",
+    "Parameter",
+    "Path",
+    "Struct",
+    "Typedef",
+    "Union"
+};
+
+static_assert(sizeof(symbolTypeNames) / sizeof(symbolTypeNames[0]) == ST_Max,
+              "dimension of symbolTypeNames array does not equal ST_Max");
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -80,7 +102,12 @@ IndexerFileContext::IndexerFileContext(
     m_indexPathID(indexdb::kInvalidID),
     m_builder(*m_index, /*createIndexTables=*/false)
 {
-    std::fill(&m_refTypeIDs[0], &m_refTypeIDs[RT_Max], indexdb::kInvalidID);
+    std::fill(&m_refTypeIDs[0],
+              &m_refTypeIDs[RT_Max],
+              indexdb::kInvalidID);
+    std::fill(&m_symbolTypeIDs[0],
+              &m_symbolTypeIDs[ST_Max],
+              indexdb::kInvalidID);
     m_indexPathID = m_builder.insertSymbol(pathSymbolName.c_str());
     m_builder.recordSymbol(m_indexPathID,
                            m_builder.insertSymbolType("Path"));
@@ -92,6 +119,12 @@ indexdb::ID IndexerFileContext::createRefTypeID(RefType refType)
     return m_refTypeIDs[refType];
 }
 
+indexdb::ID IndexerFileContext::createSymbolTypeID(SymbolType symbolType)
+{
+    m_symbolTypeIDs[symbolType] =
+            m_builder.insertSymbolType(symbolTypeNames[symbolType]);
+    return m_symbolTypeIDs[symbolType];
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // IndexerContext

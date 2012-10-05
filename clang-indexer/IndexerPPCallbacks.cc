@@ -192,10 +192,13 @@ void IndexerPPCallbacks::recordReference(
     Location start = fileContext.location(sloc);
     Location end = start;
     end.column += macroName.size();
+    indexdb::ID symbolID =
+            fileContext.builder().insertSymbol(m_tempSymbolName.c_str());
     fileContext.builder().recordRef(
-                fileContext.builder().insertSymbol(
-                    m_tempSymbolName.c_str()),
-                start, end, fileContext.getRefTypeID(refType));
+                symbolID, start, end, fileContext.getRefTypeID(refType));
+    fileContext.builder().recordSymbol(
+                symbolID, fileContext.getSymbolTypeID(ST_Macro));
+    fileContext.builder().recordGlobalSymbol(symbolID);
 }
 
 } // namespace indexer

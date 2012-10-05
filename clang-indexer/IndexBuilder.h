@@ -24,6 +24,8 @@ public:
     void recordSymbol(
             indexdb::ID symbolID,
             indexdb::ID symbolTypeID);
+    void recordGlobalSymbol(
+            indexdb::ID symbolID);
 
     indexdb::ID insertSymbol(const char *symbol) { return m_symbolStringTable->insert(symbol); }
     indexdb::ID insertRefType(const char *refType) { return m_refTypeStringTable->insert(refType); }

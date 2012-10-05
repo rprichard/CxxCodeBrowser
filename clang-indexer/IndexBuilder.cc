@@ -155,4 +155,11 @@ void IndexBuilder::recordSymbol(
     m_symbolTable->add(row);
 }
 
+void IndexBuilder::recordGlobalSymbol(indexdb::ID symbolID)
+{
+    indexdb::Row row(1);
+    row[0] = symbolID;
+    m_globalSymbolTable->add(row);
+}
+
 } // namespace indexer

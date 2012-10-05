@@ -24,6 +24,8 @@ namespace indexer {
 
 // TODO: Unary ++ and --
 // TODO: templates
+// TODO: Fix local extern variables.  e.g. void func() { extern int var; }
+//     Consider extern "C", functions nested within classes or namespaces.
 
 ///////////////////////////////////////////////////////////////////////////////
 // Misc routines
@@ -442,8 +444,20 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
                 templateParameterListsHelper(fd);
 #endif
                 RefType refType;
-                refType = fd->isThisDeclarationADefinition() ? RT_Definition : RT_Declaration;
-                RecordDeclRef(nd, loc, refType);
+                refType = fd->isThisDeclarationADefinition() ?
+                            RT_Definition : RT_Declaration;
+                SymbolType symbolType;
+                if (llvm::isa<clang::CXXMethodDecl>(fd)) {
+                    if (llvm::isa<clang::CXXConstructorDecl>(fd))
+                        symbolType = ST_Constructor;
+                    else if (llvm::isa<clang::CXXDestructorDecl>(fd))
+                        symbolType = ST_Destructor;
+                    else
+                        symbolType = ST_Method;
+                } else {
+                    symbolType = ST_Function;
+                }
+                RecordDeclRef(nd, loc, refType, symbolType);
             }
         } else if (clang::VarDecl *vd = llvm::dyn_cast<clang::VarDecl>(d)) {
             // Don't record the parameter definitions in a function declaration
@@ -452,30 +466,45 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
             // recording two definitions is unhelpful.  This code could record
             // a different kind of reference, but recording the position of
             // parameter names in declarations doesn't seem useful.
-            bool omitParmVar = false;
-            clang::ParmVarDecl *pvd = llvm::dyn_cast<clang::ParmVarDecl>(d);
-            if (pvd) {
+            bool omitParamVar = false;
+            const bool isParam = llvm::isa<clang::ParmVarDecl>(vd);
+            if (isParam) {
                 clang::FunctionDecl *fd =
                         llvm::dyn_cast_or_null<clang::FunctionDecl>(
-                            pvd->getDeclContext());
+                            vd->getDeclContext());
                 if (fd && !fd->isThisDeclarationADefinition())
-                    omitParmVar = true;
+                    omitParamVar = true;
             }
-            if (!omitParmVar) {
+            if (!omitParamVar) {
                 RefType refType;
-                if (vd->isThisDeclarationADefinition() == clang::VarDecl::DeclarationOnly) {
+                if (vd->isThisDeclarationADefinition() == clang::VarDecl::DeclarationOnly)
                     refType = RT_Declaration;
-                } else {
+                else
                     refType = RT_Definition;
-                }
-                RecordDeclRef(nd, loc, refType);
+                // TODO: Review for correctness.  What about local extern?
+                SymbolType symbolType;
+                if (isParam)
+                    symbolType = ST_Parameter;
+                else if (vd->getParentFunctionOrMethod() == NULL)
+                    symbolType = ST_GlobalVariable;
+                else
+                    symbolType = ST_LocalVariable;
+                RecordDeclRef(nd, loc, refType, symbolType);
             }
         } else if (clang::TagDecl *td = llvm::dyn_cast<clang::TagDecl>(d)) {
             // TODO: Handle the C++11 fixed underlying type of enumeration
             // declarations.
             RefType refType;
             refType = td->isThisDeclarationADefinition() ? RT_Definition : RT_Declaration;
-            RecordDeclRef(nd, loc, refType);
+            SymbolType symbolType = ST_Max;
+            switch (td->getTagKind()) {
+            case clang::TTK_Struct: symbolType = ST_Struct; break;
+            case clang::TTK_Union:  symbolType = ST_Union; break;
+            case clang::TTK_Class:  symbolType = ST_Class; break;
+            case clang::TTK_Enum:   symbolType = ST_Enum; break;
+            default: assert(false);
+            }
+            RecordDeclRef(nd, loc, refType, symbolType);
         } else if (clang::UsingDirectiveDecl *ud = llvm::dyn_cast<clang::UsingDirectiveDecl>(d)) {
             RecordDeclRef(
                         ud->getNominatedNamespaceAsWritten(),
@@ -487,7 +516,7 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
                 RecordDeclRef(shadow->getTargetDecl(), loc, RT_Using);
             }
         } else if (clang::NamespaceAliasDecl *nad = llvm::dyn_cast<clang::NamespaceAliasDecl>(d)) {
-            RecordDeclRef(nad, loc, RT_Declaration);
+            RecordDeclRef(nad, loc, RT_Declaration, ST_Namespace);
             RecordDeclRef(nad->getAliasedNamespace(),
                           nad->getTargetNameLoc(),
                           RT_NamespaceAlias);
@@ -497,6 +526,12 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
         } else if (llvm::isa<clang::ClassTemplateDecl>(d)) {
             // Do nothing.  The class will be recorded when it appears as a
             // RecordDecl.
+        } else if (llvm::isa<clang::FieldDecl>(d)) {
+            RecordDeclRef(nd, loc, RT_Declaration, ST_Field);
+        } else if (llvm::isa<clang::TypedefDecl>(d)) {
+            RecordDeclRef(nd, loc, RT_Declaration, ST_Typedef);
+        } else if (llvm::isa<clang::NamespaceDecl>(d)) {
+            RecordDeclRef(nd, loc, RT_Declaration, ST_Namespace);
         } else {
             RecordDeclRef(nd, loc, RT_Declaration);
         }
@@ -629,7 +664,8 @@ std::pair<Location, Location> ASTIndexer::getDeclRefRange(
 void ASTIndexer::RecordDeclRef(
         clang::NamedDecl *d,
         clang::SourceLocation beginLoc,
-        RefType refType)
+        RefType refType,
+        SymbolType symbolType)
 {
     assert(d != NULL);
 
@@ -646,12 +682,20 @@ void ASTIndexer::RecordDeclRef(
     indexdb::ID symbolID = fileContext.getDeclSymbolID(d);
     std::pair<Location, Location> range = getDeclRefRange(fileContext, d, beginLoc);
 
-    // Pass the prepared data to the IndexBuilder to record a ref.
+    // Pass the prepared data to the IndexBuilder to record.
     fileContext.builder().recordRef(
                 symbolID,
                 range.first,
                 range.second,
                 fileContext.getRefTypeID(refType));
+    if (symbolType != ST_Max) {
+        fileContext.builder().recordSymbol(
+                    symbolID,
+                    fileContext.getSymbolTypeID(symbolType));
+        if (symbolType != ST_LocalVariable && symbolType != ST_Parameter) {
+            fileContext.builder().recordGlobalSymbol(symbolID);
+        }
+    }
 }
 
 } // namespace indexer

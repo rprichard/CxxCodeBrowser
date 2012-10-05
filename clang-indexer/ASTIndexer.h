@@ -8,14 +8,12 @@
 #include <clang/Basic/SourceManager.h>
 
 #include "../libindexdb/IndexDb.h"
+#include "IndexerContext.h"
 #include "Location.h"
 
 namespace indexer {
 
 class IndexBuilder;
-class IndexerContext;
-class IndexerFileContext;
-enum RefType : int;
 
 class ASTIndexer : clang::RecursiveASTVisitor<ASTIndexer>
 {
@@ -103,7 +101,8 @@ private:
     void RecordDeclRef(
             clang::NamedDecl *d,
             clang::SourceLocation beginLoc,
-            RefType refType);
+            RefType refType,
+            SymbolType symbolType=ST_Max);
 };
 
 } // namespace indexer
