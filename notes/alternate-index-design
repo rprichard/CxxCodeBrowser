@@ -1,0 +1,87 @@
+I'm still thinking about alternatives to the current indexdb design.  I think
+the ideal representation might be structured like this XML.  The existing
+indexdb design behaves like a tree -- the XML below is explicitly a tree.  It's
+more efficient if each Reference ref is stored without the file name.
+
+<index>
+<references>
+  <file path="foo.cc">
+    <ref line=100 startColumn=10 endColumn=13 symbol="foo" refType="Write" />
+    <ref line=100 startColumn=20 endColumn=13 symbol="foo" refType="Write" />
+    <ref line=101 startColumn=10 endColumn=13 symbol="foo" refType="Modify" />
+    <ref line=200 startColumn=10 endColumn=13 symbol="bar" refType="Write" />
+    <ref line=200 startColumn=20 endColumn=13 symbol="bar" refType="Write" />
+    <ref line=201 startColumn=10 endColumn=13 symbol="bar" refType="Modify" />
+  </file>
+</references>
+<references-index>
+  <symbol name="foo">
+    <ref refType="Write" path="foo.cc" line=100 startColumn=10 endColumn=13 />
+    <ref refType="Read" path="foo.cc" line=100 startColumn=20 endColumn=23 />
+    <ref refType="Modify" path="foo.cc" line=101 startColumn=10 endColumn=13 />
+  </symbol>
+  <symbol name="bar">
+    <ref refType="Write" path="foo.cc" line=200 startColumn=10 endColumn=13 />
+    <ref refType="Read" path="foo.cc" line=200 startColumn=20 endColumn=23 />
+    <ref refType="Modify" path="foo.cc" line=201 startColumn=10 endColumn=13 />
+  </symbol>
+</references-index>
+<symbols>
+  <symbol name="bar" type="GlobalVariable />
+  <symbol name="foo" type="LocalVariable />
+</symbols>
+<symbols-type-index>
+  <type name="GlobalVariable">
+    <symbol name="bar" />
+  </type>
+  <type name="LocalVariable">
+    <symbol name="foo" />
+  </type>
+</symbols-type-index>
+</index>
+
+Possible on-disk binary representation:
+
+A file is:
+ * A string table to map between integers and strings.
+ * A root ContainerNode.
+
+A ContainerNode is:
+ * A name StringID (VLE-encoded).
+ * A child count (VLE-encoded).
+ * Nonleaf vs Leaf children flag.
+ * A {Nonleaf,Leaf}ChildrenNode.  Children are in sorted order.
+
+A NonleafChildrenNode is:
+ * A table of children offsets, relative to the parent ContainerNode.
+
+A LeafChildrenNode is:
+ * Sequence of NUL-terminated LeafNode data.
+
+A LeafNode is a sequence of encoded integers.  Each integer is interpreted as a
+string if its low bit is set and an encoded integer otherwise.  (Or maybe a
+schema is still needed to control the encoding.  If we have a scheme, and if
+the parent node still has an offset for each LeafNode child, then a NUL
+terminator is also unneeded.)
+
+[This binary representation corresponds more closely to S-expressions than XML.
+e.g. (index (references ("foo.cc" (100 10 13 "foo" "Write") ...)))]
+
+Issues:
+ - What classes are used as the index is being built?
+ - Should offsets be placed *after* the content instead of before it?  I think
+   putting offsets before the content requires a layout pass before writing the
+   index (to calculate the value and encoded size of the offsets).
+ - How is the header file optimization implemented?  The same way it is with
+   the existing design?
+      (Suggestion: Add another level to the document schema.
+          (translation-unit ("<FOOHASH>-foo.cc" (references ...))
+                            ("<STDIOHASH>-stdio.h" (references ...)))
+      This suggestion implies that strings are shared between the 
+      translation-unit children.  When merging a translation-unit index, it
+      would probably be more efficient to merge the string table lazily,
+      because many of the strings would belong to files that were already
+      accounted for in the merged index.)
+ - What layer is compression (and header-file-optimization hashing) implemented
+   at?  Maybe the whole file is compressed?
+ - How does the performance compare with the existing design?

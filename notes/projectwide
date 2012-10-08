@@ -1,0 +1,3 @@
+Clarify/harmonize use of "path" vs "file" vs "name".
+
+Clarify/harmonize 0-based vs 1-based line and column indices.
