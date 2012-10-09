@@ -24,6 +24,7 @@ public:
         m_fileID(indexdb::kInvalidID),
         m_line(-1),
         m_column(-1),
+        m_endColumn(-1),
         m_kindID(indexdb::kInvalidID)
     {
     }
@@ -33,12 +34,14 @@ public:
             indexdb::ID fileID,
             int line,
             int column,
+            int endColumn,
             indexdb::ID kindID) :
         m_project(&project),
         m_symbolID(symbolID),
         m_fileID(fileID),
         m_line(line),
         m_column(column),
+        m_endColumn(endColumn),
         m_kindID(kindID)
     {
     }
@@ -49,6 +52,7 @@ public:
         return m_project->symbolStringTable().item(m_symbolID);
     }
 
+    indexdb::ID symbolID() const { return m_symbolID; }
     QString symbol() const { return symbolCStr(); }
 
     File &file() const {
@@ -58,6 +62,7 @@ public:
 
     int line() const { return m_line; }
     int column() const { return m_column; }
+    int endColumn() const { return m_endColumn; }
 
     QString kind() const {
         return m_project->refTypeStringTable().item(m_kindID);
@@ -69,6 +74,7 @@ private:
     indexdb::ID m_fileID;
     int m_line;         // 1-based
     int m_column;       // 1-based
+    int m_endColumn;    // 1-based
     indexdb::ID m_kindID;
 };
 
@@ -81,6 +87,7 @@ inline bool operator==(const Ref &x, const Ref &y)
             x.m_fileID == y.m_fileID &&
             x.m_line == y.m_line &&
             x.m_column == y.m_column &&
+            x.m_endColumn == y.m_endColumn &&
             x.m_kindID == y.m_kindID;
 }
 

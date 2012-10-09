@@ -11,28 +11,6 @@
 
 namespace Nav {
 
-// Reference table
-enum RefColumn {
-    RC_File         = 0,
-    RC_Line         = 1,
-    RC_StartColumn  = 2,
-    RC_EndColumn    = 3,
-    RC_Symbol       = 4,
-    RC_RefType      = 5,
-    RC_Count        = 6
-};
-
-// ReferenceIndex table
-enum RefIndexColumn {
-    RIC_Symbol      = 0,
-    RIC_RefType     = 1,
-    RIC_File        = 2,
-    RIC_Line        = 3,
-    RIC_StartColumn = 4,
-    RIC_EndColumn   = 5,
-    RIC_Count       = 6
-};
-
 Project *theProject;
 
 Project::Project(const QString &path)
@@ -43,6 +21,7 @@ Project::Project(const QString &path)
     m_refTypeStringTable = m_index->stringTable("ReferenceType");
     m_refTable = m_index->table("Reference");
     m_refIndexTable = m_index->table("ReferenceIndex");
+    m_symbolTable = m_index->table("Symbol");
     m_symbolTypeIndexTable = m_index->table("SymbolTypeIndex");
     m_globalSymbolTable = m_index->table("GlobalSymbol");
     assert(m_symbolStringTable != NULL);
@@ -50,6 +29,7 @@ Project::Project(const QString &path)
     assert(m_refTypeStringTable != NULL);
     assert(m_refTable != NULL);
     assert(m_refIndexTable != NULL);
+    assert(m_symbolTable != NULL);
     assert(m_symbolTypeIndexTable != NULL);
 
     // Query all the paths, then use that to initialize the FileManager.
@@ -60,6 +40,15 @@ Project::Project(const QString &path)
     // Start this query in the background.
     m_globalSymbolDefinitions =
             QtConcurrent::run(this, &Project::queryGlobalSymbolDefinitions);
+
+    // Load the symbol->symbolType map into memory for faster accesses.
+    m_symbolType.resize(m_symbolStringTable->size(), indexdb::kInvalidID);
+    indexdb::Row symbolRow(SC_Count);
+    for (indexdb::TableIterator it = m_symbolTable->begin(),
+            itEnd = m_symbolTable->end(); it != itEnd; ++it) {
+        it.value(symbolRow);
+        m_symbolType[symbolRow[SC_Symbol]] = symbolRow[SC_SymbolType];
+    }
 }
 
 Project::~Project()
@@ -91,14 +80,16 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
 
         indexdb::ID fileID = rowItem[RIC_File];
         int line = rowItem[RIC_Line];
-        int column = rowItem[RIC_StartColumn];
+        int startColumn = rowItem[RIC_StartColumn];
+        int endColumn = rowItem[RIC_EndColumn];
         indexdb::ID kindID = rowItem[RIC_RefType];
 
         result << Ref(*this,
                       symbolID,
                       fileID,
                       line,
-                      column,
+                      startColumn,
+                      endColumn,
                       kindID);
     }
 
@@ -234,9 +225,10 @@ std::vector<Ref> *Project::queryGlobalSymbolDefinitions()
             indexdb::ID symbolID = rowItem[RIC_Symbol];
             indexdb::ID fileID = rowItem[RIC_File];
             int line = rowItem[RIC_Line];
-            int column = rowItem[RIC_StartColumn];
+            int startColumn = rowItem[RIC_StartColumn];
+            int endColumn = rowItem[RIC_EndColumn];
             indexdb::ID kindID = rowItem[RIC_RefType];
-            ret->push_back(Ref(*this, symbolID, fileID, line, column, kindID));
+            ret->push_back(Ref(*this, symbolID, fileID, line, startColumn, endColumn, kindID));
         }
         end: ;
     }
@@ -260,6 +252,17 @@ QString Project::fileName(indexdb::ID fileID)
 const std::vector<Ref> &Project::globalSymbolDefinitions()
 {
     return *m_globalSymbolDefinitions.result();
+}
+
+indexdb::ID Project::querySymbolType(indexdb::ID symbolID)
+{
+    assert(symbolID < m_symbolType.size());
+    return m_symbolType[symbolID];
+}
+
+indexdb::ID Project::getSymbolTypeID(const char *symbolType)
+{
+    return m_symbolTypeStringTable->id(symbolType);
 }
 
 } // namespace Nav

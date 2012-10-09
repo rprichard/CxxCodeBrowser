@@ -21,6 +21,7 @@ bool operator<(const Ref &x, const Ref &y)
             static_cast<int64_t>(y.m_fileID));
     COMPARE(x.line() - y.line());
     COMPARE(x.column() - y.column());
+    COMPARE(x.endColumn() - y.endColumn());
     COMPARE(static_cast<int64_t>(x.m_kindID) -
             static_cast<int64_t>(y.m_kindID));
 #undef COMPARE

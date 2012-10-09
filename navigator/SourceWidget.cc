@@ -8,11 +8,13 @@
 #include <QTextBlock>
 #include <QScrollBar>
 #include <cassert>
+#include <unordered_map>
 
 #include "CXXSyntaxHighlighter.h"
 #include "File.h"
 #include "Misc.h"
 #include "Project.h"
+#include "Ref.h"
 #include "ReportRefList.h"
 #include "TreeReportWindow.h"
 #include "MainWindow.h"
@@ -66,6 +68,123 @@ static Qt::GlobalColor colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind)
     }
 }
 
+namespace {
+
+class ColorForRef {
+public:
+    ColorForRef(Project &project) : m_project(project) {
+        addMapping("GlobalVariable", Qt::darkCyan);
+        addMapping("Field", Qt::darkRed);
+        addMapping("Namespace", Qt::darkMagenta);
+        addMapping("Struct", Qt::darkMagenta);
+        addMapping("Class", Qt::darkMagenta);
+        addMapping("Union", Qt::darkMagenta);
+        addMapping("Enum", Qt::darkMagenta);
+        addMapping("Typedef", Qt::darkMagenta);
+    }
+
+    Qt::GlobalColor color(const Ref &ref) const {
+        auto it = m_map.find(m_project.querySymbolType(ref.symbolID()));
+        return it == m_map.end() ? Qt::transparent : it->second;
+    }
+
+private:
+    void addMapping(const char *symbolType, Qt::GlobalColor color) {
+        indexdb::ID symbolTypeID = m_project.getSymbolTypeID(symbolType);
+        if (symbolTypeID != indexdb::kInvalidID)
+            m_map[symbolTypeID] = color;
+    }
+
+    Project &m_project;
+    std::unordered_map<indexdb::ID, Qt::GlobalColor> m_map;
+};
+
+class LineLayout {
+public:
+    // line is 0-based.
+    LineLayout(
+            const QFont &font,
+            const QMargins &margins,
+            File &file,
+            int line) :
+        m_twc(TextWidthCalculator::getCachedTextWidthCalculator(font)),
+        m_fm(font)
+    {
+        m_lineContent = file.lineContent(line);
+        m_lineHeight = effectiveLineSpacing(m_fm);
+        m_lineTop = margins.top() + line * m_lineHeight;
+        m_lineBaselineY = m_lineTop + m_fm.ascent();
+        m_lineLeftMargin = margins.left();
+        m_lineStartIndex = file.lineStart(line);
+        m_tabStopPx = m_fm.width(QChar(' ')) * kTabStopSize;
+        m_charIndex = -1;
+        m_charIsSurrogatePair = false;
+        m_charLeft = 0;
+        m_charWidth = 0;
+    }
+
+    bool hasMoreChars()     { return nextCharIndex() < m_lineContent.size(); }
+
+    void advanceChar()
+    {
+        // Skip over the previous character.
+        m_charIndex = nextCharIndex();
+        m_charLeft += m_charWidth;
+        // Analyze the next character.
+        QChar ch = m_lineContent.at(m_charIndex);
+        if (!ch.isHighSurrogate()) {
+            m_charIsSurrogatePair = false;
+            if (ch.unicode() == '\t') {
+                m_charText.resize(0);
+                m_charWidth =
+                        (m_charLeft + m_tabStopPx) /
+                        m_tabStopPx * m_tabStopPx - m_charLeft;
+            } else {
+                m_charText.resize(1);
+                m_charText[0] = m_lineContent.at(m_charIndex);
+                m_charWidth = m_twc.calculate(m_charText);
+            }
+        } else {
+            // TODO: Test that this surrogate pair code actually works.
+            m_charIsSurrogatePair = true;
+            m_charText.resize(2);
+            m_charText[0] = m_lineContent.at(m_charIndex);
+            m_charText[1] = m_lineContent.at(m_charIndex + 1);
+            m_charWidth = m_twc.calculate(m_charText);
+        }
+    }
+
+    int charColumn()        { return m_charIndex; }
+    int charFileIndex()     { return m_lineStartIndex + m_charIndex; }
+    int charLeft()          { return m_lineLeftMargin + m_charLeft; }
+    int charWidth()         { return m_charWidth; }
+    int lineTop()           { return m_lineTop; }
+    int lineHeight()        { return m_lineHeight; }
+    int lineBaselineY()     { return m_lineBaselineY; }
+    QString &charText()     { return m_charText; }
+
+private:
+    int nextCharIndex()     { return m_charIndex + 1 + m_charIsSurrogatePair; }
+
+private:
+    TextWidthCalculator m_twc;
+    QFontMetrics m_fm;
+    QStringRef m_lineContent;
+    int m_lineTop;
+    int m_lineHeight;
+    int m_lineBaselineY;
+    int m_lineLeftMargin;
+    int m_lineStartIndex;
+    int m_tabStopPx;
+    int m_charIndex;
+    bool m_charIsSurrogatePair;
+    int m_charLeft;
+    int m_charWidth;
+    QString m_charText;
+};
+
+} // anonymous namespace
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // SourceWidgetLineArea
@@ -113,16 +232,32 @@ SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
 void SourceWidgetView::setFile(File *file)
 {
     m_file = file;
-    m_syntaxColoring.clear();
     m_maxLineLength = 0;
     m_selection = FileRange();
 
     if (m_file != NULL) {
-        m_syntaxColoring = CXXSyntaxHighlighter::highlight(m_file->content());
+        QString content = m_file->content();
+        auto syntaxColoringKind = CXXSyntaxHighlighter::highlight(content);
+
+        // Color characters according to the lexed character kind.
+        m_syntaxColoring.resize(content.size());
+        for (size_t i = 0; i < syntaxColoringKind.size(); ++i) {
+            m_syntaxColoring[i] = colorForSyntaxKind(syntaxColoringKind[i]);
+        }
+
+        // Color characters according to the index's refs.
+        ColorForRef colorForRef(m_project);
+        m_project.queryFileRefs(*m_file, [=](const Ref &ref) {
+            int offset = this->m_file->lineStart(ref.line() - 1);
+            Qt::GlobalColor color = colorForRef.color(ref);
+            if (color != Qt::transparent) {
+                for (int i = ref.column() - 1; i < ref.endColumn() - 1; ++i)
+                    m_syntaxColoring[offset + i] = color;
+            }
+        });
 
         // Measure the longest line.
         int maxLength = 0;
-        const QString &content = m_file->content();
         for (int i = 0, lineCount = m_file->lineCount(); i < lineCount; ++i) {
             maxLength = std::max(
                         maxLength,
@@ -131,7 +266,6 @@ void SourceWidgetView::setFile(File *file)
                                           m_file->lineLength(i),
                                           kTabStopSize));
         }
-
         m_maxLineLength = maxLength;
     }
 
@@ -141,107 +275,91 @@ void SourceWidgetView::setFile(File *file)
 
 void SourceWidgetView::paintEvent(QPaintEvent *event)
 {
-    if (m_file != NULL) {
-        QFontMetrics fm = fontMetrics();
-        const int firstBaseline = fm.ascent() + m_margins.top();
-        const int lineSpacing = effectiveLineSpacing(fm);
-        QPainter painter(this);
+    if (m_file == NULL)
+        return;
 
-        // Fill in a rectangle for the selected identifier.
-        if (!m_selection.isEmpty()) {
-            assert(m_selection.start.line == m_selection.end.line);
-            QPoint pt1 = locationToPoint(m_selection.start);
-            QPoint pt2 = locationToPoint(m_selection.end);
-            painter.fillRect(pt1.x(), pt1.y(), (pt2 - pt1).x(), lineSpacing,
-                             palette().highlight().color());
-        }
+    const int lineSpacing = effectiveLineSpacing(fontMetrics());
+    QPainter painter(this);
 
-        // Paint lines in the clip region.
-        //
-        // XXX: Consider restricting the painting horizontally too.
-        // XXX: Support characters outside the Unicode BMP (i.e. UTF-16
-        // surrogate pairs).
-        //
-        const int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
-        const int line2 = std::min(event->rect().bottom() / lineSpacing + 2,
-                                   m_file->lineCount() - 1);
-        QColor currentColor(Qt::black);
-        painter.setPen(QColor(currentColor));
-        const int tabStopPx = fm.width(' ') * kTabStopSize;
-        for (int line = line1; line <= line2; ++line) {
-            int lineStart = m_file->lineStart(line);
-            QString lineContent = m_file->lineContent(line).toString();
-            int x = 0;
-            QString oneChar(QChar('\0'));
-            for (int column = 0; column < lineContent.size(); ++column) {
-                oneChar[0] = lineContent[column];
-                CXXSyntaxHighlighter::Kind kind =
-                        m_syntaxColoring[lineStart + column];
-                QColor color(colorForSyntaxKind(kind));
-
-
-                // TODO: Use index information to color identifiers.  Ideally,
-                // we'd color them differently depending upon the kind of
-                // identifier.  e.g.:
-                //  - types vs
-                //  - members vs
-                //  - local variables
-
-
-                // Color the selected characters to match the selected
-                // background.
-                FileLocation loc(line, column);
-                if (loc >= m_selection.start && loc < m_selection.end)
-                    color = palette().highlightedText().color();
-
-                if (color != currentColor) {
-                    painter.setPen(color);
-                    currentColor = color;
-                }
-                if (oneChar[0] == '\t') {
-                    x = (x + tabStopPx) / tabStopPx * tabStopPx;
-                } else {
-                    painter.drawText(
-                                x + m_margins.left(),
-                                firstBaseline + line * lineSpacing,
-                                oneChar);
-                    x += fm.width(oneChar[0]);
-                }
-            }
-        }
+    // Fill in a rectangle for the selected identifier.
+    if (!m_selection.isEmpty()) {
+        assert(m_selection.start.line == m_selection.end.line);
+        QPoint pt1 = locationToPoint(m_selection.start);
+        QPoint pt2 = locationToPoint(m_selection.end);
+        painter.fillRect(pt1.x(), pt1.y(), (pt2 - pt1).x(), lineSpacing,
+                         palette().highlight().color());
     }
 
-    QWidget::paintEvent(event);
+    // Paint lines in the clip region.
+    const int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
+    const int line2 = std::min(event->rect().bottom() / lineSpacing + 2,
+                               m_file->lineCount() - 1);
+    if (line1 > line2)
+        return;
+
+    for (int line = line1; line <= line2; ++line)
+        paintLine(painter, line, event->rect());
+}
+
+int SourceWidgetView::lineTop(int line)
+{
+    return effectiveLineSpacing(fontMetrics()) * line + m_margins.top();
+}
+
+// line is 0-based.
+void SourceWidgetView::paintLine(
+        QPainter &painter,
+        int line,
+        const QRect &rect)
+{
+    LineLayout lay(font(), m_margins, *m_file, line);
+    QColor currentColor(Qt::black);
+    painter.setPen(currentColor);
+
+    while (lay.hasMoreChars()) {
+        lay.advanceChar();
+        if (lay.charLeft() > rect.right())
+            break;
+        if (lay.charLeft() + lay.charWidth() <= rect.left())
+            continue;
+        if (!lay.charText().isEmpty()) {
+            FileLocation loc(line, lay.charColumn());
+            QColor color(m_syntaxColoring[lay.charFileIndex()]);
+
+            // Override the color for selected text.
+            if (loc >= m_selection.start && loc < m_selection.end)
+                color = palette().highlightedText().color();
+
+            // Set the painter pen when the color changes.
+            if (color != currentColor) {
+                painter.setPen(color);
+                currentColor = color;
+            }
+
+            painter.drawText(
+                        lay.charLeft(),
+                        lay.lineBaselineY(),
+                        lay.charText());
+        }
+    }
 }
 
 FileLocation SourceWidgetView::hitTest(QPoint pixel)
 {
     if (m_file == NULL)
         return FileLocation();
-
     QFontMetrics fm = fontMetrics();
-    const int tabStopPx = fm.width(' ') * kTabStopSize;
-    int hitX = pixel.x() - m_margins.left();
-    int hitY = pixel.y() - m_margins.top();
-    int line = hitY / effectiveLineSpacing(fm);
-
+    int line = (pixel.y() - m_margins.top()) / effectiveLineSpacing(fm);
     if (line < 0) {
         return FileLocation(0, 0);
     } else if (line >= m_file->lineCount()) {
         return FileLocation(m_file->lineCount(), 0);
     } else {
-        QStringRef content = m_file->lineContent(line);
-        int x = 0;
-        for (int column = 0, lineLength = m_file->lineLength(line);
-                column < lineLength; ++column) {
-            QChar ch = content.at(column);
-            if (ch == '\t') {
-                x = (x + tabStopPx) / tabStopPx * tabStopPx;
-            } else {
-                x += fm.width(ch);
-            }
-            if (hitX < x)
-                return FileLocation(line, column);
+        LineLayout lay(font(), m_margins, *m_file, line);
+        while (lay.hasMoreChars()) {
+            lay.advanceChar();
+            if (pixel.x() < lay.charLeft() + lay.charWidth())
+                return FileLocation(line, lay.charColumn());
         }
         return FileLocation(line, m_file->lineLength(line));
     }
@@ -251,27 +369,15 @@ QPoint SourceWidgetView::locationToPoint(FileLocation loc)
 {
     if (m_file == NULL || loc.isNull())
         return QPoint(m_margins.left(), m_margins.top());
-
-    QFontMetrics fm = fontMetrics();
-    const int lineSpacing = effectiveLineSpacing(fm);
-    const int tabStopPx = fm.width(' ') * kTabStopSize;
-    if (loc.line >= m_file->lineCount()) {
-        return QPoint(m_margins.left(),
-                      m_margins.top() + lineSpacing * m_file->lineCount());
+    if (loc.line >= m_file->lineCount())
+        return QPoint(m_margins.left(), lineTop(m_file->lineCount()));
+    LineLayout lay(font(), m_margins, *m_file, loc.line);
+    while (lay.hasMoreChars()) {
+        lay.advanceChar();
+        if (lay.charColumn() == loc.column)
+            return QPoint(lay.charLeft(), lineTop(loc.line));
     }
-    QStringRef content = m_file->lineContent(loc.line);
-    int x = 0;
-    int endColumn = std::min(loc.column, m_file->lineLength(loc.line));
-    for (int column = 0; column < endColumn; ++column) {
-        QChar ch = content.at(column);
-        if (ch == '\t') {
-            x = (x + tabStopPx) / tabStopPx * tabStopPx;
-        } else {
-            x += fm.width(ch);
-        }
-    }
-    return QPoint(m_margins.left() + x,
-                  m_margins.top() + lineSpacing * loc.line);
+    return QPoint(lay.charLeft() + lay.charWidth(), lineTop(loc.line));
 }
 
 QSize SourceWidgetView::sizeHint() const
@@ -433,6 +539,7 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     font.setFamily("Monospace");
     font.setPointSize(8);
     font.setStyleStrategy(QFont::ForceIntegerMetrics);
+    font.setKerning(false);
     widget()->setFont(font);
     m_lineArea->setFont(font);
 

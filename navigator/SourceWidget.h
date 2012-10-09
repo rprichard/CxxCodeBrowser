@@ -157,6 +157,8 @@ signals:
 
 private:
     void paintEvent(QPaintEvent *event);
+    int lineTop(int line);
+    void paintLine(QPainter &painter, int line, const QRect &rect);
 
     void mousePressEvent(QMouseEvent *event);
     void mouseReleaseEvent(QMouseEvent *event);
@@ -170,7 +172,7 @@ private:
     QMargins m_margins;
     Project &m_project;
     File *m_file;
-    QVector<CXXSyntaxHighlighter::Kind> m_syntaxColoring;
+    std::vector<Qt::GlobalColor> m_syntaxColoring;
     int m_maxLineLength;
     FileRange m_selection;
 };

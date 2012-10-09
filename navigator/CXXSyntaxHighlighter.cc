@@ -29,9 +29,9 @@ static inline bool isAlnum(QChar ch)
     return ui - '0' < 10 || ui - 'a' < 26 || ui - 'A' < 26;
 }
 
-QVector<Kind> highlight(const QString &content)
+std::vector<Kind> highlight(const QString &content)
 {
-    QVector<Kind> result;
+    std::vector<Kind> result;
     result.resize(content.size());
 
     const QChar *p = content.data();
