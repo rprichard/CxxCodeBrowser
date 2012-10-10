@@ -11,32 +11,34 @@ namespace CXXSyntaxHighlighter {
 // These character classification routines are inlinable and ASCII-only, which
 // is good enough for a C/C++ syntax highlighter.
 
-static inline bool isDigit(QChar ch)
+static inline bool isDigit(char ch)
 {
-    unsigned int ui = static_cast<unsigned>(ch.unicode());
+    //unsigned int ui = static_cast<unsigned>(ch.unicode());
+    unsigned int ui = ch;
     return ui - '0' < 10;
 }
 
-static inline bool isAlpha(QChar ch)
+static inline bool isAlpha(char ch)
 {
-    unsigned int ui = static_cast<unsigned>(ch.unicode());
+    //unsigned int ui = static_cast<unsigned>(ch.unicode());
+    unsigned int ui = ch;
     return ui - 'a' < 26 || ui - 'A' < 26;
 }
 
-static inline bool isAlnum(QChar ch)
+static inline bool isAlnum(char ch)
 {
-    unsigned int ui = static_cast<unsigned>(ch.unicode());
+    unsigned int ui = ch; // static_cast<unsigned>(ch.unicode());
     return ui - '0' < 10 || ui - 'a' < 26 || ui - 'A' < 26;
 }
 
-std::vector<Kind> highlight(const QString &content)
+std::vector<Kind> highlight(const std::string &content)
 {
     std::vector<Kind> result;
     result.resize(content.size());
 
-    const QChar *p = content.data();
+    const char *p = content.c_str();
     Kind *k = result.data();
-    unsigned short quoteChar = '\'';
+    char quoteChar;
     Kind *preprocStart;
     char text[32];
     char *pText;
@@ -48,7 +50,7 @@ std::vector<Kind> highlight(const QString &content)
     const char *importDirective =
             Directives::in_word_set("import", strlen("import"));
 
-#define CH(i) p[i].unicode()
+#define CH(i) p[i]
 #define ADVANCE(KIND) do { *k++ = KIND; p++; } while(0)
 
 START_OF_LINE:
@@ -94,7 +96,7 @@ START_OF_LINE:
     } else if (CH(0) == ' ' || CH(0) == '\t' || CH(0) == '\n') {
         ADVANCE(KindDefault);
         goto START_OF_LINE;
-    } else if (p[0].isNull()) {
+    } else if (p[0] == '\0') {
         goto END;
     } else {
         goto DEFAULT;
@@ -129,7 +131,7 @@ DEFAULT:
     } else if (CH(0) == '\n') {
         ADVANCE(KindDefault);
         goto START_OF_LINE;
-    } else if (p[0].isNull()) {
+    } else if (p[0] == '\0') {
         goto END;
     } else {
         ADVANCE(KindDefault);
@@ -141,7 +143,7 @@ BLOCK_COMMENT:
         ADVANCE(KindComment);
         ADVANCE(KindComment);
         goto DEFAULT;
-    } else if (p[0].isNull()) {
+    } else if (p[0] == '\0') {
         goto END;
     } else {
         ADVANCE(KindComment);
@@ -153,7 +155,7 @@ LINE_COMMENT:
         // XXX: GCC/Clang allow whitespace between the backslash and newline.
         ADVANCE(KindComment);
         goto START_OF_LINE;
-    } else if (p[0].isNull()) {
+    } else if (p[0] == '\0') {
         goto END;
     } else {
         ADVANCE(KindComment);
@@ -168,7 +170,7 @@ QUOTED:
     } else if (CH(0) == quoteChar) {
         ADVANCE(KindQuoted);
         goto DEFAULT;
-    } else if (p[0].isNull()) {
+    } else if (p[0] == '\0') {
         goto END;
     } else {
         ADVANCE(KindQuoted);
@@ -213,7 +215,7 @@ TEXT:
 #undef ADVANCE
 
 END:
-    assert(p == content.data() + content.size());
+    assert(p == content.c_str() + content.size());
     assert(k == result.data() + result.size());
 
     return result;

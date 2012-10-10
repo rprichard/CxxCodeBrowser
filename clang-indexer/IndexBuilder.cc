@@ -19,6 +19,12 @@ IndexBuilder::IndexBuilder(indexdb::Index &index, bool createIndexTables) :
     m_symbolTypeStringTable = index.addStringTable("SymbolType");
     m_refTypeStringTable    = index.addStringTable("ReferenceType");
 
+    // Note: A "column" is really a byte offset into the line's content.
+    // Assuming the file is encoded with UTF-8, a tab character occupies just
+    // one column, but a Unicode code point may occupy several columns.  An
+    // "end" column refers to the position just past the reference, not to the
+    // last character of it.
+
     // A list of all references to a symbol.  A reference is a location and a
     // type (such as Definition, Declaration, Call).
     std::vector<std::string> refColumns;

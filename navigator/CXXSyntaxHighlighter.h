@@ -20,7 +20,7 @@ enum Kind : unsigned char {
     KindDirective // preprocessor directive
 };
 
-std::vector<Kind> highlight(const QString &content);
+std::vector<Kind> highlight(const std::string &content);
 
 } // namespace CXXSyntaxHighlighter
 } // namespace Nav

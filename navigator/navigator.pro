@@ -46,7 +46,8 @@ HEADERS += \
     History.h \
     Folder.h \
     FolderItem.h \
-    FolderWidget.h
+    FolderWidget.h \
+    StringRef.h
 
 FORMS += \
     MainWindow.ui \

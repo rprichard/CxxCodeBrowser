@@ -30,11 +30,11 @@ static inline QSize marginsToSize(const QMargins &margins)
 }
 
 // Measure the size of the line after expanding tab stops.
-static int measureLineLength(const QString &data, int start, int size, int tabStopSize)
+static int measureLineLength(StringRef line, int tabStopSize)
 {
     int pos = 0;
-    for (int i = start; i < start + size; ++i) {
-        if (data[i].unicode() == '\t')
+    for (size_t i = 0; i < line.size(); ++i) {
+        if (line[i] == '\t')
             pos = (pos + tabStopSize) / tabStopSize * tabStopSize;
         else
             pos++;
@@ -99,6 +99,35 @@ private:
     std::unordered_map<indexdb::ID, Qt::GlobalColor> m_map;
 };
 
+static inline int utf8CharLen(const char *pch)
+{
+    unsigned char ch = *pch;
+    if ((ch & 0x80) == 0)
+        return 1;
+    else if ((ch & 0xE0) == 0xC0)
+        return 2;
+    else if ((ch & 0xF0) == 0xE0)
+        return 3;
+    else if ((ch & 0xF8) == 0xF0)
+        return 4;
+    else if ((ch & 0xFC) == 0xF8)
+        return 5;
+    else if ((ch & 0xFE) == 0xFC)
+        return 6;
+    // Invalid UTF-8.
+    return 1;
+}
+
+static inline int utf8PrevCharLen(const char *nextChar, int maxLen)
+{
+    assert(maxLen > 0);
+    maxLen = std::min(maxLen, 6);
+    int len = 1;
+    while (len < maxLen && (nextChar[-len] & 0xC0) == 0x80)
+        len++;
+    return len;
+}
+
 class LineLayout {
 public:
     // line is 0-based.
@@ -118,12 +147,14 @@ public:
         m_lineStartIndex = file.lineStart(line);
         m_tabStopPx = m_fm.width(QChar(' ')) * kTabStopSize;
         m_charIndex = -1;
-        m_charIsSurrogatePair = false;
         m_charLeft = 0;
         m_charWidth = 0;
     }
 
-    bool hasMoreChars()     { return nextCharIndex() < m_lineContent.size(); }
+    bool hasMoreChars()
+    {
+        return nextCharIndex() < static_cast<int>(m_lineContent.size());
+    }
 
     void advanceChar()
     {
@@ -131,45 +162,43 @@ public:
         m_charIndex = nextCharIndex();
         m_charLeft += m_charWidth;
         // Analyze the next character.
-        QChar ch = m_lineContent.at(m_charIndex);
-        if (!ch.isHighSurrogate()) {
-            m_charIsSurrogatePair = false;
-            if (ch.unicode() == '\t') {
-                m_charText.resize(0);
-                m_charWidth =
-                        (m_charLeft + m_tabStopPx) /
-                        m_tabStopPx * m_tabStopPx - m_charLeft;
-            } else {
-                m_charText.resize(1);
-                m_charText[0] = m_lineContent.at(m_charIndex);
-                m_charWidth = m_twc.calculate(m_charText);
-            }
+        const char *const pch = &m_lineContent[m_charIndex];
+        if (*pch == '\t') {
+            m_charText.clear();
+            m_charWidth =
+                    (m_charLeft + m_tabStopPx) /
+                    m_tabStopPx * m_tabStopPx - m_charLeft;
         } else {
-            // TODO: Test that this surrogate pair code actually works.
-            m_charIsSurrogatePair = true;
-            m_charText.resize(2);
-            m_charText[0] = m_lineContent.at(m_charIndex);
-            m_charText[1] = m_lineContent.at(m_charIndex + 1);
-            m_charWidth = m_twc.calculate(m_charText);
+            int len = charByteLen();
+            m_charText.resize(len);
+            for (int i = 0; i < len; ++i)
+                m_charText[i] = pch[i];
+            m_charWidth = m_twc.calculate(m_charText.c_str());
         }
     }
 
-    int charColumn()        { return m_charIndex; }
-    int charFileIndex()     { return m_lineStartIndex + m_charIndex; }
-    int charLeft()          { return m_lineLeftMargin + m_charLeft; }
-    int charWidth()         { return m_charWidth; }
-    int lineTop()           { return m_lineTop; }
-    int lineHeight()        { return m_lineHeight; }
-    int lineBaselineY()     { return m_lineBaselineY; }
-    QString &charText()     { return m_charText; }
+    int charColumn()                { return m_charIndex; }
+    int charFileIndex()             { return m_lineStartIndex + m_charIndex; }
+    int charLeft()                  { return m_lineLeftMargin + m_charLeft; }
+    int charWidth()                 { return m_charWidth; }
+    int lineTop()                   { return m_lineTop; }
+    int lineHeight()                { return m_lineHeight; }
+    int lineBaselineY()             { return m_lineBaselineY; }
+    const std::string &charText()   { return m_charText; }
 
 private:
-    int nextCharIndex()     { return m_charIndex + 1 + m_charIsSurrogatePair; }
+    int charByteLen()
+    {
+        return std::min<int>(utf8CharLen(&m_lineContent[m_charIndex]),
+                             m_lineContent.size() - m_charIndex);
+    }
+
+    int nextCharIndex()             { return m_charIndex + charByteLen(); }
 
 private:
     TextWidthCalculator m_twc;
     QFontMetrics m_fm;
-    QStringRef m_lineContent;
+    StringRef m_lineContent;
     int m_lineTop;
     int m_lineHeight;
     int m_lineBaselineY;
@@ -177,10 +206,9 @@ private:
     int m_lineStartIndex;
     int m_tabStopPx;
     int m_charIndex;
-    bool m_charIsSurrogatePair;
     int m_charLeft;
     int m_charWidth;
-    QString m_charText;
+    std::string m_charText;
 };
 
 } // anonymous namespace
@@ -236,7 +264,7 @@ void SourceWidgetView::setFile(File *file)
     m_selection = FileRange();
 
     if (m_file != NULL) {
-        QString content = m_file->content();
+        const std::string &content = m_file->content();
         auto syntaxColoringKind = CXXSyntaxHighlighter::highlight(content);
 
         // Color characters according to the lexed character kind.
@@ -248,11 +276,17 @@ void SourceWidgetView::setFile(File *file)
         // Color characters according to the index's refs.
         ColorForRef colorForRef(m_project);
         m_project.queryFileRefs(*m_file, [=](const Ref &ref) {
-            int offset = this->m_file->lineStart(ref.line() - 1);
+            if (ref.line() > m_file->lineCount())
+                return;
+            int offset = m_file->lineStart(ref.line() - 1);
             Qt::GlobalColor color = colorForRef.color(ref);
             if (color != Qt::transparent) {
-                for (int i = ref.column() - 1; i < ref.endColumn() - 1; ++i)
+                for (int i = ref.column() - 1,
+                        iEnd = std::min(ref.endColumn() - 1,
+                                        m_file->lineLength(ref.line() - 1));
+                        i < iEnd; ++i) {
                     m_syntaxColoring[offset + i] = color;
+                }
             }
         });
 
@@ -261,9 +295,7 @@ void SourceWidgetView::setFile(File *file)
         for (int i = 0, lineCount = m_file->lineCount(); i < lineCount; ++i) {
             maxLength = std::max(
                         maxLength,
-                        measureLineLength(content,
-                                          m_file->lineStart(i),
-                                          m_file->lineLength(i),
+                        measureLineLength(m_file->lineContent(i),
                                           kTabStopSize));
         }
         m_maxLineLength = maxLength;
@@ -322,7 +354,7 @@ void SourceWidgetView::paintLine(
             break;
         if (lay.charLeft() + lay.charWidth() <= rect.left())
             continue;
-        if (!lay.charText().isEmpty()) {
+        if (!lay.charText().empty()) {
             FileLocation loc(line, lay.charColumn());
             QColor color(m_syntaxColoring[lay.charFileIndex()]);
 
@@ -339,7 +371,7 @@ void SourceWidgetView::paintLine(
             painter.drawText(
                         lay.charLeft(),
                         lay.lineBaselineY(),
-                        lay.charText());
+                        lay.charText().c_str());
         }
     }
 }
@@ -394,16 +426,27 @@ FileRange SourceWidgetView::findWordAtLocation(const FileLocation &pt)
 {
     if (m_file == NULL || !pt.doesPointAtChar(*m_file))
         return FileRange();
-    QStringRef content = m_file->lineContent(pt.line);
-    if (!isIdentifierChar(content.at(pt.column)))
-        return FileRange(pt, FileLocation(pt.line, pt.column + 1));
+    StringRef content = m_file->lineContent(pt.line);
+    if (!isIdentifierChar(content[pt.column])) {
+        int endColumn = pt.column + utf8CharLen(&content[pt.column]);
+        return FileRange(pt, FileLocation(pt.line, endColumn));
+    }
+
     int x1 = pt.column;
-    while (x1 - 1 >= 0 && isIdentifierChar(content.at(x1 - 1)))
-        x1--;
+    while (x1 > 0) {
+        int prevColumn = x1 - utf8PrevCharLen(&content[x1], x1);
+        if (isIdentifierChar(content[prevColumn]))
+            x1 = prevColumn;
+        else
+            break;
+    }
+
     int x2 = pt.column;
-    while (x2 + 1 < content.size() && isIdentifierChar(content.at(x2 + 1)))
-        x2++;
-    return FileRange(FileLocation(pt.line, x1), FileLocation(pt.line, x2 + 1));
+    while (x2 < static_cast<int>(content.size()) &&
+            isIdentifierChar(content[x2]))
+        x2 += utf8CharLen(&content[x2]);
+
+    return FileRange(FileLocation(pt.line, x1), FileLocation(pt.line, x2));
 }
 
 FileRange SourceWidgetView::findWordAtPoint(QPoint pt)

@@ -28,7 +28,7 @@ void File::loadFile()
 {
     QFile qfile(m_path);
     if (!qfile.open(QFile::ReadOnly)) {
-        m_content = "Error: cannot open " + m_path;
+        m_content = "Error: cannot open " + m_path.toStdString();
     } else {
         // Read the file and canonicalize CRLF and CR line endings to LF.
         char *buf = new char[qfile.size() + 1];
@@ -45,20 +45,18 @@ void File::loadFile()
                 *(d++) = *(s++);
             }
         }
-        *(d++) = '\0';
-        m_content = buf;
+        m_content = std::string(buf, d - buf);
         delete [] buf;
     }
 
     // Identify where each line begins.
-    QChar *data = m_content.data();
-    const QChar charNL = '\n';
+    const char *data = m_content.c_str();
     int lineStart = 0;
     for (int i = 0; ; i++) {
-        if (data[i] == charNL) {
+        if (data[i] == '\n') {
             m_lines.push_back(std::make_pair(lineStart, i - lineStart));
             lineStart = i + 1;
-        } else if (data[i].isNull()) {
+        } else if (data[i] == '\0') {
             if (i > lineStart)
                 m_lines.push_back(std::make_pair(lineStart, i - lineStart));
             break;

@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "FolderItem.h"
+#include "StringRef.h"
 
 namespace Nav {
 
@@ -26,7 +27,7 @@ public:
     QString path();
     QString title();
 
-    QString content() {
+    const std::string &content() {
         ensureLoaded();
         return m_content;
     }
@@ -51,9 +52,9 @@ public:
     }
 
     // 0-based line number
-    QStringRef lineContent(int line) {
+    StringRef lineContent(int line) {
         ensureLoaded();
-        return QStringRef(&m_content, lineStart(line), lineLength(line));
+        return StringRef(m_content.c_str() + lineStart(line), lineLength(line));
     }
 
 private:
@@ -67,7 +68,7 @@ private:
     Folder *m_parent;
     QString m_path;
     bool m_loaded;
-    QString m_content;
+    std::string m_content;
     std::vector<std::pair<int, int> > m_lines;
 };
 
