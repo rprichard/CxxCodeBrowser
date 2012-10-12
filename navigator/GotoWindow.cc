@@ -422,9 +422,6 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     assert(m_pendingFilteredSymbols != NULL);
     m_pendingFilteredSymbols->waitForFinished();
     assert(m_pendingFilteredSymbols == NULL);
-    //symbolFilteringDone(m_pendingFilteredSymbols);
-
-    project.globalSymbolDefinitions();
 }
 
 GotoWindow::~GotoWindow()
