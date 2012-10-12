@@ -34,8 +34,6 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
 {
     ui->setupUi(this);
     m_sourceWidget = new SourceWidget(project);
-    //setLayout(new QHBoxLayout());
-    //layout()->addWidget(m_sourceWidget);
 
     m_folderWidget = new FolderWidget(project.fileManager());
     m_splitter = new QSplitter(Qt::Horizontal);
