@@ -11,6 +11,8 @@
 
 namespace Nav {
 
+const char kPathSymbolPrefix = '@';
+
 Project *theProject;
 
 Project::Project(const QString &path)
@@ -96,39 +98,6 @@ QList<Ref> Project::queryReferencesOfSymbol(const QString &symbol)
     return result;
 }
 
-QStringList Project::querySymbolsAtLocation(File *file, int line, int column)
-{
-    QSet<QString> result;
-
-    indexdb::ID fileID = this->fileID(file->path());
-    if (fileID == indexdb::kInvalidID)
-        return QStringList();
-
-    indexdb::Row rowLookup(3);
-    assert(RC_File < 3);
-    assert(RC_Line < 3);
-    assert(RC_StartColumn < 3);
-    rowLookup[RC_File] = fileID;
-    rowLookup[RC_Line] = line;
-    rowLookup[RC_StartColumn] = column;
-
-    indexdb::TableIterator itEnd = m_refTable->end();
-    indexdb::TableIterator it = m_refTable->lowerBound(rowLookup);
-    for (; it != itEnd; ++it) {
-        indexdb::Row rowItem(RC_Count);
-        it.value(rowItem);
-        if (rowLookup[RC_File] != rowItem[RC_File] ||
-                rowLookup[RC_Line] != rowItem[RC_Line] ||
-                rowLookup[RC_StartColumn] != rowItem[RC_StartColumn])
-            break;
-        result << m_symbolStringTable->item(rowItem[RC_Symbol]);
-    }
-
-    QStringList resultList = result.toList();
-    qSort(resultList);
-    return resultList;
-}
-
 void Project::queryAllSymbols(std::vector<const char*> &output)
 {
     output.resize(m_symbolStringTable->size());
@@ -154,7 +123,7 @@ QStringList Project::queryAllPaths()
         if (row[0] != pathTypeID)
             break;
         const char *path = m_symbolStringTable->item(row[1]);
-        assert(path[0] == '@');
+        assert(path[0] == kPathSymbolPrefix);
         result.append(path + 1);
     }
     return result;
@@ -164,11 +133,18 @@ QStringList Project::queryAllPaths()
 // isn't a single such ref, return NULL.
 Ref Project::findSingleDefinitionOfSymbol(const QString &symbol)
 {
+    if (symbol.startsWith(kPathSymbolPrefix)) {
+        indexdb::ID id = fileID(symbol.mid(1));
+        if (id != indexdb::kInvalidID) {
+            return Ref(*this, id, id, 1, 1, 1, indexdb::kInvalidID);
+        }
+    }
+
     int declCount = 0;
     int defnCount = 0;
     Ref decl;
     Ref defn;
-    QList<Ref> refs = theProject->queryReferencesOfSymbol(symbol);
+    QList<Ref> refs = queryReferencesOfSymbol(symbol);
     for (const Ref &ref : refs) {
         if (declCount < 2 && ref.kind() == "Declaration") {
             declCount++;
@@ -238,14 +214,14 @@ std::vector<Ref> *Project::queryGlobalSymbolDefinitions()
 
 indexdb::ID Project::fileID(const QString &path)
 {
-    QString symbol = "@" + path;
-    return m_symbolStringTable->id(symbol.toStdString().c_str());
+    std::string symbol = kPathSymbolPrefix + path.toStdString();
+    return m_symbolStringTable->id(symbol.c_str());
 }
 
 QString Project::fileName(indexdb::ID fileID)
 {
     const char *name = m_symbolStringTable->item(fileID);
-    assert(name[0] == '@');
+    assert(name[0] == kPathSymbolPrefix);
     return name + 1;
 }
 

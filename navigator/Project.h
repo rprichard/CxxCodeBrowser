@@ -31,7 +31,6 @@ public:
     FileManager &fileManager() { return *m_fileManager; }
 
     QList<Ref> queryReferencesOfSymbol(const QString &symbol);
-    QStringList querySymbolsAtLocation(File *file, int line, int column);
     void queryAllSymbols(std::vector<const char*> &output);
     QStringList queryAllPaths();
     Ref findSingleDefinitionOfSymbol(const QString &symbol);

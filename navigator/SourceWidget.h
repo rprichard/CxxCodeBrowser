@@ -4,6 +4,8 @@
 #include <QList>
 #include <QPlainTextEdit>
 #include <QScrollArea>
+#include <set>
+#include <string>
 #include <utility>
 
 #include "File.h"
@@ -96,7 +98,7 @@ struct FileRange {
     }
     FileLocation start;
     FileLocation end;
-    bool isEmpty() { return start == end; }
+    bool isEmpty() const { return start == end; }
 };
 
 inline bool operator==(const FileRange &x, const FileRange &y) {
@@ -141,9 +143,7 @@ public:
     void setFile(File *file);
     File *file() { return m_file; }
     FileLocation hitTest(QPoint pt);
-    FileRange findWordAtLocation(const FileLocation &pt);
-    FileRange findWordAtPoint(QPoint pt);
-    void setSelection(const FileRange &fileRange) { m_selection = fileRange; update(); }
+    void setSelection(const FileRange &fileRange) { m_selectionRange = fileRange; update(); }
     QPoint locationToPoint(FileLocation loc);
     QSize sizeHint() const;
     QSize minimumSizeHint() const { return sizeHint(); }
@@ -156,7 +156,14 @@ signals:
     void revealInSideBar();
 
 private:
+    FileRange findWordAtLocation(const FileLocation &pt);
+    FileRange findWordAtPoint(QPoint pt);
+    std::set<std::string> findSymbolsAtRange(const FileRange &range);
     void paintEvent(QPaintEvent *event);
+    void fillRangeRect(
+            QPainter &painter,
+            const FileRange &range,
+            const QBrush &brush);
     int lineTop(int line);
     void paintLine(QPainter &painter, int line, const QRect &rect);
 
@@ -174,7 +181,9 @@ private:
     File *m_file;
     std::vector<Qt::GlobalColor> m_syntaxColoring;
     int m_maxLineLength;
-    FileRange m_selection;
+    bool m_changingSelection;
+    FileRange m_selectionRange;
+    FileRange m_hoverHighlightRange;
 };
 
 
@@ -188,7 +197,7 @@ public:
     explicit SourceWidget(Project &project, QWidget *parent = 0);
     void setFile(File *file);
     File *file() { return sourceWidgetView().file(); }
-    void selectIdentifier(int line, int column);
+    void selectIdentifier(int line, int column, int endColumn);
     QPoint viewportOrigin();
     void setViewportOrigin(const QPoint &pt);
 

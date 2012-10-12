@@ -65,7 +65,10 @@ public:
     int endColumn() const { return m_endColumn; }
 
     QString kind() const {
-        return m_project->refTypeStringTable().item(m_kindID);
+        if (m_kindID == indexdb::kInvalidID)
+            return "";
+        else
+            return m_project->refTypeStringTable().item(m_kindID);
     }
 
 private:

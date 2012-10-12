@@ -42,16 +42,6 @@ static int measureLineLength(StringRef line, int tabStopSize)
     return pos;
 }
 
-static inline bool isIdentifierChar(QChar ch)
-{
-    // XXX: What about C++ destructor references, like ~Foo?  Most likely the
-    // index should provide a source range rather than a location, and then the
-    // GUI should stop trying to pick out identifiers from the text and rely
-    // exclusively on the index data.
-    unsigned short u = ch.unicode();
-    return u <= 127 && (isalnum(u) || u == '_');
-}
-
 static Qt::GlobalColor colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind)
 {
     switch (kind) {
@@ -252,16 +242,20 @@ void SourceWidgetLineArea::paintEvent(QPaintEvent *event)
 SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
     m_margins(margins),
     m_project(project),
-    m_file(NULL)
+    m_file(NULL),
+    m_changingSelection(false)
 {
     setBackgroundRole(QPalette::NoRole);
+    setMouseTracking(true);
 }
 
 void SourceWidgetView::setFile(File *file)
 {
     m_file = file;
     m_maxLineLength = 0;
-    m_selection = FileRange();
+    m_selectionRange = FileRange();
+    m_hoverHighlightRange = FileRange();
+    setCursor(Qt::ArrowCursor);
 
     if (m_file != NULL) {
         const std::string &content = m_file->content();
@@ -314,10 +308,13 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
     QPainter painter(this);
 
     // Fill in a rectangle for the selected identifier.
-    if (!m_selection.isEmpty()) {
-        assert(m_selection.start.line == m_selection.end.line);
-        QPoint pt1 = locationToPoint(m_selection.start);
-        QPoint pt2 = locationToPoint(m_selection.end);
+    fillRangeRect(painter, m_selectionRange, palette().highlight());
+    fillRangeRect(painter, m_hoverHighlightRange, palette().dark());
+
+    if (!m_selectionRange.isEmpty()) {
+        assert(m_selectionRange.start.line == m_selectionRange.end.line);
+        QPoint pt1 = locationToPoint(m_selectionRange.start);
+        QPoint pt2 = locationToPoint(m_selectionRange.end);
         painter.fillRect(pt1.x(), pt1.y(), (pt2 - pt1).x(), lineSpacing,
                          palette().highlight().color());
     }
@@ -331,6 +328,21 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
 
     for (int line = line1; line <= line2; ++line)
         paintLine(painter, line, event->rect());
+}
+
+void SourceWidgetView::fillRangeRect(
+        QPainter &painter,
+        const FileRange &range,
+        const QBrush &brush)
+{
+    if (range.isEmpty())
+        return;
+    assert(range.start.line == range.end.line);
+    QPoint pt1 = locationToPoint(range.start);
+    QPoint pt2 = locationToPoint(range.end);
+    painter.fillRect(pt1.x(), pt1.y(), (pt2 - pt1).x(),
+                     effectiveLineSpacing(fontMetrics()),
+                     brush);
 }
 
 int SourceWidgetView::lineTop(int line)
@@ -359,7 +371,7 @@ void SourceWidgetView::paintLine(
             QColor color(m_syntaxColoring[lay.charFileIndex()]);
 
             // Override the color for selected text.
-            if (loc >= m_selection.start && loc < m_selection.end)
+            if (loc >= m_selectionRange.start && loc < m_selectionRange.end)
                 color = palette().highlightedText().color();
 
             // Set the painter pen when the color changes.
@@ -426,27 +438,26 @@ FileRange SourceWidgetView::findWordAtLocation(const FileLocation &pt)
 {
     if (m_file == NULL || !pt.doesPointAtChar(*m_file))
         return FileRange();
-    StringRef content = m_file->lineContent(pt.line);
-    if (!isIdentifierChar(content[pt.column])) {
-        int endColumn = pt.column + utf8CharLen(&content[pt.column]);
-        return FileRange(pt, FileLocation(pt.line, endColumn));
-    }
-
-    int x1 = pt.column;
-    while (x1 > 0) {
-        int prevColumn = x1 - utf8PrevCharLen(&content[x1], x1);
-        if (isIdentifierChar(content[prevColumn]))
-            x1 = prevColumn;
-        else
-            break;
-    }
-
-    int x2 = pt.column;
-    while (x2 < static_cast<int>(content.size()) &&
-            isIdentifierChar(content[x2]))
-        x2 += utf8CharLen(&content[x2]);
-
-    return FileRange(FileLocation(pt.line, x1), FileLocation(pt.line, x2));
+    Ref bestRef;
+    const int fileLine = pt.line + 1;
+    const int fileColumn = pt.column + 1;
+    m_project.queryFileRefs(
+                *m_file,
+                [fileLine, fileColumn, &bestRef](const Ref &ref) {
+        if (fileColumn >= ref.column() && fileColumn < ref.endColumn()) {
+            if (bestRef.isNull() ||
+                    ref.column() > bestRef.column() ||
+                    (ref.column() == bestRef.column() &&
+                            ref.endColumn() < bestRef.endColumn())) {
+                bestRef = ref;
+            }
+        }
+    }, fileLine, fileLine);
+    if (bestRef.isNull())
+        return FileRange();
+    FileLocation loc1(bestRef.line() - 1, bestRef.column() - 1);
+    FileLocation loc2(bestRef.line() - 1, bestRef.endColumn() - 1);
+    return FileRange(loc1, loc2);
 }
 
 FileRange SourceWidgetView::findWordAtPoint(QPoint pt)
@@ -459,41 +470,66 @@ FileRange SourceWidgetView::findWordAtPoint(QPoint pt)
     return FileRange();
 }
 
+std::set<std::string> SourceWidgetView::findSymbolsAtRange(
+        const FileRange &range)
+{
+    std::set<std::string> result;
+    assert(range.start.line == range.end.line);
+    m_project.queryFileRefs(
+                *m_file,
+                [&result, &range](const Ref &ref) {
+        if (ref.column() == range.start.column + 1 &&
+                ref.endColumn() == range.end.column + 1)
+            result.insert(ref.symbolCStr());
+    }, range.start.line + 1, range.start.line + 1);
+    return result;
+}
+
 void SourceWidgetView::mousePressEvent(QMouseEvent *event)
 {
-    m_selection = findWordAtPoint(event->pos());
+    m_changingSelection = true;
+    m_selectionRange = findWordAtPoint(event->pos());
     update();
 }
 
 void SourceWidgetView::mouseMoveEvent(QMouseEvent *event)
 {
-    if (m_selection != findWordAtPoint(event->pos())) {
-        m_selection = FileRange();
+    FileRange word = findWordAtPoint(event->pos());
+    if (m_changingSelection &&
+            !m_selectionRange.isEmpty() &&
+            m_selectionRange != word) {
+        m_selectionRange = FileRange();
         update();
     }
+    if (m_hoverHighlightRange != word) {
+        m_hoverHighlightRange = word;
+        update();
+    }
+    setCursor(word.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
 }
 
 void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
 {
-    if (!m_selection.isEmpty()) {
+    m_changingSelection = false;
+    if (!m_selectionRange.isEmpty()) {
         FileRange identifierClicked;
-        if (m_selection == findWordAtPoint(event->pos()))
-            identifierClicked = m_selection;
-        m_selection = FileRange();
+        if (m_selectionRange == findWordAtPoint(event->pos()))
+            identifierClicked = m_selectionRange;
+        m_selectionRange = FileRange();
+        setCursor(Qt::ArrowCursor);
         update();
 
         // Delay the event handling as long as possible.  Clicking a symbol is
         // likely to cause a jump to another location, which will change the
         // selection (and perhaps the file being displayed).
         if (!identifierClicked.isEmpty()) {
+            std::set<std::string> symbols =
+                    findSymbolsAtRange(identifierClicked);
             // TODO: Is this behavior really ideal in the case that one
             // location maps to multiple symbols?
-            QStringList symbols = theProject->querySymbolsAtLocation(
-                        m_file,
-                        identifierClicked.start.line + 1,
-                        identifierClicked.start.column + 1);
             if (symbols.size() == 1) {
-                Ref ref = m_project.findSingleDefinitionOfSymbol(symbols[0]);
+                Ref ref = m_project.findSingleDefinitionOfSymbol(
+                            symbols.begin()->c_str());
                 theMainWindow->navigateToRef(ref);
             }
         }
@@ -502,12 +538,14 @@ void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
 
 void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
 {
-    if (!m_selection.isEmpty()) {
-        if (m_selection != findWordAtPoint(event->pos()))
-            m_selection = FileRange();
+    m_changingSelection = false;
+
+    if (!m_selectionRange.isEmpty()) {
+        if (m_selectionRange != findWordAtPoint(event->pos()))
+            m_selectionRange = FileRange();
     }
 
-    if (m_selection.isEmpty()) {
+    if (m_selectionRange.isEmpty()) {
         QMenu *menu = new QMenu();
         bool backEnabled = false;
         bool forwardEnabled = false;
@@ -522,27 +560,23 @@ void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
         delete menu;
     } else {
         QMenu *menu = new QMenu();
-        int line = m_selection.start.line + 1;
-        int column = m_selection.start.column + 1;
-        QStringList symbols = theProject->querySymbolsAtLocation(m_file, line, column);
-        if (symbols.isEmpty()) {
-            QAction *action = menu->addAction("No symbols found");
+        std::set<std::string> symbols = findSymbolsAtRange(m_selectionRange);
+        if (symbols.empty()) {
+            // This shouldn't ever occur, but it's harmless if it does.
+            return;
+        }
+        for (const auto &symbol : symbols) {
+            QAction *action = menu->addAction(symbol.c_str());
             action->setEnabled(false);
-        } else {
-            for (const QString &symbol : symbols) {
-                QAction *action = menu->addAction(symbol);
-                action->setEnabled(false);
-                //action->setSeparator(true);
-                if (1) {
-                    QFont f = action->font();
-                    f.setBold(true);
-                    action->setFont(f);
-                }
-                menu->addSeparator();
-                action = menu->addAction("Cross-references...", this, SLOT(actionCrossReferences()));
-                action->setData(symbol);
-                menu->addSeparator();
-            }
+            QFont f = action->font();
+            f.setBold(true);
+            action->setFont(f);
+            menu->addSeparator();
+            action = menu->addAction("Cross-references...",
+                                     this,
+                                     SLOT(actionCrossReferences()));
+            action->setData(symbol.c_str());
+            menu->addSeparator();
         }
         menu->exec(event->globalPos());
         delete menu;
@@ -663,10 +697,11 @@ void SourceWidget::keyPressEvent(QKeyEvent *event)
 }
 
 // Line and column indices are 1-based.
-void SourceWidget::selectIdentifier(int line, int column)
+void SourceWidget::selectIdentifier(int line, int column, int endColumn)
 {
     SourceWidgetView &w = sourceWidgetView();
-    FileRange r = w.findWordAtLocation(FileLocation(line - 1, column - 1));
+    FileRange r(FileLocation(line - 1, column - 1),
+                FileLocation(line - 1, endColumn - 1));
     w.setSelection(r);
     QPoint wordTopLeft = w.locationToPoint(r.start);
     ensureVisible(wordTopLeft.x(), wordTopLeft.y());
