@@ -4,6 +4,7 @@
 #include <QScrollBar>
 #include <QVBoxLayout>
 #include <QtConcurrentRun>
+#include <QtConcurrentMap>
 #include <cassert>
 #include <re2/re2.h>
 
@@ -45,189 +46,133 @@ static QString convertFilterIntoRegex(const QString &filter)
     return regex;
 }
 
+// Given a range [0, count), return a vector of (offset, size) tuples that
+// cover the range.
+static std::vector<std::pair<size_t, size_t> > makeBatches(size_t count)
+{
+    std::vector<std::pair<size_t, size_t> > result;
+    size_t batchSize = std::max<size_t>(100, count / 20);
+    size_t batched = 0;
+    while (batched < count) {
+        size_t batchCount = std::min(batchSize, count - batched);
+        result.push_back(std::make_pair(batched, batchCount));
+        batched += batchCount;
+    }
+    return result;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
-// FilteredSymbols
+// GotoWindowFilter
 
-FilteredSymbols::FilteredSymbols(
-        TextWidthCalculator &textWidthCalculator,
-        const std::vector<Ref> &symbols,
-        const QString &regex) :
-    m_textWidthCalculator(textWidthCalculator),
-    m_symbols(symbols),
-    m_regex(regex),
-    m_state(NotStarted)
-{
-    // Split up the symbols to allow parallelized filtering.  Each batch
-    // corresponds to one QtConcurrent::run call, which is run on a Qt-managed
-    // thread pool.
-    int batchSize = std::max<int>(1000, m_symbols.size() / 20);
-    int batched = 0;
-    while (batched < static_cast<int>(m_symbols.size())) {
-        Batch *batch = new Batch();
-        batch->symbols = &m_symbols;
-        batch->start = batched;
-        batch->stop = std::min<int>(batched + batchSize, m_symbols.size());
-        batch->filtered = new int[batch->stop - batch->start];
-        batch->filteredCount = 0;
-        batch->cancelFlag = false;
-        m_batches.push_back(batch);
-        batched += batch->stop - batch->start;
+class GotoWindowFilterer : public GotoWindowFiltererBase {
+public:
+    typedef int DummyReduceType;
+
+    GotoWindowFilterer(
+            const std::vector<Ref> &globalDefs,
+            const std::string &pattern,
+            TextWidthCalculator &twc) :
+        m_futureWatcher(NULL),
+        m_globalDefs(globalDefs),
+        m_pattern(pattern),
+        m_twc(twc)
+    {
     }
-}
 
-FilteredSymbols::~FilteredSymbols()
-{
-    for (Batch *batch : m_batches) {
-        // XXX: Is there a concurrency problem here?  The future watcher might
-        // be signaling completion just as we're destructing it.  Maybe Qt has
-        // the problem under control?
-        batch->cancelFlag = true;
-        batch->future.waitForFinished();
-        delete [] batch->filtered;
-        delete batch;
-    }
-    m_batches.clear();
-}
-
-void FilteredSymbols::start()
-{
-    assert(m_state == NotStarted);
-    m_state = Started;
-    for (Batch *batch : m_batches) {
-        connect(&batch->watcher, SIGNAL(finished()),
-                this, SLOT(batchFinished()));
-        batch->future = QtConcurrent::run(
-                    this, &FilteredSymbols::filterBatchThread, m_regex, batch);
-        batch->watcher.setFuture(batch->future);
-    }
-}
-
-void FilteredSymbols::cancel()
-{
-    m_state = Done;
-    for (Batch *batch : m_batches) {
-        batch->cancelFlag = true;
-    }
-}
-
-void FilteredSymbols::filterBatchThread(QString regex, Batch *batch)
-{
-    batch->maxTextWidth = 0;
-    if (regex == "") {
-        batch->filteredCount = batch->stop - batch->start;
-        for (int i = batch->start; i < batch->stop; ++i)
-            batch->filtered[i - batch->start] = i;
-    } else {
-        batch->filteredCount = 0;
-        RE2::Options options;
-        options.set_case_sensitive(true);
-        re2::RE2 pattern(regex.toStdString(), options);
-        if (!pattern.ok())
-            return;
-        int *filtered = batch->filtered;
-        int filteredCount = 0;
-        for (int i = batch->start; i < batch->stop; ++i) {
-            if (batch->cancelFlag)
-                return;
-            const char *s = (*batch->symbols)[i].symbolCStr();
-            if (pattern.Match(s, 0, strlen(s), RE2::UNANCHORED, NULL, 0))
-                filtered[filteredCount++] = i;
+    ~GotoWindowFilterer()
+    {
+        if (m_futureWatcher != NULL) {
+            m_futureWatcher->cancel();
+            m_futureWatcher->waitForFinished();
+            delete m_futureWatcher;
         }
-        batch->filteredCount = filteredCount;
     }
 
-    for (int i = 0; i < batch->filteredCount; ++i) {
-        if (batch->cancelFlag)
-            return;
-        batch->maxTextWidth = std::max(
-                    batch->maxTextWidth,
-                    m_textWidthCalculator.calculate(
-                        (*batch->symbols)[batch->filtered[i]].symbolCStr()));
+    void start()
+    {
+        assert(m_futureWatcher == NULL);
+        m_batches = makeBatches(m_globalDefs.size());
+        QFuture<DummyReduceType> future =
+                QtConcurrent::mappedReduced
+                <DummyReduceType, decltype(m_batches), MapFunc, ReduceFunc>
+                (m_batches, MapFunc(*this), ReduceFunc(*this),
+                 QtConcurrent::OrderedReduce | QtConcurrent::SequentialReduce);
+        m_futureWatcher = new QFutureWatcher<DummyReduceType>();
+        connect(m_futureWatcher, SIGNAL(finished()), this, SIGNAL(finished()));
+        m_futureWatcher->setFuture(future);
     }
-}
 
-void FilteredSymbols::batchFinished()
-{
-    if (m_state == Started) {
-        for (Batch *batch : m_batches) {
-            if (!batch->watcher.isFinished())
-                return;
+    void wait()
+    {
+        assert(m_futureWatcher != NULL);
+        m_futureWatcher->waitForFinished();
+    }
+
+    GotoWindowFilter &result()
+    {
+        assert(m_futureWatcher != NULL);
+        m_futureWatcher->waitForFinished();
+        return m_result;
+    }
+
+private:
+    GotoWindowFilter m_result;
+    std::vector<std::pair<size_t, size_t> > m_batches;
+    QFutureWatcher<DummyReduceType> *m_futureWatcher;
+    const std::vector<Ref> &m_globalDefs;
+    std::string m_pattern;
+    TextWidthCalculator &m_twc;
+
+    struct MapFunc {
+        GotoWindowFilterer &m_parent;
+        MapFunc(GotoWindowFilterer &parent) : m_parent(parent) {}
+        typedef GotoWindowFilter result_type;
+
+        GotoWindowFilter operator()(const std::pair<size_t, size_t> &range)
+        {
+            GotoWindowFilter result;
+            RE2::Options options;
+            options.set_case_sensitive(true);
+            re2::RE2 regex(m_parent.m_pattern, options);
+            for (size_t i = range.first, iEnd = range.first + range.second;
+                    i < iEnd; ++i) {
+                const char *s = m_parent.m_globalDefs[i].symbolCStr();
+                if (regex.Match(s, 0, strlen(s), RE2::UNANCHORED, NULL, 0)) {
+                    result.maxTextWidth = std::max(result.maxTextWidth,
+                            m_parent.m_twc.calculate(s));
+                    result.indices.push_back(i);
+                }
+            }
+            return result;
         }
-        m_state = Done;
-        emit done(this);
-    }
-}
+    };
 
-int FilteredSymbols::size() const
-{
-    assert(m_state == Done);
-    int result = 0;
-    for (const Batch *batch : m_batches)
-        result += batch->filteredCount;
-    return result;
-}
+    struct ReduceFunc {
+        GotoWindowFilterer &m_parent;
+        ReduceFunc(GotoWindowFilterer &parent) : m_parent(parent) {}
+        typedef DummyReduceType result_type;
 
-int FilteredSymbols::findFilteredIndex(int fullIndex) const
-{
-    assert(m_state == Done);
-    int filteredIndex = 0;
-    for (const Batch *batch : m_batches) {
-        for (int i = 0; i < batch->filteredCount; ++i) {
-            if (batch->filtered[i] == fullIndex)
-                return filteredIndex + i;
+        void operator()(DummyReduceType &dummy, const GotoWindowFilter &batch)
+        {
+            m_parent.m_result.indices.insert(
+                        m_parent.m_result.indices.end(),
+                        batch.indices.begin(),
+                        batch.indices.end());
+            m_parent.m_result.maxTextWidth =
+                    std::max(m_parent.m_result.maxTextWidth,
+                             batch.maxTextWidth);
         }
-        filteredIndex += batch->filteredCount;
-    }
-    return -1;
-}
-
-int FilteredSymbols::filteredIndexToFullIndex(int index) const
-{
-    assert(m_state == Done);
-    for (const Batch *batch : m_batches) {
-        if (index < batch->filteredCount)
-            return batch->filtered[index];
-        index -= batch->filteredCount;
-    }
-    assert(false);
-    return 0;
-}
-
-int FilteredSymbols::maxTextWidth() const
-{
-    assert(m_state == Done);
-    int result = 0;
-    for (const Batch *batch : m_batches)
-        result = std::max(result, batch->maxTextWidth);
-    return result;
-
-}
-
-void FilteredSymbols::waitForFinished()
-{
-    assert(m_state != NotStarted);
-    if (m_state == Started) {
-        for (Batch *batch : m_batches)
-            batch->future.waitForFinished();
-        m_state = Done;
-        emit done(this);
-    }
-}
-
-const Ref &FilteredSymbols::at(int index) const
-{
-    assert(m_state == Done);
-    return m_symbols[filteredIndexToFullIndex(index)];
-}
+    };
+};
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // GotoWindowResults
 
-GotoWindowResults::GotoWindowResults(QWidget *parent) :
+GotoWindowResults::GotoWindowResults(Project &project, QWidget *parent) :
     QWidget(parent),
-    m_symbols(NULL),
+    m_project(project),
     m_selectedIndex(-1),
     m_mouseDownIndex(-1)
 {
@@ -236,32 +181,31 @@ GotoWindowResults::GotoWindowResults(QWidget *parent) :
 
 GotoWindowResults::~GotoWindowResults()
 {
-    delete m_symbols;
 }
 
-void GotoWindowResults::setFilteredSymbols(FilteredSymbols *symbols)
+void GotoWindowResults::setFilter(GotoWindowFilter filter)
 {
+    m_maxTextWidth = filter.maxTextWidth;
+
     int originalIndex = m_selectedIndex;
     // Translate the current selection index from the old FilteredSymbols
     // object to the new object.  The QScrollArea containing this widget
     // will probably want to scroll to ensure the selection is still visible.
     int fullSelectedIndex = -1;
-    if (m_selectedIndex != -1) {
-        assert(m_symbols != NULL);
-        fullSelectedIndex =
-                m_symbols->filteredIndexToFullIndex(m_selectedIndex);
+    if (m_selectedIndex != -1)
+        fullSelectedIndex = m_symbols[m_selectedIndex];
+    m_symbols = std::move(filter.indices);
+    m_selectedIndex = -1;
+    if (fullSelectedIndex != -1) {
+        auto range = std::equal_range(m_symbols.begin(), m_symbols.end(),
+                                      fullSelectedIndex);
+        if (range.first != range.second) {
+            m_selectedIndex = range.first - m_symbols.begin();
+            assert(static_cast<size_t>(m_selectedIndex) < m_symbols.size());
+        }
     }
-    delete m_symbols;
-    m_symbols = symbols;
-    if (m_symbols == NULL) {
-        m_selectedIndex = -1;
-    } else {
-        m_selectedIndex = (fullSelectedIndex != -1)
-                ? m_symbols->findFilteredIndex(fullSelectedIndex)
-                : -1;
-        if (m_selectedIndex == -1 && m_symbols->size() > 0)
-            m_selectedIndex = 0;
-    }
+    if (m_selectedIndex == -1 && !m_symbols.empty())
+        m_selectedIndex = 0;
     updateGeometry();
     update();
     if (m_selectedIndex != originalIndex)
@@ -280,7 +224,7 @@ void GotoWindowResults::setSelectedIndex(int index)
 
 int GotoWindowResults::itemCount() const
 {
-    return m_symbols != NULL ? m_symbols->size() : 0;
+    return m_symbols.size();
 }
 
 int GotoWindowResults::itemHeight() const
@@ -291,41 +235,39 @@ int GotoWindowResults::itemHeight() const
 
 QSize GotoWindowResults::sizeHint() const
 {
-    if (m_symbols == NULL)
-        return QSize();
-    return QSize(m_symbols->maxTextWidth() +
+    return QSize(m_maxTextWidth +
                         m_itemMargins.left() + m_itemMargins.right(),
-                 itemHeight() * m_symbols->size());
+                 itemHeight() * itemCount());
 }
 
 void GotoWindowResults::paintEvent(QPaintEvent *event)
 {
-    if (m_symbols != NULL) {
-        const int firstBaseline = fontMetrics().ascent();
-        const int itemHeight = this->itemHeight();
-        const int item1 = std::max(event->rect().top() / itemHeight - 2, 0);
-        const int item2 = std::min(event->rect().bottom() / itemHeight + 2,
-                                   m_symbols->size() - 1);
-        QPainter p(this);
-        for (int item = item1; item <= item2; ++item) {
-            if (item == m_selectedIndex) {
-                // Draw the selection background.
-                QStyleOptionViewItemV4 option;
-                option.rect = QRect(0, item * itemHeight, width(), itemHeight);
-                option.state |= QStyle::State_Selected;
-                if (isActiveWindow())
-                    option.state |= QStyle::State_Active;
-                style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, &p, this);
+    const int firstBaseline = fontMetrics().ascent();
+    const int itemHeight = this->itemHeight();
+    const int item1 = std::max(event->rect().top() / itemHeight - 2, 0);
+    const int item2 = std::min(event->rect().bottom() / itemHeight + 2,
+                               itemCount() - 1);
+    QPainter p(this);
+    for (int item = item1; item <= item2; ++item) {
+        if (item == m_selectedIndex) {
+            // Draw the selection background.
+            QStyleOptionViewItemV4 option;
+            option.rect = QRect(0, item * itemHeight, width(), itemHeight);
+            option.state |= QStyle::State_Selected;
+            if (isActiveWindow())
+                option.state |= QStyle::State_Active;
+            style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, &p, this);
 
-                // Use the selection text color.
-                p.setPen(palette().color(QPalette::HighlightedText));
-            } else {
-                // Use the default text color.
-                p.setPen(palette().color(QPalette::Text));
-            }
-            p.drawText(m_itemMargins.left(), firstBaseline + item * itemHeight,
-                       m_symbols->at(item).symbol());
+            // Use the selection text color.
+            p.setPen(palette().color(QPalette::HighlightedText));
+        } else {
+            // Use the default text color.
+            p.setPen(palette().color(QPalette::Text));
         }
+        const Ref &ref = m_project.globalSymbolDefinitions()[m_symbols[item]];
+        p.drawText(m_itemMargins.left(), firstBaseline + item * itemHeight,
+                   ref.symbolCStr());
+
     }
     QWidget::paintEvent(event);
 }
@@ -388,7 +330,9 @@ void PlaceholderLineEdit::paintEvent(QPaintEvent *event)
 // GotoWindow
 
 GotoWindow::GotoWindow(Project &project, QWidget *parent) :
-    QWidget(parent), m_project(project), m_pendingFilteredSymbols(NULL)
+    QWidget(parent),
+    m_project(project),
+    m_pendingFilterer(NULL)
 {
     QFont newFont = font();
     newFont.setPointSize(9);
@@ -401,7 +345,7 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     connect(m_editor, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
 
     m_scrollArea = new QScrollArea();
-    m_results = new GotoWindowResults;
+    m_results = new GotoWindowResults(m_project);
     layout()->addWidget(m_scrollArea);
     m_scrollArea->setWidget(m_results);
     connect(m_results, SIGNAL(selectionChanged(int)), SLOT(resultsSelectionChanged(int)));
@@ -419,14 +363,13 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     // Imitate user input in the search box, but block until the GUI is
     // updated.
     textChanged();
-    assert(m_pendingFilteredSymbols != NULL);
-    m_pendingFilteredSymbols->waitForFinished();
-    assert(m_pendingFilteredSymbols == NULL);
+    assert(m_pendingFilterer != NULL);
+    m_pendingFilterer->wait();
 }
 
 GotoWindow::~GotoWindow()
 {
-    delete m_pendingFilteredSymbols;
+    delete m_pendingFilterer;
 }
 
 QSize GotoWindow::sizeHint() const
@@ -436,8 +379,7 @@ QSize GotoWindow::sizeHint() const
 
 void GotoWindow::keyPressEvent(QKeyEvent *event)
 {
-    const int itemCount = m_results->filteredSymbols() != NULL ?
-                          m_results->filteredSymbols()->size() : 0;
+    const int itemCount = m_results->itemCount();
     int pageSize = std::max(0, m_scrollArea->viewport()->height() /
                             m_results->itemHeight());
 
@@ -495,38 +437,39 @@ void GotoWindow::resizeResultsWidget()
 
 void GotoWindow::textChanged()
 {
-    if (m_pendingFilteredSymbols != NULL)
-        delete m_pendingFilteredSymbols;
-    m_pendingFilteredSymbols =
-            new FilteredSymbols(
-                TextWidthCalculator::getCachedTextWidthCalculator(font()),
+    if (m_pendingFilterer != NULL)
+        delete m_pendingFilterer;
+
+    std::string pattern = convertFilterIntoRegex(m_editor->text()).toStdString();
+    m_pendingFilterer = new GotoWindowFilterer(
                 m_project.globalSymbolDefinitions(),
-                convertFilterIntoRegex(m_editor->text()));
-    connect(m_pendingFilteredSymbols,
-            SIGNAL(done(FilteredSymbols*)),
-            SLOT(symbolFilteringDone(FilteredSymbols*)));
-    m_pendingFilteredSymbols->start();
+                pattern,
+                TextWidthCalculator::getCachedTextWidthCalculator(font()));
+    connect(m_pendingFilterer, SIGNAL(finished()),
+            this, SLOT(symbolFiltererFinished()));
+    m_pendingFilterer->start();
+    m_pendingFilterer->wait();
 }
 
-void GotoWindow::symbolFilteringDone(FilteredSymbols *filteredSymbols)
+void GotoWindow::symbolFiltererFinished()
 {
-    if (m_pendingFilteredSymbols == filteredSymbols) {
-        m_results->setFilteredSymbols(m_pendingFilteredSymbols);
-        m_pendingFilteredSymbols = NULL;
+    assert(m_pendingFilterer != NULL);
+    m_results->setFilter(std::move(m_pendingFilterer->result()));
+    delete m_pendingFilterer;
+    m_pendingFilterer = NULL;
 
-        resizeResultsWidget();
+    resizeResultsWidget();
 
-        int x = m_scrollArea->horizontalScrollBar()->value();
-        int y = std::max(0, m_results->selectedIndex() *
-                            m_results->itemHeight());
-        m_scrollArea->ensureVisible(x, y);
+    int x = m_scrollArea->horizontalScrollBar()->value();
+    int y = std::max(0, m_results->selectedIndex() *
+                        m_results->itemHeight());
+    m_scrollArea->ensureVisible(x, y);
 
-        // Changing the filteredSymbols property can alter the unfiltered index
-        // without altering the filtered index, in which case there is no
-        // selectionChanged signal.  (The opposite situation can also occur,
-        // and then it is necessary to scroll the viewport.)
-        navigateToItem(m_results->selectedIndex());
-    }
+    // Changing the filteredSymbols property can alter the unfiltered index
+    // without altering the filtered index, in which case there is no
+    // selectionChanged signal.  (The opposite situation can also occur,
+    // and then it is necessary to scroll the viewport.)
+    navigateToItem(m_results->selectedIndex());
 }
 
 void GotoWindow::resultsSelectionChanged(int index)
@@ -545,13 +488,12 @@ void GotoWindow::resultsSelectionChanged(int index)
 
 void GotoWindow::navigateToItem(int index)
 {
-    if (index == -1)
-        return;
-
-    // Lookup the (first?) definition of the symbol and navigate to it.
-    // TODO: What about multiple definitions of the same symbol?
-    theMainWindow->navigateToRef(
-                m_results->filteredSymbols()->at(index));
+    const std::vector<Ref> &globalDefs = m_project.globalSymbolDefinitions();
+    if (index >= 0 &&
+            index < static_cast<int>(m_results->filteredSymbols().size())) {
+        theMainWindow->navigateToRef(
+                    globalDefs[m_results->filteredSymbols()[index]]);
+    }
 }
 
 } // namespace Nav

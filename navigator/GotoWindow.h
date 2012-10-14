@@ -11,7 +11,6 @@
 #include <vector>
 
 #include "Ref.h"
-#include "TextWidthCalculator.h"
 
 
 namespace re2 {
@@ -21,75 +20,37 @@ class RE2;
 namespace Nav {
 
 class Project;
+class GotoWindowFilterer;
+class TextWidthCalculator;
 
-
-///////////////////////////////////////////////////////////////////////////////
-// FilteredSymbols
-
-class FilteredSymbols : public QObject {
+class GotoWindowFiltererBase : public QObject {
     Q_OBJECT
 public:
-    FilteredSymbols(
-            TextWidthCalculator &textWidthCalculator,
-            const std::vector<Ref> &symbols,
-            const QString &regex);
-    virtual ~FilteredSymbols();
-    void start();
-    void cancel();
-    int size() const;
-    const Ref &at(int index) const;
-    int findFilteredIndex(int fullIndex) const;
-    int filteredIndexToFullIndex(int index) const;
-    int maxTextWidth() const;
-    void waitForFinished();
-
+    GotoWindowFiltererBase(QObject *parent = NULL) : QObject(parent) {}
 signals:
-    void done(FilteredSymbols *filteredSymbols);
+    void finished();
+};
 
-private:
-    struct Batch {
-        QFuture<void> future;
-        QFutureWatcher<void> watcher;
-        const std::vector<Ref> *symbols;
-        int start;
-        int stop;
-        int *filtered;
-        int filteredCount;
-        volatile bool cancelFlag;
-        int maxTextWidth;
-    };
-    void filterBatchThread(QString regex, Batch *batch);
-
-private slots:
-    void batchFinished();
-
-private:
-    TextWidthCalculator &m_textWidthCalculator;
-    const std::vector<Ref> &m_symbols;
-    std::vector<Batch*> m_batches;
-    QString m_regex;
-    enum { NotStarted, Started, Done } m_state;
+struct GotoWindowFilter {
+    GotoWindowFilter() : maxTextWidth(0) {}
+    std::vector<size_t> indices;
+    int maxTextWidth;
 };
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // GotoWindowResults
 
-// XXX: If we don't add anything more substantial to the presentation of the
-// goto window results, then consider switching to a QListView with a custom
-// QAbstractListModel.
-// XXX: QListView will probably be too slow.  Consider that it will have to
-// measure the size of every string to size the viewport.
 class GotoWindowResults : public QWidget
 {
     Q_OBJECT
 public:
-    explicit GotoWindowResults(QWidget *parent = 0);
+    explicit GotoWindowResults(Project &project, QWidget *parent = 0);
     ~GotoWindowResults();
-    void setFilteredSymbols(FilteredSymbols *symbols);
+    void setFilter(GotoWindowFilter filter);
     QSize sizeHint() const;
     QSize minimumSizeHint() const { return sizeHint(); }
-    FilteredSymbols *filteredSymbols() { return m_symbols; }
+    const std::vector<size_t> &filteredSymbols() { return m_symbols; }
     int selectedIndex() { return m_selectedIndex; }
     void setSelectedIndex(int index);
     int itemCount() const;
@@ -107,8 +68,10 @@ private:
     void mouseReleaseEvent(QMouseEvent *event);
 
 private:
+    Project &m_project;
     QMargins m_itemMargins;
-    FilteredSymbols *m_symbols;
+    std::vector<size_t> m_symbols;
+    int m_maxTextWidth;
     int m_selectedIndex;
     int m_mouseDownIndex;
 };
@@ -148,7 +111,7 @@ private:
 
 private slots:
     void textChanged();
-    void symbolFilteringDone(FilteredSymbols *filteredSymbols);
+    void symbolFiltererFinished();
     void resultsSelectionChanged(int index);
     void navigateToItem(int index);
 
@@ -157,7 +120,7 @@ private:
     PlaceholderLineEdit *m_editor;
     QScrollArea *m_scrollArea;
     GotoWindowResults *m_results;
-    FilteredSymbols *m_pendingFilteredSymbols;
+    GotoWindowFilterer *m_pendingFilterer;
     TextWidthCalculator *m_textWidthCalculator;
 };
 
