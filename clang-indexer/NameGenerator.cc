@@ -38,6 +38,7 @@ private:
     bool m_error;
     bool m_needSeparator;
     bool m_needFilePrefix;
+    bool m_needOffsetPrefix;
     bool m_inDeclContext;
     llvm::raw_string_ostream m_out;
 };
@@ -51,6 +52,7 @@ NameGenerator::NameGenerator(clang::NamedDecl *originalDecl, std::string &output
     m_error(false),
     m_needSeparator(false),
     m_needFilePrefix(false),
+    m_needOffsetPrefix(false),
     m_inDeclContext(false),
     m_out(output)
 {
@@ -68,6 +70,15 @@ void NameGenerator::VisitDeclContext(clang::DeclContext *context)
 {
     if (clang::NamedDecl *decl =
             llvm::dyn_cast_or_null<clang::NamedDecl>(context)) {
+        if (clang::FunctionDecl *funcDecl =
+                llvm::dyn_cast<clang::FunctionDecl>(decl)) {
+            if (funcDecl->isThisDeclarationADefinition()) {
+                // For declarations inside a function body, prefix both a
+                // filename and a file offset.
+                m_needFilePrefix = true;
+                m_needOffsetPrefix = true;
+            }
+        }
         Switcher<bool> sw1(m_inDeclContext, true);
         Visit(decl);
         return;
@@ -96,8 +107,12 @@ void NameGenerator::VisitDeclContext(clang::DeclContext *context)
         if (!fileID.isInvalid()) {
             const clang::FileEntry *fileEntry =
                     sourceManager.getFileEntryForID(fileID);
-            if (fileEntry != NULL)
-                m_out << const_basename(fileEntry->getName()) << '/';
+            if (fileEntry != NULL) {
+                m_out << const_basename(fileEntry->getName());
+                if (m_needOffsetPrefix)
+                    m_out << '@' << sourceManager.getFileOffset(sloc);
+                m_out << '/';
+            }
         }
     }
 }
@@ -181,10 +196,9 @@ void NameGenerator::VisitTagDecl(clang::TagDecl *decl)
 
 void NameGenerator::VisitVarDecl(clang::VarDecl *decl)
 {
-    if (!decl->isExternC()) {
-        m_needFilePrefix = decl->getLinkage() != clang::ExternalLinkage;
-        VisitDeclContext(decl->getDeclContext());
-    }
+    if (!decl->isExternC() && decl->getLinkage() != clang::ExternalLinkage)
+        m_needFilePrefix = true;
+    VisitDeclContext(decl->getDeclContext());
 
     outputSeparator();
     decl->printName(m_out);
@@ -235,10 +249,10 @@ void NameGenerator::VisitFunctionDecl(clang::FunctionDecl *decl)
         decl = decl->getTemplateInstantiationPattern();
 
     // TODO: Review correctness for C code.
-    if (!isExternC) {
-        m_needFilePrefix = decl->getLinkage() != clang::ExternalLinkage;
-        VisitDeclContext(decl->getDeclContext());
-    }
+    if (!isExternC && decl->getLinkage() != clang::ExternalLinkage)
+        m_needFilePrefix = true;
+
+    VisitDeclContext(decl->getDeclContext());
     outputSeparator();
     outputFunctionIdentifier(decl->getDeclName());
 
