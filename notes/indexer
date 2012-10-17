@@ -43,6 +43,16 @@ Bugs (bad ref kinds)
    else, maybe just Reference.
  - See notes/misc for more.
 
+Bug: parameter types aren't canonicalized.
+
+   The two declarations of func have different names:
+      typedef int INT;
+      void func(int i);
+      void func(INT i) {}
+   This is an actual problem for
+   std::_Rb_tree::_M_insert_unique(const value_type &), where the parameter
+   type is also recorded as const _Val &.
+
 Special buffers (scratch space, built-in macros)
 
  - I keep seeing references to "<scratch space>" and "<built-in>".  They ought
