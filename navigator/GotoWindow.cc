@@ -10,6 +10,7 @@
 
 #include "MainWindow.h"
 #include "Misc.h"
+#include "PlaceholderLineEdit.h"
 #include "Project.h"
 #include "Ref.h"
 #include "TextWidthCalculator.h"
@@ -353,23 +354,6 @@ void GotoWindowResults::mouseReleaseEvent(QMouseEvent *event)
 
 
 ///////////////////////////////////////////////////////////////////////////////
-// PlaceholderLineEdit
-
-void PlaceholderLineEdit::paintEvent(QPaintEvent *event)
-{
-    QLineEdit::paintEvent(event);
-    if (text().isEmpty()) {
-        QPainter p(this);
-        QFont f = font();
-        f.setItalic(true);
-        p.setFont(f);
-        p.setPen(QColor(Qt::lightGray));
-        p.drawText(6, 5 + fontMetrics().ascent(), m_placeholder);
-    }
-}
-
-
-///////////////////////////////////////////////////////////////////////////////
 // GotoWindow
 
 GotoWindow::GotoWindow(Project &project, QWidget *parent) :
@@ -383,7 +367,10 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     setFont(newFont);
 
     new QVBoxLayout(this);
-    m_editor = new PlaceholderLineEdit("Regex filter (RE2). Case-sensitive if a capital letter exists.");
+    m_editor = new PlaceholderLineEdit;
+    m_editor->setPlaceholderText(
+                "Regex filter (RE2). "
+                "Case-sensitive if a capital letter exists.");
     layout()->addWidget(m_editor);
     connect(m_editor, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
 

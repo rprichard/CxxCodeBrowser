@@ -23,7 +23,8 @@ SOURCES += \
     History.cc \
     Folder.cc \
     FolderItem.cc \
-    FolderWidget.cc
+    FolderWidget.cc \
+    PlaceholderLineEdit.cc
 
 HEADERS += \
     Misc.h \
@@ -47,7 +48,8 @@ HEADERS += \
     Folder.h \
     FolderItem.h \
     FolderWidget.h \
-    StringRef.h
+    StringRef.h \
+    PlaceholderLineEdit.h
 
 FORMS += \
     MainWindow.ui \

@@ -19,6 +19,7 @@ class RE2;
 
 namespace Nav {
 
+class PlaceholderLineEdit;
 class Project;
 class GotoWindowFilterer;
 class TextWidthCalculator;
@@ -74,23 +75,6 @@ private:
     int m_maxTextWidth;
     int m_selectedIndex;
     int m_mouseDownIndex;
-};
-
-
-///////////////////////////////////////////////////////////////////////////////
-// PlaceholderLineEdit
-
-struct PlaceholderLineEdit : QLineEdit
-{
-    Q_OBJECT
-public:
-    explicit PlaceholderLineEdit(QString placeholder, QWidget *parent = 0) :
-        QLineEdit(parent), m_placeholder(placeholder)
-    {
-    }
-private:
-    void paintEvent(QPaintEvent *event);
-    QString m_placeholder;
 };
 
 
