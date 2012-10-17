@@ -55,6 +55,10 @@ TreeReportWindow::TreeReportWindow(TreeReport *treeReport, QWidget *parent) :
     int preferredSize = ui->treeWidget->fontMetrics().height() * ui->treeWidget->model()->rowCount();
     int preferredWidth = std::max(600, 30 + totalWidth);
     resize(preferredWidth, height() + preferredSize);
+
+    // By default, no item is selected, so pressing Down selects the first
+    // item.
+    ui->treeWidget->setCurrentIndex(QModelIndex());
 }
 
 QList<QTreeWidgetItem*> TreeReportWindow::createChildTreeWidgetItems(
