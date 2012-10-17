@@ -1,0 +1,75 @@
+There will be four kinds of windows for showing lists of things:
+ * Def: Symbol definitions
+ * Sym: Symbols
+ * Path: Files
+ * Ref: References of a symbol
+
+
+Search
+------
+
+The Def, Sym, and Path windows will have a text box for filtering results.
+
+Ctrl-F may eventually do an incremental search in the windows, but not
+currently.
+
+
+Selection
+---------
+
+In all windows, no item will be selected by default, and pressing the Down key
+should select the first item.
+
+In the Def, Path, and Ref windows, selecting an item navigates to the 
+corresponding location.  In the Symb window, selecting an item has no effect,
+but "activating" it (i.e. Enter or double-click) opens the Ref window for that
+symbol.
+
+
+Appearance
+----------
+
+The Ref window has three columns -- File, Line, and Type.  Sorting by File or
+by Type is useful, and can be done by clicking a column header.
+
+Each item in the Def window should have two rows, with a thin line separating
+each pair of items:
+
+    [Symbol name]
+    [Definition path, line NNN]
+     ---------------------------------------------
+    [Symbol name]
+    [Definition path, line NNN]
+     ---------------------------------------------
+    ...
+
+The part of the item text that matches the search filter should be bolded.
+
+
+Filtering
+---------
+
+Goals:
+ * Case-insensitive by default.  There must be some way of doing a
+   case-sensitive search.  A pattern containing a capitalized letter should
+   probably force a case-sensitive search.
+ * A regex search mode must exist.  (e.g. The patterns "b" and "^abc$" match
+   "abc", but "^b$" does not.)
+    * If the regex is invalid, detect this without printing an re2 error to
+      stderr, then color the input box's text red.  Don't attempt to filter
+      the items using the regex.
+ * Ideally, as the filter pattern was typed, the results would incrementally
+   become more precise.  With the existing filtering language, the results
+   initially include everything, then nothing, then just the items matching
+   the completed pattern.
+ * When a selected item disappears from the filter results, no other item 
+   should become selected.
+
+
+Ideas:
+ * Split filter into space-separated words.  Allow any characters before and
+   after each word:
+       get foo    =>  get.*foo
+       get foo(   =>  get.*foo\(
+       get foo (  =>  get.*foo.*\(
+ * Try sticking to plain regexs at first.
