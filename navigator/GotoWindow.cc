@@ -204,8 +204,6 @@ void GotoWindowResults::setFilter(GotoWindowFilter filter)
             assert(static_cast<size_t>(m_selectedIndex) < m_symbols.size());
         }
     }
-    if (m_selectedIndex == -1 && !m_symbols.empty())
-        m_selectedIndex = 0;
     updateGeometry();
     update();
     if (m_selectedIndex != originalIndex)
@@ -460,6 +458,7 @@ void GotoWindow::symbolFiltererFinished()
 
     resizeResultsWidget();
 
+    // When the selected index becomes -1, this code scrolls to the top.
     int x = m_scrollArea->horizontalScrollBar()->value();
     int y = std::max(0, m_results->selectedIndex() *
                         m_results->itemHeight());
