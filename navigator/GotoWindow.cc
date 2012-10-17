@@ -23,8 +23,49 @@ namespace Nav {
 ///////////////////////////////////////////////////////////////////////////////
 // Miscellaneous
 
-static QString convertFilterIntoRegex(const QString &filter)
+namespace {
+
+class Regex {
+public:
+    Regex(const std::string &pattern);
+    Regex(const Regex &other);
+    bool valid() const                      { return m_re2->ok(); }
+    RE2 &re2() const                        { return *m_re2; }
+private:
+    void initWithPattern(const std::string &pattern);
+    std::unique_ptr<RE2> m_re2;
+};
+
+} // anonymous namespace
+
+Regex::Regex(const std::string &pattern)
 {
+    initWithPattern(pattern);
+}
+
+Regex::Regex(const Regex &other)
+{
+    initWithPattern(other.re2().pattern());
+}
+
+void Regex::initWithPattern(const std::string &pattern)
+{
+    bool caseSensitive = false;
+    for (unsigned char ch : pattern) {
+        if (isupper(ch)) {
+            caseSensitive = true;
+            break;
+        }
+    }
+    RE2::Options options;
+    options.set_case_sensitive(caseSensitive);
+    options.set_log_errors(false);
+    m_re2 = std::unique_ptr<RE2>(new RE2(pattern, options));
+}
+
+static Regex convertFilterIntoRegex(const std::string &filter)
+{
+#if 0
     QStringList words = filter.split(QRegExp("[^A-Za-z0-9_*]+"), QString::SkipEmptyParts);
     QString regex;
 
@@ -43,7 +84,8 @@ static QString convertFilterIntoRegex(const QString &filter)
         }
         regex += "($|[(])";
     }
-    return regex;
+#endif
+    return Regex(filter);
 }
 
 // Given a range [0, count), return a vector of (offset, size) tuples that
@@ -71,7 +113,7 @@ public:
 
     GotoWindowFilterer(
             const std::vector<Ref> &globalDefs,
-            const std::string &pattern,
+            const Regex &pattern,
             TextWidthCalculator &twc) :
         m_futureWatcher(NULL),
         m_globalDefs(globalDefs),
@@ -121,7 +163,7 @@ private:
     std::vector<std::pair<size_t, size_t> > m_batches;
     QFutureWatcher<DummyReduceType> *m_futureWatcher;
     const std::vector<Ref> &m_globalDefs;
-    std::string m_pattern;
+    Regex m_pattern;
     TextWidthCalculator &m_twc;
 
     struct MapFunc {
@@ -131,14 +173,17 @@ private:
 
         GotoWindowFilter operator()(const std::pair<size_t, size_t> &range)
         {
+            // Make a thread-local copy of the Regex object.  For some reason
+            // (locking?), using a single Regex object in all threads is much
+            // slower.
+            Regex localRegex(m_parent.m_pattern);
+
             GotoWindowFilter result;
-            RE2::Options options;
-            options.set_case_sensitive(true);
-            re2::RE2 regex(m_parent.m_pattern, options);
             for (size_t i = range.first, iEnd = range.first + range.second;
                     i < iEnd; ++i) {
                 const char *s = m_parent.m_globalDefs[i].symbolCStr();
-                if (regex.Match(s, 0, strlen(s), RE2::UNANCHORED, NULL, 0)) {
+                if (localRegex.re2().Match(
+                            s, 0, strlen(s), RE2::UNANCHORED, NULL, 0)) {
                     result.maxTextWidth = std::max(result.maxTextWidth,
                             m_parent.m_twc.calculate(s));
                     result.indices.push_back(i);
@@ -319,7 +364,7 @@ void PlaceholderLineEdit::paintEvent(QPaintEvent *event)
         f.setItalic(true);
         p.setFont(f);
         p.setPen(QColor(Qt::lightGray));
-        p.drawText(8, 5 + fontMetrics().ascent(), m_placeholder);
+        p.drawText(6, 5 + fontMetrics().ascent(), m_placeholder);
     }
 }
 
@@ -338,7 +383,7 @@ GotoWindow::GotoWindow(Project &project, QWidget *parent) :
     setFont(newFont);
 
     new QVBoxLayout(this);
-    m_editor = new PlaceholderLineEdit("Space-separated identifier list. The '*' wildcard is accepted.");
+    m_editor = new PlaceholderLineEdit("Regex filter (RE2). Case-sensitive if a capital letter exists.");
     layout()->addWidget(m_editor);
     connect(m_editor, SIGNAL(textChanged(QString)), this, SLOT(textChanged()));
 
@@ -438,15 +483,24 @@ void GotoWindow::textChanged()
     if (m_pendingFilterer != NULL)
         delete m_pendingFilterer;
 
-    std::string pattern = convertFilterIntoRegex(m_editor->text()).toStdString();
-    m_pendingFilterer = new GotoWindowFilterer(
-                m_project.globalSymbolDefinitions(),
-                pattern,
-                TextWidthCalculator::getCachedTextWidthCalculator(font()));
-    connect(m_pendingFilterer, SIGNAL(finished()),
-            this, SLOT(symbolFiltererFinished()));
-    m_pendingFilterer->start();
-    m_pendingFilterer->wait();
+    Regex pattern = convertFilterIntoRegex(m_editor->text().toStdString());
+
+    {
+        QPalette pal;
+        if (!pattern.valid())
+            pal.setColor(m_editor->foregroundRole(), QColor(Qt::red));
+        m_editor->setPalette(pal);
+    }
+
+    if (pattern.valid()) {
+        m_pendingFilterer = new GotoWindowFilterer(
+                    m_project.globalSymbolDefinitions(),
+                    pattern,
+                    TextWidthCalculator::getCachedTextWidthCalculator(font()));
+        connect(m_pendingFilterer, SIGNAL(finished()),
+                this, SLOT(symbolFiltererFinished()));
+        m_pendingFilterer->start();
+    }
 }
 
 void GotoWindow::symbolFiltererFinished()
