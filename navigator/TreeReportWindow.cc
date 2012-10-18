@@ -29,6 +29,7 @@ TreeReportWindow::TreeReportWindow(TreeReport *treeReport, QWidget *parent) :
     // cross-references for the llvm namespace, and it's really slow.
 
     // Populate the tree widget.
+    ui->treeWidget->setUniformRowHeights(true);
     ui->treeWidget->setHeaderLabels(treeReport->getColumns());
     ui->treeWidget->addTopLevelItems(
                 createChildTreeWidgetItems(TreeReport::Index()));
