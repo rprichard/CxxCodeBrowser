@@ -36,7 +36,7 @@ public:
     virtual void activate(const Index &index) {}
 };
 
-class TableReport : public TreeReport
+class TableTreeReport : public TreeReport
 {
 public:
     int getChildCount(const Index &index);

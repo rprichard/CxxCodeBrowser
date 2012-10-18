@@ -12,7 +12,7 @@ namespace Nav {
 class Project;
 class Symbol;
 
-class ReportRefList : public TableReport
+class ReportRefList : public TableTreeReport
 {
 public:
     ReportRefList(Project *project, const QString &symbol);

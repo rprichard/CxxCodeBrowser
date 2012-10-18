@@ -3,12 +3,12 @@
 
 namespace Nav {
 
-int TableReport::getChildCount(const Index &index)
+int TableTreeReport::getChildCount(const Index &index)
 {
     return index.isValid() ? 0 : getRowCount();
 }
 
-TableReport::Index TableReport::getChildIndex(const Index &parent, int row)
+TableTreeReport::Index TableTreeReport::getChildIndex(const Index &parent, int row)
 {
     Q_ASSERT(!parent.isValid());
     return getRowIndex(row);

@@ -12,7 +12,7 @@ namespace Nav {
 class Project;
 class File;
 
-class ReportFileList : public TableReport
+class ReportFileList : public TableTreeReport
 {
 public:
     ReportFileList(Project *project);
