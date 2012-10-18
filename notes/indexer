@@ -37,13 +37,13 @@ Highlighting
     - members
     - local variables
 
-Bugs (bad ref kinds)
+BUGs (bad ref kinds)
 
  - For "class A : T<A>" we record A as a Base-Class.  It should be something
    else, maybe just Reference.
  - See notes/misc for more.
 
-Bug: parameter types aren't canonicalized.
+BUG: parameter types aren't canonicalized.
 
    The two declarations of func have different names:
       typedef int INT;
@@ -154,3 +154,19 @@ Local variable and parameters are always declared in one place, so even though
 main::argc would be unique across a single program (barring a local variable
 named argc), an index can include multiple main functions, so the
 filename/offset is still useful.
+
+----
+
+BUG: I'm seeing a lot of these errors indexing Qt:
+
+     error: unable to read PCH file: 'Is a directory'
+
+----
+
+BUG: We need to detect when the same object file path is generated twice and do
+the right thing.  It's currently possible for clang-indexer to start two
+parallel jobs that write the same idx file with --incremental, and bad things
+can happen when a corrupted file is read in for merging.
+
+ - Need to decide where to address this issue: in clang-indexer and/or in
+   processlog.py.
