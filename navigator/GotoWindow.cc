@@ -6,63 +6,20 @@
 #include <QtConcurrentRun>
 #include <QtConcurrentMap>
 #include <cassert>
-#include <re2/re2.h>
 
 #include "MainWindow.h"
 #include "Misc.h"
 #include "PlaceholderLineEdit.h"
 #include "Project.h"
 #include "Ref.h"
+#include "Regex.h"
 #include "TextWidthCalculator.h"
-
-using re2::RE2;
-
 
 namespace Nav {
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // Miscellaneous
-
-namespace {
-
-class Regex {
-public:
-    Regex(const std::string &pattern);
-    Regex(const Regex &other);
-    bool valid() const                      { return m_re2->ok(); }
-    RE2 &re2() const                        { return *m_re2; }
-private:
-    void initWithPattern(const std::string &pattern);
-    std::unique_ptr<RE2> m_re2;
-};
-
-} // anonymous namespace
-
-Regex::Regex(const std::string &pattern)
-{
-    initWithPattern(pattern);
-}
-
-Regex::Regex(const Regex &other)
-{
-    initWithPattern(other.re2().pattern());
-}
-
-void Regex::initWithPattern(const std::string &pattern)
-{
-    bool caseSensitive = false;
-    for (unsigned char ch : pattern) {
-        if (isupper(ch)) {
-            caseSensitive = true;
-            break;
-        }
-    }
-    RE2::Options options;
-    options.set_case_sensitive(caseSensitive);
-    options.set_log_errors(false);
-    m_re2 = std::unique_ptr<RE2>(new RE2(pattern, options));
-}
 
 static Regex convertFilterIntoRegex(const std::string &filter)
 {
@@ -183,8 +140,7 @@ private:
             for (size_t i = range.first, iEnd = range.first + range.second;
                     i < iEnd; ++i) {
                 const char *s = m_parent.m_globalDefs[i].symbolCStr();
-                if (localRegex.re2().Match(
-                            s, 0, strlen(s), RE2::UNANCHORED, NULL, 0)) {
+                if (localRegex.match(s)) {
                     result.maxTextWidth = std::max(result.maxTextWidth,
                             m_parent.m_twc.calculate(s));
                     result.indices.push_back(i);
