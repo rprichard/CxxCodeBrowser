@@ -6,7 +6,6 @@ TEMPLATE = app
 SOURCES += \
     main.cc \
     MainWindow.cc \
-    CommandWidget.cc \
     Misc.cc \
     Project.cc \
     FileManager.cc \
@@ -32,7 +31,6 @@ SOURCES += \
 HEADERS += \
     Misc.h \
     MainWindow.h \
-    CommandWidget.h \
     Project.h \
     FileManager.h \
     File.h \
