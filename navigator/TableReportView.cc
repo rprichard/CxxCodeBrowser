@@ -343,6 +343,9 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 // TableReportView
 
+// TODO: Replace this with QStyle hint calls.
+const int kViewportScrollbarMargin = 3;
+
 TableReportView::TableReportView(QWidget *parent) :
     QAbstractScrollArea(parent),
     m_report(NULL),
@@ -431,9 +434,13 @@ void TableReportView::setSortOrder(int column, Qt::SortOrder order)
 
 QSize TableReportView::sizeHint() const
 {
-    return QSize(m_contentWidth + frameWidth() * 2,
+    return QSize(m_contentWidth + frameWidth() * 2 +
+                 verticalScrollBar()->sizeHint().width() +
+                 kViewportScrollbarMargin,
                  itemCount() * itemHeight() + frameWidth() * 2 +
-                 m_headerView->sizeHint().height());
+                 m_headerView->sizeHint().height() +
+                 horizontalScrollBar()->sizeHint().height() +
+                 kViewportScrollbarMargin);
 }
 
 void TableReportView::contentChanged()
@@ -466,8 +473,10 @@ QSize TableReportView::estimatedViewportSize()
             height() - m_headerView->sizeHint().height() -
             frameWidth() * 2;
     int viewportWidthEstimate = width() - frameWidth() * 2;
-    const int barW = verticalScrollBar()->sizeHint().width() + 3;
-    const int barH = horizontalScrollBar()->sizeHint().height() + 3;
+    const int barW = verticalScrollBar()->sizeHint().width() +
+            kViewportScrollbarMargin;
+    const int barH = horizontalScrollBar()->sizeHint().height() +
+            kViewportScrollbarMargin;
 
     const int itemH = itemHeight();
     const int itemC = itemCount();
