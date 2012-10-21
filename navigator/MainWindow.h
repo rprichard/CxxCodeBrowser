@@ -40,6 +40,7 @@ private slots:
     void on_actionFileExit_triggered();
     void on_actionViewFiles_triggered();
     void on_actionViewGlobalDefinitions_triggered();
+    void on_actionViewSymbols_triggered();
     void actionBack();
     void actionForward();
     void sourceWidgetFileChanged(File *file);

@@ -29,6 +29,7 @@
     </property>
     <addaction name="actionViewFiles"/>
     <addaction name="actionViewGlobalDefinitions"/>
+    <addaction name="actionViewSymbols"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -67,6 +68,9 @@
    <property name="shortcut">
     <string>Ctrl+P</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
   </action>
   <action name="actionFileExit">
    <property name="text">
@@ -83,6 +87,9 @@
    <property name="shortcut">
     <string>Ctrl+D</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
   </action>
   <action name="actionViewSymbols">
    <property name="text">
@@ -90,6 +97,9 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+S</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
  </widget>

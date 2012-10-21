@@ -29,7 +29,8 @@ SOURCES += \
     TableReport.cc \
     TableReportView.cc \
     Regex.cc \
-    ReportDefList.cc
+    ReportDefList.cc \
+    ReportSymList.cc
 
 HEADERS += \
     Misc.h \
@@ -59,7 +60,8 @@ HEADERS += \
     TableReport.h \
     TableReportView.h \
     Regex.h \
-    ReportDefList.h
+    ReportDefList.h \
+    ReportSymList.h
 
 FORMS += \
     MainWindow.ui \

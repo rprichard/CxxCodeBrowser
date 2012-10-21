@@ -73,7 +73,9 @@ bool TableReportWindow::eventFilter(QObject *object, QEvent *event)
         const int key = keyEvent->key();
         const bool ctrl = keyEvent->modifiers() & Qt::ControlModifier;
         const bool alt = keyEvent->modifiers() & Qt::AltModifier;
-        if (key == Qt::Key_Up ||
+        if (key == Qt::Key_Enter ||
+                key == Qt::Key_Return ||
+                key == Qt::Key_Up ||
                 key == Qt::Key_Down ||
                 key == Qt::Key_PageUp ||
                 key == Qt::Key_PageDown ||

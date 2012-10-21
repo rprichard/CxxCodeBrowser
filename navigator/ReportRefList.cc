@@ -8,13 +8,13 @@
 namespace Nav {
 
 ReportRefList::ReportRefList(
-        Project *project,
+        Project &project,
         const QString &symbol,
         QObject *parent) :
     TableReport(parent),
     m_symbol(symbol)
 {
-    m_refList = project->queryReferencesOfSymbol(symbol);
+    m_refList = project.queryReferencesOfSymbol(symbol);
     qSort(m_refList.begin(), m_refList.end());
 }
 

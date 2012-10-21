@@ -590,7 +590,7 @@ void SourceWidgetView::actionCrossReferences()
     QAction *action = qobject_cast<QAction*>(sender());
     QString symbol = action->data().toString();
     TableReportWindow *tw = new TableReportWindow;
-    ReportRefList *r = new ReportRefList(theProject, symbol, tw);
+    ReportRefList *r = new ReportRefList(*theProject, symbol, tw);
     tw->setTableReport(r);
     tw->show();
 }

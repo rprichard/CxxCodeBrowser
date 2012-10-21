@@ -18,6 +18,7 @@
 #include "ReportDefList.h"
 #include "ReportFileList.h"
 #include "ReportRefList.h"
+#include "ReportSymList.h"
 #include "SourceWidget.h"
 #include "TableReport.h"
 #include "TableReportWindow.h"
@@ -123,6 +124,15 @@ void MainWindow::on_actionViewGlobalDefinitions_triggered()
 {
     TableReportWindow *tw = new TableReportWindow;
     ReportDefList *r = new ReportDefList(*theProject, tw);
+    tw->setTableReport(r);
+    tw->setFilterBoxVisible(true);
+    tw->show();
+}
+
+void MainWindow::on_actionViewSymbols_triggered()
+{
+    TableReportWindow *tw = new TableReportWindow;
+    ReportSymList *r = new ReportSymList(*theProject, tw);
     tw->setTableReport(r);
     tw->setFilterBoxVisible(true);
     tw->show();

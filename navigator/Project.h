@@ -45,6 +45,7 @@ public:
             uint32_t lastLine = UINT32_MAX);
     indexdb::ID querySymbolType(indexdb::ID symbolID);
     indexdb::ID getSymbolTypeID(const char *symbolType);
+    const char *getSymbolType(indexdb::ID symbolTypeID);
 
     indexdb::StringTable &symbolStringTable() { return *m_symbolStringTable; }
     indexdb::StringTable &refTypeStringTable() {

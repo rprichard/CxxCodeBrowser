@@ -18,7 +18,7 @@ class ReportRefList : public TableReport
     Q_OBJECT
 public:
     ReportRefList(
-            Project *project,
+            Project &project,
             const QString &symbol,
             QObject *parent = NULL);
     QString title();

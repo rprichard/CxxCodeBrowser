@@ -248,4 +248,12 @@ indexdb::ID Project::getSymbolTypeID(const char *symbolType)
     return m_symbolTypeStringTable->id(symbolType);
 }
 
+const char *Project::getSymbolType(indexdb::ID symbolTypeID)
+{
+    if (symbolTypeID == indexdb::kInvalidID)
+        return "";
+    else
+        return m_symbolTypeStringTable->item(symbolTypeID);
+}
+
 } // namespace Nav
