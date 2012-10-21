@@ -18,7 +18,6 @@ SOURCES += \
     TreeReport.cc \
     TreeReportWindow.cc \
     CXXSyntaxHighlighter.cc \
-    GotoWindow.cc \
     TextWidthCalculator.cc \
     History.cc \
     Folder.cc \
@@ -48,7 +47,6 @@ HEADERS += \
     CXXSyntaxHighlighter.h \
     CXXSyntaxHighlighterDirectives.h \
     CXXSyntaxHighlighterKeywords.h \
-    GotoWindow.h \
     TextWidthCalculator.h \
     History.h \
     Folder.h \
