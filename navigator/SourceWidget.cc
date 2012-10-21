@@ -71,6 +71,7 @@ public:
         addMapping("Union", Qt::darkMagenta);
         addMapping("Enum", Qt::darkMagenta);
         addMapping("Typedef", Qt::darkMagenta);
+        addMapping("Macro", Qt::darkBlue);
     }
 
     Qt::GlobalColor color(const Ref &ref) const {
