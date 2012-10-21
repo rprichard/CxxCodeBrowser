@@ -25,6 +25,9 @@ SOURCES += \
     FolderItem.cc \
     FolderWidget.cc \
     PlaceholderLineEdit.cc \
+    TableReportWindow.cc \
+    TableReport.cc \
+    TableReportView.cc \
     Regex.cc
 
 HEADERS += \
@@ -51,6 +54,9 @@ HEADERS += \
     FolderWidget.h \
     StringRef.h \
     PlaceholderLineEdit.h \
+    TableReportWindow.h \
+    TableReport.h \
+    TableReportView.h \
     Regex.h
 
 FORMS += \
