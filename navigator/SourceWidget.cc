@@ -16,7 +16,7 @@
 #include "Project.h"
 #include "Ref.h"
 #include "ReportRefList.h"
-#include "TreeReportWindow.h"
+#include "TableReportWindow.h"
 #include "MainWindow.h"
 
 namespace Nav {
@@ -589,8 +589,9 @@ void SourceWidgetView::actionCrossReferences()
 {
     QAction *action = qobject_cast<QAction*>(sender());
     QString symbol = action->data().toString();
-    ReportRefList *r = new ReportRefList(theProject, symbol);
-    TreeReportWindow *tw = new TreeReportWindow(r);
+    TableReportWindow *tw = new TableReportWindow;
+    ReportRefList *r = new ReportRefList(theProject, symbol, tw);
+    tw->setTableReport(r);
     tw->show();
 }
 

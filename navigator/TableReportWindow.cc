@@ -20,6 +20,12 @@ TableReportWindow::TableReportWindow(QWidget *parent) :
     m_filterBox->setPlaceholderText(
                 "Regex filter (RE2). "
                 "Case-sensitive if a capital letter exists.");
+
+    // TODO: centralize font settings.
+    QFont font = m_filterBox->font();
+    font.setPointSize(9);
+    m_filterBox->setFont(font);
+
     setFilterBoxVisible(false);
     layout()->setMargin(2);
     layout()->addWidget(m_filterBox);
@@ -39,6 +45,14 @@ void TableReportWindow::setTableReport(TableReport *report)
 void TableReportWindow::filterTextChanged()
 {
     Regex regex(m_filterBox->text().toStdString().c_str());
+
+    {
+        QPalette pal;
+        if (!regex.valid())
+            pal.setColor(m_filterBox->foregroundRole(), QColor(Qt::red));
+        m_filterBox->setPalette(pal);
+    }
+
     if (regex.valid())
         m_view->setFilter(regex);
 }

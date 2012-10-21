@@ -14,11 +14,13 @@
 #include "File.h"
 #include "FileManager.h"
 #include "FolderWidget.h"
-#include "GotoWindow.h"
 #include "Project.h"
+#include "ReportDefList.h"
 #include "ReportFileList.h"
 #include "ReportRefList.h"
 #include "SourceWidget.h"
+#include "TableReport.h"
+#include "TableReportWindow.h"
 #include "TreeReportWindow.h"
 #include "ui_MainWindow.h"
 
@@ -47,7 +49,6 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     sizes << 1;
     m_splitter->setSizes(sizes);
 
-    connect(ui->action_File_List, SIGNAL(triggered()), this, SLOT(actionViewFileList()));
     connect(m_sourceWidget,
             SIGNAL(fileChanged(File*)),
             SLOT(sourceWidgetFileChanged(File*)));
@@ -62,10 +63,6 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
 
     // Keyboard shortcuts.
     QShortcut *shortcut;
-    shortcut = new QShortcut(QKeySequence("Ctrl+Q"), this);
-    connect(shortcut, SIGNAL(activated()), this, SLOT(close()));
-    shortcut = new QShortcut(QKeySequence("Ctrl+S"), this);
-    connect(shortcut, SIGNAL(activated()), this, SLOT(actionOpenGotoWindow()));
     shortcut = new QShortcut(QKeySequence("Alt+Left"), this);
     connect(shortcut, SIGNAL(activated()), this, SLOT(actionBack()));
     shortcut = new QShortcut(QKeySequence("Alt+Right"), this);
@@ -108,17 +105,27 @@ void MainWindow::navigateToRef(const Ref &ref)
     m_history.recordJump(loc, currentLocation());
 }
 
-void MainWindow::actionViewFileList()
+void MainWindow::on_actionFileExit_triggered()
 {
-    ReportFileList *r = new ReportFileList(theProject);
-    TreeReportWindow *tw = new TreeReportWindow(r);
+    close();
+}
+
+void MainWindow::on_actionViewFiles_triggered()
+{
+    TableReportWindow *tw = new TableReportWindow;
+    ReportFileList *r = new ReportFileList(*theProject, tw);
+    tw->setTableReport(r);
+    tw->setFilterBoxVisible(true);
     tw->show();
 }
 
-void MainWindow::actionOpenGotoWindow()
+void MainWindow::on_actionViewGlobalDefinitions_triggered()
 {
-    GotoWindow *gw = new GotoWindow(*Nav::theProject);
-    gw->show();
+    TableReportWindow *tw = new TableReportWindow;
+    ReportDefList *r = new ReportDefList(*theProject, tw);
+    tw->setTableReport(r);
+    tw->setFilterBoxVisible(true);
+    tw->show();
 }
 
 void MainWindow::actionBack()

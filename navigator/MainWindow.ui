@@ -23,13 +23,21 @@
      <height>25</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menu_View">
+   <widget class="QMenu" name="menuView">
     <property name="title">
      <string>&amp;View</string>
     </property>
-    <addaction name="action_File_List"/>
+    <addaction name="actionViewFiles"/>
+    <addaction name="actionViewGlobalDefinitions"/>
    </widget>
-   <addaction name="menu_View"/>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>&amp;File</string>
+    </property>
+    <addaction name="actionFileExit"/>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuView"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="QToolBar" name="toolBar">
@@ -52,9 +60,36 @@
     <bool>false</bool>
    </attribute>
   </widget>
-  <action name="action_File_List">
+  <action name="actionViewFiles">
    <property name="text">
-    <string>&amp;File List...</string>
+    <string>&amp;Files...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+P</string>
+   </property>
+  </action>
+  <action name="actionFileExit">
+   <property name="text">
+    <string>E&amp;xit</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
+   </property>
+  </action>
+  <action name="actionViewGlobalDefinitions">
+   <property name="text">
+    <string>Global &amp;Definitions...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+D</string>
+   </property>
+  </action>
+  <action name="actionViewSymbols">
+   <property name="text">
+    <string>&amp;Symbols...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+S</string>
    </property>
   </action>
  </widget>

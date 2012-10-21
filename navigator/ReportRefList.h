@@ -1,27 +1,32 @@
 #ifndef NAV_REPORTREFLIST_H
 #define NAV_REPORTREFLIST_H
 
-#include "TreeReport.h"
-#include "Ref.h"
 #include <QList>
-#include <QVariant>
 #include <QString>
+#include <QVariant>
+
+#include "Ref.h"
+#include "TableReport.h"
 
 namespace Nav {
 
 class Project;
 class Symbol;
 
-class ReportRefList : public TableTreeReport
+class ReportRefList : public TableReport
 {
+    Q_OBJECT
 public:
-    ReportRefList(Project *project, const QString &symbol);
-
-    QString getTitle();
-    QStringList getColumns();
-    int getRowCount();
-    QList<QVariant> getText(const Index &index);
-    void select(const Index &index);
+    ReportRefList(
+            Project *project,
+            const QString &symbol,
+            QObject *parent = NULL);
+    QString title();
+    QStringList columns();
+    int rowCount();
+    const char *text(int row, int col, std::string &tempBuf);
+    void select(int row);
+    int compare(int row1, int row2, int col);
 
 private:
     QString m_symbol;

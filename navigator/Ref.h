@@ -52,6 +52,11 @@ public:
         return m_project->symbolStringTable().item(m_symbolID);
     }
 
+    indexdb::ID fileID() const { return m_fileID; }
+    const char *fileNameCStr() const {
+        return m_project->fileNameCStr(m_fileID);
+    }
+
     indexdb::ID symbolID() const { return m_symbolID; }
     QString symbol() const { return symbolCStr(); }
 
@@ -64,7 +69,9 @@ public:
     int column() const { return m_column; }
     int endColumn() const { return m_endColumn; }
 
-    QString kind() const {
+    indexdb::ID kindID() const { return m_kindID; }
+    QString kind() const { return kindCStr(); }
+    const char *kindCStr() const {
         if (m_kindID == indexdb::kInvalidID)
             return "";
         else

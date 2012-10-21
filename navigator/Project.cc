@@ -225,6 +225,13 @@ QString Project::fileName(indexdb::ID fileID)
     return name + 1;
 }
 
+const char *Project::fileNameCStr(indexdb::ID fileID)
+{
+    const char *name = m_symbolStringTable->item(fileID);
+    assert(name[0] == kPathSymbolPrefix);
+    return name + 1;
+}
+
 const std::vector<Ref> &Project::globalSymbolDefinitions()
 {
     return *m_globalSymbolDefinitions.result();

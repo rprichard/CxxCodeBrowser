@@ -1,6 +1,7 @@
 #ifndef NAV_TABLEREPORT_H
 #define NAV_TABLEREPORT_H
 
+#include <QObject>
 #include <QString>
 #include <QStringList>
 #include <string>
@@ -9,9 +10,11 @@ namespace Nav {
 
 class Regex;
 
-class TableReport
+class TableReport : public QObject
 {
+    Q_OBJECT
 public:
+    TableReport(QObject *parent = NULL) : QObject(parent) {}
     virtual ~TableReport()              {}
     virtual QString title()             { return "Table"; }
     virtual QStringList columns()       { return QStringList(""); }

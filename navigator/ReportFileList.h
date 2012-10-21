@@ -1,7 +1,7 @@
 #ifndef NAV_REPORTFILELIST_H
 #define NAV_REPORTFILELIST_H
 
-#include "TreeReport.h"
+#include "TableReport.h"
 #include <QString>
 #include <QStringList>
 #include <QList>
@@ -12,19 +12,19 @@ namespace Nav {
 class Project;
 class File;
 
-class ReportFileList : public TableTreeReport
+class ReportFileList : public TableReport
 {
+    Q_OBJECT
 public:
-    ReportFileList(Project *project);
-
-    QString getTitle();
-    QStringList getColumns();
-    int getRowCount();
-    QList<QVariant> getText(const Index &index);
-    void select(const Index &index);
+    ReportFileList(Project &project, QObject *parent = NULL);
+    QString title();
+    QStringList columns();
+    int rowCount();
+    const char *text(int row, int column, std::string &tempBuf);
+    void select(int row);
 
 private:
-    Project *m_project;
+    Project &m_project;
     QStringList m_paths;
 };
 

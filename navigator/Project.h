@@ -36,6 +36,7 @@ public:
     Ref findSingleDefinitionOfSymbol(const QString &symbol);
     indexdb::ID fileID(const QString &path);
     QString fileName(indexdb::ID fileID);
+    const char *fileNameCStr(indexdb::ID fileID);
     const std::vector<Ref> &globalSymbolDefinitions();
     template <typename Func> void queryFileRefs(
             File &file,

@@ -7,38 +7,38 @@
 
 namespace Nav {
 
-ReportFileList::ReportFileList(Project *project) : m_project(project)
+ReportFileList::ReportFileList(Project &project, QObject *parent) :
+    TableReport(parent),
+    m_project(project)
 {
-    m_paths = m_project->queryAllPaths();
+    m_paths = m_project.queryAllPaths();
 }
 
-QString ReportFileList::getTitle()
+QString ReportFileList::title()
 {
     return "Files";
 }
 
-QStringList ReportFileList::getColumns()
+QStringList ReportFileList::columns()
 {
     return QStringList("Path");
 }
 
-int ReportFileList::getRowCount()
+int ReportFileList::rowCount()
 {
     return m_paths.size();
 }
 
-QList<QVariant> ReportFileList::getText(const Index &index)
+const char *ReportFileList::text(int row, int column, std::string &tempBuf)
 {
-    QList<QVariant> result;
-    result << m_paths[index.row()];
-    return result;
+    tempBuf = m_paths[row].toStdString();
+    return tempBuf.c_str();
 }
 
-void ReportFileList::select(const Index &index)
+void ReportFileList::select(int row)
 {
-    File &file = m_project->fileManager().file(m_paths[index.row()]);
+    File &file = m_project.fileManager().file(m_paths[row]);
     theMainWindow->navigateToFile(&file);
-
 }
 
 } // namespace Nav
