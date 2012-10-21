@@ -22,7 +22,6 @@
 #include "SourceWidget.h"
 #include "TableReport.h"
 #include "TableReportWindow.h"
-#include "TreeReportWindow.h"
 #include "ui_MainWindow.h"
 
 namespace Nav {
