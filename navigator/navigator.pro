@@ -15,8 +15,6 @@ SOURCES += \
     SourceWidget.cc \
     ReportFileList.cc \
     ReportRefList.cc \
-    TreeReport.cc \
-    TreeReportWindow.cc \
     CXXSyntaxHighlighter.cc \
     TextWidthCalculator.cc \
     History.cc \
@@ -42,8 +40,6 @@ HEADERS += \
     SourceWidget.h \
     ReportFileList.h \
     ReportRefList.h \
-    TreeReport.h \
-    TreeReportWindow.h \
     CXXSyntaxHighlighter.h \
     CXXSyntaxHighlighterDirectives.h \
     CXXSyntaxHighlighterKeywords.h \
@@ -62,8 +58,7 @@ HEADERS += \
     ReportSymList.h
 
 FORMS += \
-    MainWindow.ui \
-    TreeReportWindow.ui
+    MainWindow.ui
 
 PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
 LIBS +=           $${OUT_PWD}/../libindexdb/libindexdb.a
