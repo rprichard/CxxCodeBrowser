@@ -1,7 +1,7 @@
 #include "SourceWidget.h"
 
-#include <QDebug>
-#include <QTime>
+#include <QApplication>
+#include <QClipboard>
 #include <QMenu>
 #include <QPainter>
 #include <QLabel>
@@ -117,6 +117,15 @@ static inline int utf8PrevCharLen(const char *nextChar, int maxLen)
     while (len < maxLen && (nextChar[-len] & 0xC0) == 0x80)
         len++;
     return len;
+}
+
+static inline bool isUtf8WordChar(const char *pch)
+{
+    char ch = *pch;
+    return ch == '_' ||
+            (ch >= 'a' && ch <= 'z') ||
+            (ch >= 'A' && ch <= 'Z') ||
+            (ch >= '0' && ch <= '9');
 }
 
 class LineLayout {
@@ -244,7 +253,7 @@ SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
     m_margins(margins),
     m_project(project),
     m_file(NULL),
-    m_changingSelection(false)
+    m_selectingMode(SM_Inactive)
 {
     setBackgroundRole(QPalette::NoRole);
     setMouseTracking(true);
@@ -254,9 +263,9 @@ void SourceWidgetView::setFile(File *file)
 {
     m_file = file;
     m_maxLineLength = 0;
-    m_selectionRange = FileRange();
-    m_hoverHighlightRange = FileRange();
-    setCursor(Qt::ArrowCursor);
+    m_selectingMode = SM_Inactive;
+    m_selectedRange = FileRange();
+    updateSelectionAndHover();
 
     if (m_file != NULL) {
         const std::string &content = m_file->content();
@@ -309,16 +318,7 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
     QPainter painter(this);
 
     // Fill in a rectangle for the selected identifier.
-    fillRangeRect(painter, m_selectionRange, palette().highlight());
     fillRangeRect(painter, m_hoverHighlightRange, palette().dark());
-
-    if (!m_selectionRange.isEmpty()) {
-        assert(m_selectionRange.start.line == m_selectionRange.end.line);
-        QPoint pt1 = locationToPoint(m_selectionRange.start);
-        QPoint pt2 = locationToPoint(m_selectionRange.end);
-        painter.fillRect(pt1.x(), pt1.y(), (pt2 - pt1).x(), lineSpacing,
-                         palette().highlight().color());
-    }
 
     // Paint lines in the clip region.
     const int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
@@ -361,6 +361,14 @@ void SourceWidgetView::paintLine(
     QColor currentColor(Qt::black);
     painter.setPen(currentColor);
 
+    // Paint the selected portion of this line.
+    FileLocation sel1 = std::max(m_selectedRange.start,
+                                 FileLocation(line, 0));
+    FileLocation sel2 = std::min(m_selectedRange.end,
+                                 FileLocation(line, m_file->lineLength(line)));
+    if (sel1 < sel2)
+        fillRangeRect(painter, FileRange(sel1, sel2), palette().highlight());
+
     while (lay.hasMoreChars()) {
         lay.advanceChar();
         if (lay.charLeft() > rect.right())
@@ -372,7 +380,7 @@ void SourceWidgetView::paintLine(
             QColor color(m_syntaxColoring[lay.charFileIndex()]);
 
             // Override the color for selected text.
-            if (loc >= m_selectionRange.start && loc < m_selectionRange.end)
+            if (loc >= m_selectedRange.start && loc < m_selectedRange.end)
                 color = palette().highlightedText().color();
 
             // Set the painter pen when the color changes.
@@ -389,7 +397,7 @@ void SourceWidgetView::paintLine(
     }
 }
 
-FileLocation SourceWidgetView::hitTest(QPoint pixel)
+FileLocation SourceWidgetView::hitTest(QPoint pixel, bool roundToNearest)
 {
     if (m_file == NULL)
         return FileLocation();
@@ -403,7 +411,10 @@ FileLocation SourceWidgetView::hitTest(QPoint pixel)
         LineLayout lay(font(), m_margins, *m_file, line);
         while (lay.hasMoreChars()) {
             lay.advanceChar();
-            if (pixel.x() < lay.charLeft() + lay.charWidth())
+            int charWidth = lay.charWidth();
+            if (roundToNearest)
+                charWidth = (charWidth >> 1) + 1;
+            if (pixel.x() < lay.charLeft() + charWidth)
                 return FileLocation(line, lay.charColumn());
         }
         return FileLocation(line, m_file->lineLength(line));
@@ -435,7 +446,64 @@ QSize SourceWidgetView::sizeHint() const
             marginsToSize(m_margins);
 }
 
-FileRange SourceWidgetView::findWordAtLocation(const FileLocation &pt)
+void SourceWidgetView::copy()
+{
+    StringRef text = rangeText(m_selectedRange);
+    if (text.size() > 0) {
+        QString qtext = QString::fromAscii(text.data(), text.size());
+        QApplication::clipboard()->setText(qtext);
+    }
+}
+
+void SourceWidgetView::setSelection(const FileRange &fileRange)
+{
+    if (m_selectedRange == fileRange)
+        return;
+    updateRange(m_selectedRange);
+    updateRange(fileRange);
+    m_selectedRange = fileRange;
+}
+
+void SourceWidgetView::setHoverHighlight(const FileRange &fileRange)
+{
+    if (m_hoverHighlightRange == fileRange)
+        return;
+    updateRange(m_hoverHighlightRange);
+    updateRange(fileRange);
+    m_hoverHighlightRange = fileRange;
+}
+
+void SourceWidgetView::updateRange(const FileRange &range)
+{
+    if (m_file == NULL || range.isEmpty())
+        return;
+    const int lineHeight = effectiveLineSpacing(fontMetrics());
+    assert(!range.start.isNull() && !range.end.isNull());
+    if (range.start.line == range.end.line) {
+        QPoint pt1 = locationToPoint(range.start);
+        QPoint pt2 = locationToPoint(range.end);
+        update(pt1.x(), pt1.y(), pt2.x() - pt1.x(), lineHeight);
+    } else {
+        int y1 = lineTop(range.start.line);
+        int y2 = lineTop(range.end.line) + lineHeight;
+        update(0, y1, width(), y2 - y1);
+    }
+}
+
+StringRef SourceWidgetView::rangeText(const FileRange &range)
+{
+    if (m_file == NULL || range.isEmpty())
+        return StringRef();
+    assert(!range.start.isNull() && !range.end.isNull());
+    size_t offset1 = range.start.toOffset(*m_file);
+    size_t offset2 = range.end.toOffset(*m_file);
+    const std::string &content = m_file->content();
+    offset1 = std::min(offset1, content.size());
+    offset2 = std::min(offset2, content.size());
+    return StringRef(content.c_str() + offset1, offset2 - offset1);
+}
+
+FileRange SourceWidgetView::findRefAtLocation(const FileLocation &pt)
 {
     if (m_file == NULL || !pt.doesPointAtChar(*m_file))
         return FileRange();
@@ -461,12 +529,12 @@ FileRange SourceWidgetView::findWordAtLocation(const FileLocation &pt)
     return FileRange(loc1, loc2);
 }
 
-FileRange SourceWidgetView::findWordAtPoint(QPoint pt)
+FileRange SourceWidgetView::findRefAtPoint(QPoint pt)
 {
     if (m_file != NULL) {
         FileLocation loc = hitTest(pt);
         if (loc.doesPointAtChar(*m_file))
-            return findWordAtLocation(loc);
+            return findRefAtLocation(loc);
     }
     return FileRange();
 }
@@ -475,50 +543,204 @@ std::set<std::string> SourceWidgetView::findSymbolsAtRange(
         const FileRange &range)
 {
     std::set<std::string> result;
-    assert(range.start.line == range.end.line);
-    m_project.queryFileRefs(
-                *m_file,
-                [&result, &range](const Ref &ref) {
-        if (ref.column() == range.start.column + 1 &&
-                ref.endColumn() == range.end.column + 1)
-            result.insert(ref.symbolCStr());
-    }, range.start.line + 1, range.start.line + 1);
+    if (!range.isEmpty() && range.start.line == range.end.line) {
+        m_project.queryFileRefs(
+                    *m_file,
+                    [&result, &range](const Ref &ref) {
+            if (ref.column() == range.start.column + 1 &&
+                    ref.endColumn() == range.end.column + 1)
+                result.insert(ref.symbolCStr());
+        }, range.start.line + 1, range.start.line + 1);
+    }
     return result;
+}
+
+FileRange SourceWidgetView::findWordAtLocation(FileLocation loc)
+{
+    assert(m_file != NULL);
+    if (!loc.doesPointAtChar(*m_file))
+        return FileRange(loc, loc);
+    StringRef lineContent = m_file->lineContent(loc.line);
+    const int lineLength = lineContent.size();
+    if (!isUtf8WordChar(&lineContent[loc.column])) {
+        int charLen = utf8CharLen(&lineContent[loc.column]);
+        return FileRange(loc, FileLocation(loc.line,
+            loc.column + std::min(charLen, lineLength - loc.column)));
+    }
+    int col1 = loc.column;
+    int col2 = loc.column;
+    while (col1 > 0) {
+        int prevCol1 = col1 - utf8PrevCharLen(&lineContent[col1], col1);
+        if (!isUtf8WordChar(&lineContent[prevCol1]))
+            break;
+        col1 = prevCol1;
+    }
+    while (col2 < lineLength) {
+        int charLen = utf8CharLen(&lineContent[col2]);
+        if (charLen > lineLength - col2)
+            break;
+        if (!isUtf8WordChar(&lineContent[col2]))
+            break;
+        col2 += charLen;
+    }
+    return FileRange(FileLocation(loc.line, col1),
+                     FileLocation(loc.line, col2));
 }
 
 void SourceWidgetView::mousePressEvent(QMouseEvent *event)
 {
-    m_changingSelection = true;
-    m_selectionRange = findWordAtPoint(event->pos());
-    update();
+    if (m_tripleClickTime.elapsed() < QApplication::doubleClickInterval() &&
+            (event->pos() - m_tripleClickPoint).manhattanLength() <
+                QApplication::startDragDistance()) {
+        m_tripleClickTime = QTime();
+        m_tripleClickPoint = QPoint();
+        navMouseTripleDownEvent(event);
+    } else {
+        navMouseSingleDownEvent(event);
+    }
+}
+
+void SourceWidgetView::mouseDoubleClickEvent(QMouseEvent *event)
+{
+    m_tripleClickTime.start();
+    m_tripleClickPoint = event->pos();
+    navMouseDoubleDownEvent(event);
+}
+
+void SourceWidgetView::navMouseSingleDownEvent(QMouseEvent *event)
+{
+    FileLocation loc = hitTest(event->pos());
+    FileRange refRange = findRefAtLocation(loc);
+    if (!refRange.isEmpty()) {
+        m_selectingMode = SM_Ref;
+        setSelection(refRange);
+    } else {
+        if (event->button() == Qt::LeftButton) {
+            m_selectingMode = SM_Char;
+            m_selectingAnchor = event->pos();
+        } else if (event->button() == Qt::RightButton &&
+                !m_selectedRange.isEmpty() &&
+                (loc < m_selectedRange.start || loc >= m_selectedRange.end)) {
+            setSelection(FileRange());
+        }
+    }
+    updateSelectionAndHover(event->pos());
+}
+
+void SourceWidgetView::navMouseDoubleDownEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        m_selectingMode = SM_Word;
+        m_selectingAnchor = event->pos();
+        updateSelectionAndHover(event->pos());
+    }
+}
+
+void SourceWidgetView::navMouseTripleDownEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::LeftButton) {
+        m_selectingMode = SM_Line;
+        m_selectingAnchor = event->pos();
+        updateSelectionAndHover(event->pos());
+    }
 }
 
 void SourceWidgetView::mouseMoveEvent(QMouseEvent *event)
 {
-    FileRange word = findWordAtPoint(event->pos());
-    if (m_changingSelection &&
-            !m_selectionRange.isEmpty() &&
-            m_selectionRange != word) {
-        m_selectionRange = FileRange();
-        update();
+    updateSelectionAndHover(event->pos());
+    if (m_selectingMode != SM_Inactive && m_selectingMode != SM_Ref)
+        emit pointSelected(event->pos());
+}
+
+void SourceWidgetView::moveEvent(QMoveEvent *event)
+{
+    updateSelectionAndHover();
+}
+
+void SourceWidgetView::updateSelectionAndHover()
+{
+    updateSelectionAndHover(mapFromGlobal(QCursor::pos()));
+}
+
+// Update the selected range, hover highlight range, and mouse cursor to
+// account for a mouse move to the given position.
+void SourceWidgetView::updateSelectionAndHover(QPoint mousePos)
+{
+    if (m_file == NULL)
+        return;
+    if (m_selectingMode == SM_Inactive) {
+        FileRange word;
+        if (rect().contains(mousePos))
+            word = findRefAtPoint(mousePos);
+        setHoverHighlight(word);
+        setCursor(word.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
+        m_selectingAnchor = QPoint();
+    } else if (m_selectingMode == SM_Ref) {
+        setHoverHighlight(FileRange());
+        if (!m_selectedRange.isEmpty()) {
+            FileRange word = findRefAtPoint(mousePos);
+            if (word == m_selectedRange) {
+                setCursor(Qt::PointingHandCursor);
+            } else {
+                setSelection(FileRange());
+                setCursor(Qt::ArrowCursor);
+            }
+        } else {
+            setCursor(Qt::ArrowCursor);
+        }
+        m_selectingAnchor = QPoint();
+    } else {
+        setHoverHighlight(FileRange());
+        if (m_selectingMode == SM_Char) {
+            setCursor(Qt::ArrowCursor);
+            FileLocation loc1 = hitTest(m_selectingAnchor,
+                                        /*roundToNearest=*/true);
+            FileLocation loc2 = hitTest(mousePos,
+                                        /*roundToNearest=*/true);
+            setSelection(FileRange(std::min(loc1, loc2),
+                                   std::max(loc1, loc2)));
+        } else if (m_selectingMode == SM_Word) {
+            setCursor(Qt::ArrowCursor);
+            FileRange loc1 = findWordAtLocation(hitTest(m_selectingAnchor));
+            FileRange loc2 = findWordAtLocation(hitTest(mousePos));
+            setSelection(FileRange(std::min(loc1.start, loc2.start),
+                                   std::max(loc1.end, loc2.end)));
+        } else if (m_selectingMode == SM_Line) {
+            setCursor(Qt::ArrowCursor);
+            FileLocation loc1 = hitTest(m_selectingAnchor);
+            FileLocation loc2 = hitTest(mousePos);
+            int line1 = std::min(loc1.line, loc2.line);
+            int line2 = std::max(loc1.line, loc2.line);
+            FileLocation lineLoc1 = FileLocation(line1, 0);
+            FileLocation lineLoc2;
+            if (line2 < m_file->lineCount())
+                lineLoc2 = FileLocation(line2, m_file->lineLength(line2));
+            else
+                lineLoc2 = FileLocation(line2, 0);
+            setSelection(FileRange(lineLoc1, lineLoc2));
+        } else {
+            assert(false && "Invalid m_selectingMode");
+        }
+        // Update the selection clipboard.
+        StringRef text = rangeText(m_selectedRange);
+        if (text.size() > 0) {
+            QString qtext = QString::fromAscii(text.data(), text.size());
+            QApplication::clipboard()->setText(qtext, QClipboard::Selection);
+        }
     }
-    if (m_hoverHighlightRange != word) {
-        m_hoverHighlightRange = word;
-        update();
-    }
-    setCursor(word.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
 }
 
 void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
 {
-    m_changingSelection = false;
-    if (!m_selectionRange.isEmpty()) {
+    SelectingMode oldMode = m_selectingMode;
+    m_selectingMode = SM_Inactive;
+    updateSelectionAndHover(event->pos());
+
+    if (oldMode == SM_Ref && !m_selectedRange.isEmpty()) {
         FileRange identifierClicked;
-        if (m_selectionRange == findWordAtPoint(event->pos()))
-            identifierClicked = m_selectionRange;
-        m_selectionRange = FileRange();
-        setCursor(Qt::ArrowCursor);
-        update();
+        if (m_selectedRange == findRefAtPoint(event->pos()))
+            identifierClicked = m_selectedRange;
+        setSelection(FileRange());
 
         // Delay the event handling as long as possible.  Clicking a symbol is
         // likely to cause a jump to another location, which will change the
@@ -539,45 +761,45 @@ void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
 
 void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
 {
-    m_changingSelection = false;
+    m_selectingMode = SM_Inactive;
+    m_tripleClickTime = QTime();
+    m_tripleClickPoint = QPoint();
+    m_hoverHighlightRange = FileRange();
+    setCursor(Qt::ArrowCursor);
 
-    if (!m_selectionRange.isEmpty()) {
-        if (m_selectionRange != findWordAtPoint(event->pos()))
-            m_selectionRange = FileRange();
-    }
-
-    if (m_selectionRange.isEmpty()) {
+    if (m_selectedRange.isEmpty()) {
         QMenu *menu = new QMenu();
         bool backEnabled = false;
         bool forwardEnabled = false;
         emit areBackAndForwardEnabled(backEnabled, forwardEnabled);
-        menu->addAction(QIcon::fromTheme("go-previous"), "Back",
+        menu->addAction(QIcon::fromTheme("go-previous"), "&Back",
                         this, SIGNAL(goBack()))->setEnabled(backEnabled);
-        menu->addAction(QIcon::fromTheme("go-next"), "Forward",
+        menu->addAction(QIcon::fromTheme("go-next"), "&Forward",
                         this, SIGNAL(goForward()))->setEnabled(forwardEnabled);
-        menu->addAction("Copy File Path", this, SIGNAL(copyFilePath()));
-        menu->addAction("Reveal in Sidebar", this, SIGNAL(revealInSideBar()));
+        menu->addAction("&Copy File Path", this, SIGNAL(copyFilePath()));
+        menu->addAction("Reveal in &Sidebar", this, SIGNAL(revealInSideBar()));
         menu->exec(event->globalPos());
         delete menu;
     } else {
         QMenu *menu = new QMenu();
-        std::set<std::string> symbols = findSymbolsAtRange(m_selectionRange);
+        std::set<std::string> symbols = findSymbolsAtRange(m_selectedRange);
         if (symbols.empty()) {
-            // This shouldn't ever occur, but it's harmless if it does.
-            return;
-        }
-        for (const auto &symbol : symbols) {
-            QAction *action = menu->addAction(symbol.c_str());
-            action->setEnabled(false);
-            QFont f = action->font();
-            f.setBold(true);
-            action->setFont(f);
-            menu->addSeparator();
-            action = menu->addAction("Cross-references...",
-                                     this,
-                                     SLOT(actionCrossReferences()));
-            action->setData(symbol.c_str());
-            menu->addSeparator();
+            menu->addAction(QIcon::fromTheme("edit-copy"), "&Copy",
+                            this, SLOT(copy()));
+        } else {
+            for (const auto &symbol : symbols) {
+                QAction *action = menu->addAction(symbol.c_str());
+                action->setEnabled(false);
+                QFont f = action->font();
+                f.setBold(true);
+                action->setFont(f);
+                menu->addSeparator();
+                action = menu->addAction("Cross-references...",
+                                         this,
+                                         SLOT(actionCrossReferences()));
+                action->setData(symbol.c_str());
+                menu->addSeparator();
+            }
         }
         menu->exec(event->globalPos());
         delete menu;
@@ -629,6 +851,9 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
             SIGNAL(areBackAndForwardEnabled(bool&,bool&)));
     connect(&sourceWidgetView(), SIGNAL(copyFilePath()), SIGNAL(copyFilePath()));
     connect(&sourceWidgetView(), SIGNAL(revealInSideBar()), SIGNAL(revealInSideBar()));
+    connect(&sourceWidgetView(),
+            SIGNAL(pointSelected(QPoint)),
+            SLOT(viewPointSelected(QPoint)));
 
     layoutSourceWidget();
 }
@@ -682,6 +907,11 @@ void SourceWidget::layoutSourceWidget(void)
     sourceWidgetView().resize(sizeHint);
 }
 
+void SourceWidget::viewPointSelected(QPoint point)
+{
+    ensureVisible(point.x(), point.y(), 0, 0);
+}
+
 void SourceWidget::resizeEvent(QResizeEvent *event)
 {
     layoutSourceWidget();
@@ -719,6 +949,11 @@ void SourceWidget::setViewportOrigin(const QPoint &pt)
 {
     horizontalScrollBar()->setValue(pt.x());
     verticalScrollBar()->setValue(pt.y());
+}
+
+void SourceWidget::copy()
+{
+    sourceWidgetView().copy();
 }
 
 } // namespace Nav

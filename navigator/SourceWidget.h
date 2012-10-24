@@ -3,13 +3,16 @@
 
 #include <QList>
 #include <QPlainTextEdit>
+#include <QPoint>
 #include <QScrollArea>
+#include <QTime>
 #include <set>
 #include <string>
 #include <utility>
 
-#include "File.h"
 #include "CXXSyntaxHighlighter.h"
+#include "File.h"
+#include "StringRef.h"
 
 namespace Nav {
 
@@ -142,11 +145,20 @@ public:
     SourceWidgetView(const QMargins &margins, Project &project);
     void setFile(File *file);
     File *file() { return m_file; }
-    FileLocation hitTest(QPoint pt);
-    void setSelection(const FileRange &fileRange) { m_selectionRange = fileRange; update(); }
+    FileLocation hitTest(QPoint pt, bool roundToNearest=false);
     QPoint locationToPoint(FileLocation loc);
     QSize sizeHint() const;
     QSize minimumSizeHint() const { return sizeHint(); }
+
+public slots:
+    void copy();
+
+public:
+    void setSelection(const FileRange &fileRange);
+private:
+    void setHoverHighlight(const FileRange &fileRange);
+    void updateRange(const FileRange &range);
+    StringRef rangeText(const FileRange &range);
 
 signals:
     void goBack();
@@ -154,11 +166,13 @@ signals:
     void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
     void copyFilePath();
     void revealInSideBar();
+    void pointSelected(QPoint point);
 
 private:
-    FileRange findWordAtLocation(const FileLocation &pt);
-    FileRange findWordAtPoint(QPoint pt);
+    FileRange findRefAtLocation(const FileLocation &pt);
+    FileRange findRefAtPoint(QPoint pt);
     std::set<std::string> findSymbolsAtRange(const FileRange &range);
+    FileRange findWordAtLocation(FileLocation loc);
     void paintEvent(QPaintEvent *event);
     void fillRangeRect(
             QPainter &painter,
@@ -168,8 +182,15 @@ private:
     void paintLine(QPainter &painter, int line, const QRect &rect);
 
     void mousePressEvent(QMouseEvent *event);
-    void mouseReleaseEvent(QMouseEvent *event);
+    void mouseDoubleClickEvent(QMouseEvent *event);
+    void navMouseSingleDownEvent(QMouseEvent *event);
+    void navMouseDoubleDownEvent(QMouseEvent *event);
+    void navMouseTripleDownEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
+    void moveEvent(QMoveEvent *event);
+    void updateSelectionAndHover();
+    void updateSelectionAndHover(QPoint pos);
+    void mouseReleaseEvent(QMouseEvent *event);
     void contextMenuEvent(QContextMenuEvent *event);
 
 private slots:
@@ -181,8 +202,12 @@ private:
     File *m_file;
     std::vector<Qt::GlobalColor> m_syntaxColoring;
     int m_maxLineLength;
-    bool m_changingSelection;
-    FileRange m_selectionRange;
+    QPoint m_tripleClickPoint;
+    QTime m_tripleClickTime;
+    enum SelectingMode { SM_Inactive, SM_Ref, SM_Char, SM_Word, SM_Line }
+        m_selectingMode;
+    FileRange m_selectedRange;
+    QPoint m_selectingAnchor;
     FileRange m_hoverHighlightRange;
 };
 
@@ -201,6 +226,9 @@ public:
     QPoint viewportOrigin();
     void setViewportOrigin(const QPoint &pt);
 
+public slots:
+    void copy();
+
 signals:
     void fileChanged(File *file);
     void goBack();
@@ -216,6 +244,7 @@ private:
 
 private slots:
     void layoutSourceWidget(void);
+    void viewPointSelected(QPoint point);
 
 private:
     QWidget *m_lineAreaViewport;

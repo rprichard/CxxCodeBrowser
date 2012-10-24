@@ -60,6 +60,8 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     connect(m_sourceWidget, SIGNAL(goForward()), SLOT(actionForward()));
     connect(m_sourceWidget, SIGNAL(copyFilePath()), SLOT(actionCopyFilePath()));
     connect(m_sourceWidget, SIGNAL(revealInSideBar()), SLOT(actionRevealInSideBar()));
+    connect(ui->actionEditCopy, SIGNAL(triggered()),
+            m_sourceWidget, SLOT(copy()));
 
     // Keyboard shortcuts.
     QShortcut *shortcut;
