@@ -1,10 +1,17 @@
 #include "Regex.h"
 
+#include <cassert>
 #include <re2/re2.h>
 
 using re2::RE2;
 
 namespace Nav {
+
+// Constructs an invalid Regex object.
+Regex::Regex()
+{
+    initWithPattern("");
+}
 
 Regex::Regex(const std::string &pattern)
 {
@@ -33,7 +40,12 @@ void Regex::initWithPattern(const std::string &pattern)
     }
     RE2::Options options;
     options.set_case_sensitive(caseSensitive);
+    options.set_posix_syntax(true);
     options.set_log_errors(false);
+    options.set_one_line(false);
+    options.set_perl_classes(true);
+    options.set_word_boundary(true);
+    options.set_never_capture(true);
     m_re2 = std::unique_ptr<RE2>(new RE2(pattern, options));
 }
 
@@ -48,8 +60,14 @@ bool Regex::valid() const
     return m_re2->ok();
 }
 
+bool Regex::empty() const
+{
+    return !m_re2->ok() || m_re2->pattern().empty();
+}
+
 bool Regex::match(const char *text) const
 {
+    assert(m_re2->ok());
     return m_re2->Match(text, 0, strlen(text), RE2::UNANCHORED, NULL, 0);
 }
 

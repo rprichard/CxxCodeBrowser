@@ -12,11 +12,13 @@ namespace Nav {
 
 class Regex {
 public:
-    Regex(const std::string &pattern);
+    Regex();
+    explicit Regex(const std::string &pattern);
     Regex(const Regex &other);
     Regex &operator=(const Regex &other);
     ~Regex();
     bool valid() const;
+    bool empty() const;
     re2::RE2 &re2() const                   { return *m_re2; }
     bool match(const char *text) const;
 private:

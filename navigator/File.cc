@@ -13,15 +13,34 @@ File::File(Folder *parent, const QString &path) :
 {
 }
 
+QString File::path()
+{
+    return m_path;
+}
+
 QString File::title()
 {
     QFileInfo fi(m_path);
     return fi.fileName();
 }
 
-QString File::path()
+// 0-based line number.  The offset must be less than the content size.  The
+// result will be <= the line count.
+int File::lineForOffset(int offset)
 {
-    return m_path;
+    ensureLoaded();
+    assert(offset < static_cast<int>(m_content.size()));
+    int line1 = 0;
+    int line2 = lineCount() - 1;
+    while (line1 < line2) {
+        int midLine = line1 + (line2 - line1) / 2 + 1;
+        assert(midLine > line1 && midLine <= line2);
+        if (offset < m_lines[midLine].first)
+            line2 = midLine - 1;
+        else
+            line1 = midLine;
+    }
+    return line1;
 }
 
 void File::loadFile()

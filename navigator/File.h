@@ -44,12 +44,14 @@ public:
         return m_lines[line].first;
     }
 
-    // 0-based line number
+    // 0-based line number.  The length does not include a trailing '\n'.
     int lineLength(int line) {
         ensureLoaded();
         assert(line < lineCount());
         return m_lines[line].second;
     }
+
+    int lineForOffset(int offset);
 
     // 0-based line number
     StringRef lineContent(int line) {

@@ -26,7 +26,9 @@ SOURCES += \
     TableReportView.cc \
     Regex.cc \
     ReportDefList.cc \
-    ReportSymList.cc
+    ReportSymList.cc \
+    FindBar.cc \
+    RegexMatchList.cc
 
 HEADERS += \
     Misc.h \
@@ -53,7 +55,10 @@ HEADERS += \
     TableReportView.h \
     Regex.h \
     ReportDefList.h \
-    ReportSymList.h
+    ReportSymList.h \
+    FindBar.h \
+    RegexMatchList.h \
+    RandomAccessIterator.h
 
 FORMS += \
     MainWindow.ui

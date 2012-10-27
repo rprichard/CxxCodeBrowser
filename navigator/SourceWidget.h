@@ -6,12 +6,15 @@
 #include <QPoint>
 #include <QScrollArea>
 #include <QTime>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
 
 #include "CXXSyntaxHighlighter.h"
 #include "File.h"
+#include "Regex.h"
+#include "RegexMatchList.h"
 #include "StringRef.h"
 
 namespace Nav {
@@ -39,6 +42,17 @@ typedef uint32_t FileOffset;
 struct FileLocation {
     FileLocation() : line(-1), column(-1) {}
     FileLocation(int line, int column) : line(line), column(column) {}
+
+    FileLocation(File &file, FileOffset offset) {
+        if (offset == file.content().size()) {
+            line = file.lineCount();
+            column = 0;
+        } else {
+            line = file.lineForOffset(offset);
+            column = offset - file.lineStart(line);
+        }
+    }
+
     int line;
     int column;
 
@@ -143,12 +157,18 @@ class SourceWidgetView : public QWidget
     Q_OBJECT
 public:
     SourceWidgetView(const QMargins &margins, Project &project);
+    virtual ~SourceWidgetView();
     void setFile(File *file);
     File *file() { return m_file; }
     FileLocation hitTest(QPoint pt, bool roundToNearest=false);
     QPoint locationToPoint(FileLocation loc);
     QSize sizeHint() const;
     QSize minimumSizeHint() const { return sizeHint(); }
+    const Regex &findRegex() { return m_findRegex; }
+    void setFindRegex(const Regex &findRegex);
+    const RegexMatchList &findMatches() const { return m_findMatches; }
+    int selectedMatchIndex() const { return m_selectedMatchIndex; }
+    void setSelectedMatchIndex(int index);
 
 public slots:
     void copy();
@@ -167,6 +187,8 @@ signals:
     void copyFilePath();
     void revealInSideBar();
     void pointSelected(QPoint point);
+    void findMatchSelectionChanged(int index);
+    void findMatchListChanged();
 
 private:
     FileRange findRefAtLocation(const FileLocation &pt);
@@ -174,12 +196,12 @@ private:
     std::set<std::string> findSymbolsAtRange(const FileRange &range);
     FileRange findWordAtLocation(FileLocation loc);
     void paintEvent(QPaintEvent *event);
-    void fillRangeRect(
-            QPainter &painter,
-            const FileRange &range,
-            const QBrush &brush);
     int lineTop(int line);
-    void paintLine(QPainter &painter, int line, const QRect &rect);
+    void paintLine(
+            QPainter &painter,
+            int line,
+            const QRect &paintRect,
+            RegexMatchList::iterator &findMatch);
 
     void mousePressEvent(QMouseEvent *event);
     void mouseDoubleClickEvent(QMouseEvent *event);
@@ -192,6 +214,8 @@ private:
     void updateSelectionAndHover(QPoint pos);
     void mouseReleaseEvent(QMouseEvent *event);
     void contextMenuEvent(QContextMenuEvent *event);
+    void updateFindMatches();
+    FileRange matchFileRange(int index);
 
 private slots:
     void actionCrossReferences();
@@ -209,6 +233,12 @@ private:
     FileRange m_selectedRange;
     QPoint m_selectingAnchor;
     FileRange m_hoverHighlightRange;
+    Regex m_findRegex;
+    RegexMatchList m_findMatches;
+
+    // The index of the selected match.  This is -1 if and only if
+    // m_findMatches is empty.
+    int m_selectedMatchIndex;
 };
 
 
@@ -225,6 +255,11 @@ public:
     void selectIdentifier(int line, int column, int endColumn);
     QPoint viewportOrigin();
     void setViewportOrigin(const QPoint &pt);
+    void setFindRegex(const Regex &findRegex);
+    int matchCount();
+    int selectedMatchIndex();
+    void setSelectedMatchIndex(int index);
+    void ensureSelectedMatchVisible();
 
 public slots:
     void copy();
@@ -236,6 +271,8 @@ signals:
     void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
     void copyFilePath();
     void revealInSideBar();
+    void findMatchSelectionChanged(int index);
+    void findMatchListChanged();
 
 private:
     SourceWidgetView &sourceWidgetView();
@@ -250,6 +287,14 @@ private:
     QWidget *m_lineAreaViewport;
     SourceWidgetLineArea *m_lineArea;
     Project &m_project;
+
+    // The view origin and top-left file offset when the user began searching.
+    // Clearing the search returns the view to this origin.  Whenever the
+    // search regex changes, the SourceWidget uses this file offset to decide
+    // which match to select.
+    QPoint m_findStartOrigin;
+    int m_findStartOffset;
+
     friend class SourceWidgetLineArea;
 };
 

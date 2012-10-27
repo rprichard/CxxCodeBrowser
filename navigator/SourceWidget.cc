@@ -8,18 +8,28 @@
 #include <QTextBlock>
 #include <QScrollBar>
 #include <cassert>
+#include <memory>
 #include <unordered_map>
+#include <re2/prog.h>
+#include <re2/re2.h>
+#include <re2/regexp.h>
 
 #include "CXXSyntaxHighlighter.h"
 #include "File.h"
 #include "Misc.h"
 #include "Project.h"
 #include "Ref.h"
+#include "Regex.h"
+#include "RegexMatchList.h"
 #include "ReportRefList.h"
 #include "TableReportWindow.h"
 #include "MainWindow.h"
 
 namespace Nav {
+
+
+///////////////////////////////////////////////////////////////////////////////
+// Miscellaneous
 
 const int kTabStopSize = 8;
 
@@ -127,6 +137,10 @@ static inline bool isUtf8WordChar(const char *pch)
             (ch >= 'A' && ch <= 'Z') ||
             (ch >= '0' && ch <= '9');
 }
+
+
+///////////////////////////////////////////////////////////////////////////////
+// <anon>::LineLayout
 
 class LineLayout {
 public:
@@ -253,14 +267,25 @@ SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
     m_margins(margins),
     m_project(project),
     m_file(NULL),
-    m_selectingMode(SM_Inactive)
+    m_selectingMode(SM_Inactive),
+    m_selectedMatchIndex(-1)
 {
     setBackgroundRole(QPalette::NoRole);
     setMouseTracking(true);
+    updateFindMatches();
+}
+
+// Declare out-of-line destructor where member std::unique_ptr's types are
+// defined.
+SourceWidgetView::~SourceWidgetView()
+{
 }
 
 void SourceWidgetView::setFile(File *file)
 {
+    if (m_file == file)
+        return;
+
     m_file = file;
     m_maxLineLength = 0;
     m_selectingMode = SM_Inactive;
@@ -305,6 +330,7 @@ void SourceWidgetView::setFile(File *file)
         m_maxLineLength = maxLength;
     }
 
+    updateFindMatches();
     updateGeometry();
     update();
 }
@@ -317,9 +343,6 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
     const int lineSpacing = effectiveLineSpacing(fontMetrics());
     QPainter painter(this);
 
-    // Fill in a rectangle for the selected identifier.
-    fillRangeRect(painter, m_hoverHighlightRange, palette().dark());
-
     // Paint lines in the clip region.
     const int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
     const int line2 = std::min(event->rect().bottom() / lineSpacing + 2,
@@ -327,23 +350,20 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
     if (line1 > line2)
         return;
 
-    for (int line = line1; line <= line2; ++line)
-        paintLine(painter, line, event->rect());
-}
+    // Find the first interesting find match using binary search.  Scanning
+    // the matches linearly is especially slow because it would force
+    // evaluation of regex start positions.
+    const int line1Offset = FileLocation(line1, 0).toOffset(*m_file);
+    RegexMatchList::iterator findMatch =
+            std::lower_bound(
+                m_findMatches.begin(),
+                m_findMatches.end(),
+                std::make_pair(line1Offset, line1Offset));
+    if (findMatch > m_findMatches.begin())
+        --findMatch;
 
-void SourceWidgetView::fillRangeRect(
-        QPainter &painter,
-        const FileRange &range,
-        const QBrush &brush)
-{
-    if (range.isEmpty())
-        return;
-    assert(range.start.line == range.end.line);
-    QPoint pt1 = locationToPoint(range.start);
-    QPoint pt2 = locationToPoint(range.end);
-    painter.fillRect(pt1.x(), pt1.y(), (pt2 - pt1).x(),
-                     effectiveLineSpacing(fontMetrics()),
-                     brush);
+    for (int line = line1; line <= line2; ++line)
+        paintLine(painter, line, event->rect(), findMatch);
 }
 
 int SourceWidgetView::lineTop(int line)
@@ -355,44 +375,85 @@ int SourceWidgetView::lineTop(int line)
 void SourceWidgetView::paintLine(
         QPainter &painter,
         int line,
-        const QRect &rect)
+        const QRect &paintRect,
+        RegexMatchList::iterator &findMatch)
 {
-    LineLayout lay(font(), m_margins, *m_file, line);
-    QColor currentColor(Qt::black);
-    painter.setPen(currentColor);
+    const int selStartOff = m_selectedRange.start.toOffset(*m_file);
+    const int selEndOff = m_selectedRange.end.toOffset(*m_file);
+    const int hovStartOff = m_hoverHighlightRange.start.toOffset(*m_file);
+    const int hovEndOff = m_hoverHighlightRange.end.toOffset(*m_file);
+    const QBrush matchBrush(Qt::yellow);
+    const QBrush selectedMatchBrush(QColor(255, 140, 0));
 
-    // Paint the selected portion of this line.
-    FileLocation sel1 = std::max(m_selectedRange.start,
-                                 FileLocation(line, 0));
-    FileLocation sel2 = std::min(m_selectedRange.end,
-                                 FileLocation(line, m_file->lineLength(line)));
-    if (sel1 < sel2)
-        fillRangeRect(painter, FileRange(sel1, sel2), palette().highlight());
+    // Fill the line's background.
+    {
+        LineLayout lay(font(), m_margins, *m_file, line);
+        while (lay.hasMoreChars()) {
+            lay.advanceChar();
+            if (lay.charLeft() > paintRect.right())
+                break;
+            if (lay.charLeft() + lay.charWidth() <= paintRect.left())
+                continue;
 
-    while (lay.hasMoreChars()) {
-        lay.advanceChar();
-        if (lay.charLeft() > rect.right())
-            break;
-        if (lay.charLeft() + lay.charWidth() <= rect.left())
-            continue;
-        if (!lay.charText().empty()) {
-            FileLocation loc(line, lay.charColumn());
-            QColor color(m_syntaxColoring[lay.charFileIndex()]);
+            const int charFileIndex = lay.charFileIndex();
+            const QBrush *fillBrush = NULL;
 
-            // Override the color for selected text.
-            if (loc >= m_selectedRange.start && loc < m_selectedRange.end)
-                color = palette().highlightedText().color();
-
-            // Set the painter pen when the color changes.
-            if (color != currentColor) {
-                painter.setPen(color);
-                currentColor = color;
+            // Find match background.
+            for (; findMatch < m_findMatches.end(); ++findMatch) {
+                if (findMatch->first > charFileIndex)
+                    break;
+                if (findMatch->second <= charFileIndex)
+                    continue;
+                // This find match covers the current character.
+                if (findMatch - m_findMatches.begin() == m_selectedMatchIndex)
+                    fillBrush = &selectedMatchBrush;
+                else
+                    fillBrush = &matchBrush;
+                break;
             }
 
-            painter.drawText(
-                        lay.charLeft(),
-                        lay.lineBaselineY(),
-                        lay.charText().c_str());
+            // Hover and selection backgrounds.
+            if (charFileIndex >= hovStartOff && charFileIndex < hovEndOff)
+                fillBrush = &palette().dark();
+            if (charFileIndex >= selStartOff && charFileIndex < selEndOff)
+                fillBrush = &palette().highlight();
+
+            if (fillBrush != NULL) {
+                painter.fillRect(lay.charLeft(), lay.lineTop(), lay.charWidth(), lay.lineHeight(), *fillBrush);
+            }
+        }
+    }
+
+    // Draw characters.
+    {
+        LineLayout lay(font(), m_margins, *m_file, line);
+        QColor currentColor(Qt::black);
+        painter.setPen(currentColor);
+        while (lay.hasMoreChars()) {
+            lay.advanceChar();
+            if (lay.charLeft() > paintRect.right())
+                break;
+            if (lay.charLeft() + lay.charWidth() <= paintRect.left())
+                continue;
+            if (!lay.charText().empty()) {
+                FileLocation loc(line, lay.charColumn());
+                QColor color(m_syntaxColoring[lay.charFileIndex()]);
+
+                // Override the color for selected text.
+                if (loc >= m_selectedRange.start && loc < m_selectedRange.end)
+                    color = palette().highlightedText().color();
+
+                // Set the painter pen when the color changes.
+                if (color != currentColor) {
+                    painter.setPen(color);
+                    currentColor = color;
+                }
+
+                painter.drawText(
+                            lay.charLeft(),
+                            lay.lineBaselineY(),
+                            lay.charText().c_str());
+            }
         }
     }
 }
@@ -444,6 +505,29 @@ QSize SourceWidgetView::sizeHint() const
     return QSize(m_maxLineLength * fontMetrics.width(' '),
                  m_file->lineCount() * effectiveLineSpacing(fontMetrics)) +
             marginsToSize(m_margins);
+}
+
+void SourceWidgetView::setFindRegex(const Regex &findRegex)
+{
+    if (m_findRegex == findRegex)
+        return;
+    m_findRegex = findRegex;
+    updateFindMatches();
+    update();
+}
+
+void SourceWidgetView::setSelectedMatchIndex(int index)
+{
+    if ((index == -1) != m_findMatches.empty())
+        return;
+    if (index == m_selectedMatchIndex)
+        return;
+
+    updateRange(matchFileRange(m_selectedMatchIndex));
+    m_selectedMatchIndex = index;
+    updateRange(matchFileRange(m_selectedMatchIndex));
+
+    emit findMatchSelectionChanged(m_selectedMatchIndex);
 }
 
 void SourceWidgetView::copy()
@@ -808,6 +892,39 @@ void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
     update();
 }
 
+void SourceWidgetView::updateFindMatches()
+{
+    // Search the file with the new regex.
+    if (m_file == NULL) {
+        m_findMatches = RegexMatchList();
+    } else {
+        m_findMatches = RegexMatchList(m_file->content(), m_findRegex);
+    }
+    if (m_findMatches.empty()) {
+        m_selectedMatchIndex = -1;
+    } else {
+        // Tentatively just select the first match.  If updateFindMatches() was
+        // called because the user changed the search filter, then the parent
+        // SourceWidget class will take care of picking the most appropriate
+        // match to select, as well as scrolling it into view.
+        m_selectedMatchIndex = 0;
+    }
+
+    emit findMatchListChanged();
+}
+
+FileRange SourceWidgetView::matchFileRange(int index)
+{
+    if (index == -1) {
+        return FileRange();
+    } else {
+        assert(m_file != NULL);
+        FileLocation loc1(*m_file, m_findMatches[index].first);
+        FileLocation loc2(*m_file, m_findMatches[index].second);
+        return FileRange(loc1, loc2);
+    }
+}
+
 void SourceWidgetView::actionCrossReferences()
 {
     QAction *action = qobject_cast<QAction*>(sender());
@@ -824,7 +941,8 @@ void SourceWidgetView::actionCrossReferences()
 
 SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     QScrollArea(parent),
-    m_project(project)
+    m_project(project),
+    m_findStartOffset(0)
 {
     setWidgetResizable(false);
     setWidget(new SourceWidgetView(QMargins(4, 4, 4, 4), project));
@@ -854,7 +972,12 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     connect(&sourceWidgetView(),
             SIGNAL(pointSelected(QPoint)),
             SLOT(viewPointSelected(QPoint)));
-
+    connect(&sourceWidgetView(),
+            SIGNAL(findMatchSelectionChanged(int)),
+            SIGNAL(findMatchSelectionChanged(int)));
+    connect(&sourceWidgetView(),
+            SIGNAL(findMatchListChanged()),
+            SIGNAL(findMatchListChanged()));
     layoutSourceWidget();
 }
 
@@ -865,6 +988,8 @@ void SourceWidget::setFile(File *file)
         sourceWidgetView().setFile(file);
         m_lineArea->setLineCount(file != NULL ? file->lineCount() : 0);
         layoutSourceWidget();
+        m_findStartOffset = -1;
+        m_findStartOrigin = QPoint();
 
         emit fileChanged(file);
     }
@@ -949,6 +1074,131 @@ void SourceWidget::setViewportOrigin(const QPoint &pt)
 {
     horizontalScrollBar()->setValue(pt.x());
     verticalScrollBar()->setValue(pt.y());
+}
+
+void SourceWidget::setFindRegex(const Regex &findRegex)
+{
+    if (findRegex == sourceWidgetView().findRegex())
+        return;
+
+    const bool wasEmpty = sourceWidgetView().findRegex().empty();
+    const int previousIndex = sourceWidgetView().selectedMatchIndex();
+    const int previousOffset = previousIndex == -1
+            ? -1 : sourceWidgetView().findMatches()[previousIndex].first;
+
+    sourceWidgetView().setFindRegex(findRegex);
+
+    if (findRegex.empty()) {
+        if (m_findStartOffset != -1)
+            setViewportOrigin(m_findStartOrigin);
+        m_findStartOffset = -1;
+        m_findStartOrigin = QPoint();
+    } else if (wasEmpty) {
+        QPoint topLeft = viewportOrigin();
+        topLeft.setY(topLeft.y() + effectiveLineSpacing(font()) - 1);
+        m_findStartOffset =
+                sourceWidgetView().hitTest(topLeft).toOffset(*file());
+        m_findStartOrigin = viewportOrigin();
+    }
+
+    // Decide which match to select.
+
+    const auto &matches = sourceWidgetView().findMatches();
+    int newIndex = -1;
+
+    if (matches.empty())
+        return;
+
+    // Look for the first match before the previous offset (wrapping around if
+    // necessary).  If the first match is within the [FSO,PO] range, select it.
+    if (previousOffset != -1) {
+        // Find the first match <= the previous offset.
+        auto it = std::lower_bound(matches.begin(), matches.end(),
+                                   std::make_pair(previousOffset + 1, 0));
+        int index;
+        if (it > matches.begin()) {
+            --it;
+            index = it - matches.begin();
+        } else {
+            index = matches.size() - 1;
+        }
+        const int offset = matches[index].first;
+        if (m_findStartOffset <= previousOffset) {
+            if (offset >= m_findStartOffset && offset <= previousOffset) {
+                newIndex = index;
+            }
+        } else {
+            if (offset >= m_findStartOffset || offset <= previousOffset) {
+                newIndex = index;
+            }
+        }
+    }
+
+    // Then look for the first match after the previous offset.
+    if (newIndex == -1 && previousOffset != -1) {
+        auto it = std::lower_bound(matches.begin(), matches.end(),
+                                   std::make_pair(previousOffset, 0));
+        if (it == matches.end())
+            it = matches.begin();
+        newIndex = it - matches.begin();
+    }
+
+    // Then look for the first match after the starting offset.
+    if (newIndex == -1 && m_findStartOffset != -1) {
+        auto it = std::lower_bound(matches.begin(), matches.end(),
+                                   std::make_pair(m_findStartOffset, 0));
+        if (it != matches.end())
+            newIndex = it - matches.begin();
+    }
+
+    // Finally, just use the first index.
+    if (newIndex == -1)
+        newIndex = 0;
+
+    sourceWidgetView().setSelectedMatchIndex(newIndex);
+    ensureSelectedMatchVisible();
+}
+
+int SourceWidget::matchCount()
+{
+    return sourceWidgetView().findMatches().size();
+}
+
+int SourceWidget::selectedMatchIndex()
+{
+    return sourceWidgetView().selectedMatchIndex();
+}
+
+void SourceWidget::setSelectedMatchIndex(int index)
+{
+    sourceWidgetView().setSelectedMatchIndex(index);
+    ensureSelectedMatchVisible();
+}
+
+void SourceWidget::ensureSelectedMatchVisible()
+{
+    int index = sourceWidgetView().selectedMatchIndex();
+    if (index == -1)
+        return;
+    assert(file() != NULL);
+    const auto &matches = sourceWidgetView().findMatches();
+
+    FileLocation matchStartLoc(*file(), matches[index].first);
+    FileLocation matchEndLoc(*file(), matches[index].second);
+    QPoint matchStartPt = sourceWidgetView().locationToPoint(matchStartLoc);
+    QPoint matchEndPt = sourceWidgetView().locationToPoint(matchEndLoc);
+    matchEndPt.setY(matchEndPt.y() + effectiveLineSpacing(font()));
+
+    QRect visibleViewRect(
+                QPoint(horizontalScrollBar()->value(),
+                       verticalScrollBar()->value()),
+                viewport()->size());
+    bool needScroll = !visibleViewRect.contains(matchStartPt) ||
+                      !visibleViewRect.contains(matchEndPt);
+    if (needScroll) {
+        ensureVisible(matchEndPt.x(), matchEndPt.y());
+        ensureVisible(matchStartPt.x(), matchStartPt.y());
+    }
 }
 
 void SourceWidget::copy()

@@ -17,6 +17,7 @@ class MainWindow;
 }
 
 class File;
+class FindBar;
 class FolderWidget;
 class MainWindow;
 class Project;
@@ -37,7 +38,12 @@ public:
     void navigateToRef(const Ref &ref);
 
 private slots:
-    void on_actionFileExit_triggered();
+    void on_actionEditFind_triggered();
+    void onFindBarClose();
+    void updateFindText();
+    void onFindBarPrevious();
+    void onFindBarNext();
+    void updateFindBarInfo();
     void on_actionViewFiles_triggered();
     void on_actionViewGlobalDefinitions_triggered();
     void on_actionViewSymbols_triggered();
@@ -58,6 +64,7 @@ private:
     QSplitter *m_splitter;
     FolderWidget *m_folderWidget;
     SourceWidget *m_sourceWidget;
+    FindBar *m_findBar;
 };
 
 } // namespace Nav

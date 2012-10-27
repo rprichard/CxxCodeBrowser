@@ -10,11 +10,14 @@
 #include <QSplitter>
 #include <QString>
 #include <QTreeView>
+#include <QVBoxLayout>
 
 #include "File.h"
+#include "FindBar.h"
 #include "FileManager.h"
 #include "FolderWidget.h"
 #include "Project.h"
+#include "Regex.h"
 #include "ReportDefList.h"
 #include "ReportFileList.h"
 #include "ReportRefList.h"
@@ -27,6 +30,7 @@
 namespace Nav {
 
 const int kDefaultSideBarSizePx = 300;
+const Qt::FocusPolicy kDefaultSourceWidgetFocusPolicy = Qt::WheelFocus;
 
 MainWindow *theMainWindow;
 
@@ -35,12 +39,30 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    m_sourceWidget = new SourceWidget(project);
 
+    // Left pane: folder widget.
     m_folderWidget = new FolderWidget(project.fileManager());
+
+    // Find bar.
+    m_findBar = new FindBar;
+    m_findBar->setVisible(false);
+
+    // Right pane: source panel and find box.
+    QWidget *sourcePane = new QWidget;
+    {
+        QVBoxLayout *sourcePaneLayout = new QVBoxLayout(sourcePane);
+        sourcePaneLayout->setMargin(0);
+        sourcePaneLayout->setSpacing(0);
+        m_sourceWidget = new SourceWidget(project);
+        m_sourceWidget->setFocusPolicy(kDefaultSourceWidgetFocusPolicy);
+        sourcePaneLayout->addWidget(m_sourceWidget);
+        sourcePaneLayout->addWidget(m_findBar);
+    }
+
+    // Splitter.
     m_splitter = new QSplitter(Qt::Horizontal);
     m_splitter->addWidget(m_folderWidget);
-    m_splitter->addWidget(m_sourceWidget);
+    m_splitter->addWidget(sourcePane);
     setCentralWidget(m_splitter);
     m_splitter->setStretchFactor(0, 0);
     m_splitter->setStretchFactor(1, 1);
@@ -55,13 +77,28 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     connect(m_sourceWidget,
             SIGNAL(areBackAndForwardEnabled(bool&,bool&)),
             SLOT(areBackAndForwardEnabled(bool&,bool&)));
-    connect(m_folderWidget, SIGNAL(selectionChanged()), SLOT(folderWidgetSelectionChanged()));
+    connect(m_folderWidget,
+            SIGNAL(selectionChanged()),
+            SLOT(folderWidgetSelectionChanged()));
     connect(m_sourceWidget, SIGNAL(goBack()), SLOT(actionBack()));
     connect(m_sourceWidget, SIGNAL(goForward()), SLOT(actionForward()));
     connect(m_sourceWidget, SIGNAL(copyFilePath()), SLOT(actionCopyFilePath()));
-    connect(m_sourceWidget, SIGNAL(revealInSideBar()), SLOT(actionRevealInSideBar()));
+    connect(m_sourceWidget,
+            SIGNAL(revealInSideBar()),
+            SLOT(actionRevealInSideBar()));
+    connect(m_sourceWidget,
+            SIGNAL(findMatchListChanged()),
+            SLOT(updateFindBarInfo()));
+    connect(m_sourceWidget,
+            SIGNAL(findMatchSelectionChanged(int)),
+            SLOT(updateFindBarInfo()));
+    connect(ui->actionFileExit, SIGNAL(triggered()), SLOT(close()));
     connect(ui->actionEditCopy, SIGNAL(triggered()),
             m_sourceWidget, SLOT(copy()));
+    connect(m_findBar, SIGNAL(closeBar()), SLOT(onFindBarClose()));
+    connect(m_findBar, SIGNAL(textChanged()), SLOT(updateFindText()));
+    connect(m_findBar, SIGNAL(previous()), SLOT(onFindBarPrevious()));
+    connect(m_findBar, SIGNAL(next()), SLOT(onFindBarNext()));
 
     // Keyboard shortcuts.
     QShortcut *shortcut;
@@ -87,8 +124,7 @@ History::Location MainWindow::currentLocation()
 }
 
 void MainWindow::navigateToFile(File *file)
-{
-    if (file == NULL)
+{    if (file == NULL)
         return;
     History::Location loc = currentLocation();
     m_sourceWidget->setFile(file);
@@ -107,9 +143,59 @@ void MainWindow::navigateToRef(const Ref &ref)
     m_history.recordJump(loc, currentLocation());
 }
 
-void MainWindow::on_actionFileExit_triggered()
+void MainWindow::on_actionEditFind_triggered()
 {
-    close();
+    // On Linux, it appears that the first time a QLineEdit receives focus, Qt
+    // does some kind of one-time initialization that takes ~50-300ms.  In the
+    // code below, all of the time is spent in the setFocus call.  It appears
+    // that QLineEdit::setFocus eventually calls
+    // QXIMInputContext::setFocusWidget, where I suspect all of the time is
+    // spent.
+
+    m_findBar->setVisible(true);
+    m_findBar->setFocus();
+    m_sourceWidget->setFocusPolicy(Qt::NoFocus);
+    updateFindText();
+}
+
+void MainWindow::onFindBarClose()
+{
+    m_findBar->hide();
+    m_sourceWidget->setFocusPolicy(kDefaultSourceWidgetFocusPolicy);
+    m_sourceWidget->setFocus();
+    updateFindText();
+}
+
+void MainWindow::updateFindText()
+{
+    const Regex &findRegex = m_findBar->isVisible() ?
+                m_findBar->regex() : Regex();
+    m_sourceWidget->setFindRegex(findRegex);
+}
+
+void MainWindow::onFindBarPrevious()
+{
+    const int count = m_sourceWidget->matchCount();
+    if (count == 0)
+        return;
+    m_sourceWidget->setSelectedMatchIndex(
+                (m_sourceWidget->selectedMatchIndex() - 1 + count) % count);
+}
+
+void MainWindow::onFindBarNext()
+{
+    const int count = m_sourceWidget->matchCount();
+    if (count == 0)
+        return;
+    m_sourceWidget->setSelectedMatchIndex(
+                (m_sourceWidget->selectedMatchIndex() + 1) % count);
+}
+
+void MainWindow::updateFindBarInfo()
+{
+    m_findBar->setMatchInfo(
+                m_sourceWidget->selectedMatchIndex(),
+                m_sourceWidget->matchCount());
 }
 
 void MainWindow::on_actionViewFiles_triggered()

@@ -42,6 +42,7 @@
      <string>&amp;Edit</string>
     </property>
     <addaction name="actionEditCopy"/>
+    <addaction name="actionEditFind"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -80,6 +81,9 @@
    </property>
   </action>
   <action name="actionFileExit">
+   <property name="icon">
+    <iconset theme="application-exit"/>
+   </property>
    <property name="text">
     <string>E&amp;xit</string>
    </property>
@@ -111,13 +115,26 @@
   </action>
   <action name="actionEditCopy">
    <property name="icon">
-    <iconset theme="edit-copy"/>
+    <iconset theme="edit-copy">
+     <normaloff/>
+    </iconset>
    </property>
    <property name="text">
     <string>&amp;Copy</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+C</string>
+   </property>
+  </action>
+  <action name="actionEditFind">
+   <property name="icon">
+    <iconset theme="edit-find"/>
+   </property>
+   <property name="text">
+    <string>&amp;Find...</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+F</string>
    </property>
   </action>
  </widget>
