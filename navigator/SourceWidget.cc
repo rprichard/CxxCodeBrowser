@@ -419,7 +419,11 @@ void SourceWidgetView::paintLine(
                 fillBrush = &palette().highlight();
 
             if (fillBrush != NULL) {
-                painter.fillRect(lay.charLeft(), lay.lineTop(), lay.charWidth(), lay.lineHeight(), *fillBrush);
+                painter.fillRect(lay.charLeft(),
+                                 lay.lineTop(),
+                                 lay.charWidth(),
+                                 lay.lineHeight(),
+                                 *fillBrush);
             }
         }
     }
