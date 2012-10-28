@@ -96,7 +96,7 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     connect(ui->actionEditCopy, SIGNAL(triggered()),
             m_sourceWidget, SLOT(copy()));
     connect(m_findBar, SIGNAL(closeBar()), SLOT(onFindBarClose()));
-    connect(m_findBar, SIGNAL(textChanged()), SLOT(onFindBarTextChanged()));
+    connect(m_findBar, SIGNAL(regexChanged()), SLOT(onFindBarRegexChanged()));
     connect(m_findBar, SIGNAL(previous()), m_sourceWidget, SLOT(selectPreviousMatch()));
     connect(m_findBar, SIGNAL(next()), m_sourceWidget, SLOT(selectNextMatch()));
 
@@ -106,6 +106,10 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     connect(shortcut, SIGNAL(activated()), this, SLOT(actionBack()));
     shortcut = new QShortcut(QKeySequence("Alt+Right"), this);
     connect(shortcut, SIGNAL(activated()), this, SLOT(actionForward()));
+
+    // Intercept some keyboard events directed at the FindBar and direct them
+    // towards the SourceWidget instead.
+    m_findBar->installEventFilter(this);
 
     ui->toolBar->addAction(QIcon::fromTheme("go-previous"), "Back", this, SLOT(actionBack()));
     ui->toolBar->addAction(QIcon::fromTheme("go-next"), "Forward", this, SLOT(actionForward()));
@@ -168,7 +172,7 @@ void MainWindow::onFindBarClose()
     m_sourceWidget->endFind();
 }
 
-void MainWindow::onFindBarTextChanged()
+void MainWindow::onFindBarRegexChanged()
 {
     m_sourceWidget->setFindRegex(m_findBar->regex(), /*advanceToMatch=*/true);
 }
@@ -270,6 +274,26 @@ void MainWindow::actionRevealInSideBar()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     QApplication::quit();
+}
+
+bool MainWindow::eventFilter(QObject *object, QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress ||
+            event->type() == QEvent::KeyRelease) {
+        QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+        const int key = keyEvent->key();
+        const bool ctrl = keyEvent->modifiers() & Qt::ControlModifier;
+        if (key == Qt::Key_Up ||
+                key == Qt::Key_Down ||
+                key == Qt::Key_PageUp ||
+                key == Qt::Key_PageDown ||
+                (ctrl && key == Qt::Key_Home) ||
+                (ctrl && key == Qt::Key_End)) {
+            QApplication::sendEvent(m_sourceWidget, event);
+            return true;
+        }
+    }
+    return false;
 }
 
 } // namespace Nav

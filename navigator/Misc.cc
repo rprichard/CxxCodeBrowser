@@ -62,4 +62,8 @@ void hackSwitchIconThemeToTheOneWithIcons()
     }
 }
 
+const char placeholderText[] =
+        "Regex filter (RE2). "
+        "Case-sensitive if a capital letter exists.";
+
 } // namespace Nav

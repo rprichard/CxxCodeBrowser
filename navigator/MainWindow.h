@@ -40,7 +40,7 @@ public:
 private slots:
     void on_actionEditFind_triggered();
     void onFindBarClose();
-    void onFindBarTextChanged();
+    void onFindBarRegexChanged();
     void updateFindBarInfo();
     void on_actionViewFiles_triggered();
     void on_actionViewGlobalDefinitions_triggered();
@@ -53,8 +53,9 @@ private slots:
     void actionCopyFilePath();
     void actionRevealInSideBar();
 
-protected:
+private:
     void closeEvent(QCloseEvent *event);
+    bool eventFilter(QObject *object, QEvent *event);
 
 private:
     History m_history;

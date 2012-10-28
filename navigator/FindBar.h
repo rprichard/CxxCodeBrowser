@@ -2,10 +2,10 @@
 #define NAV_FINDBAR_H
 
 #include <QFrame>
-#include <QLineEdit>
 #include <QString>
 #include <QStyleOptionFrameV2>
 
+#include "PlaceholderLineEdit.h"
 #include "Regex.h"
 
 class QLabel;
@@ -17,7 +17,7 @@ namespace Nav {
 ///////////////////////////////////////////////////////////////////////////////
 // FindBarEdit
 
-class FindBarEdit : public QLineEdit {
+class FindBarEdit : public PlaceholderLineEdit {
     Q_OBJECT
 public:
     FindBarEdit(QWidget *parent = 0);
@@ -52,7 +52,7 @@ class FindBar : public QFrame {
     Q_OBJECT
 public:
     explicit FindBar(QWidget *parent = 0);
-    Regex regex();
+    const Regex &regex();
 
 private:
     QToolButton *makeButton(
@@ -65,15 +65,19 @@ signals:
     void previous();
     void next();
     void closeBar();
-    void textChanged();
+    void regexChanged();
 
 public slots:
     void setMatchInfo(int index, int count);
     void selectAll();
 
+private slots:
+    void onEditTextChanged();
+
 private:
     FindBarEdit *m_edit;
     QLabel *m_infoLabel;
+    Regex m_regex;
 };
 
 } // namespace Nav

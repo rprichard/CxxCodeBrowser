@@ -3,11 +3,12 @@
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
-#include <QLineEdit>
 #include <QPainter>
 #include <QStyle>
 #include <QStyleOptionFrameV2>
 #include <QToolButton>
+
+#include "Misc.h"
 
 namespace Nav {
 
@@ -15,7 +16,7 @@ namespace Nav {
 ///////////////////////////////////////////////////////////////////////////////
 // FindBarEdit
 
-FindBarEdit::FindBarEdit(QWidget *parent) : QLineEdit(parent)
+FindBarEdit::FindBarEdit(QWidget *parent) : PlaceholderLineEdit(parent)
 {
 }
 
@@ -29,7 +30,7 @@ void FindBarEdit::keyPressEvent(QKeyEvent *event)
     } else if (event->key() == Qt::Key_Escape) {
         emit escapePressed();
     } else {
-        QLineEdit::keyPressEvent(event);
+        PlaceholderLineEdit::keyPressEvent(event);
     }
 }
 
@@ -93,10 +94,11 @@ FindBar::FindBar(QWidget *parent) :
     m_edit = new FindBarEdit(editFrame);
     m_edit->setFrame(false);
     m_edit->setFont(font());
+    m_edit->setPlaceholderText(placeholderText);
     connect(m_edit, SIGNAL(returnPressed()), SIGNAL(next()));
     connect(m_edit, SIGNAL(shiftReturnPressed()), SIGNAL(previous()));
     connect(m_edit, SIGNAL(escapePressed()), SIGNAL(closeBar()));
-    connect(m_edit, SIGNAL(textChanged(QString)), SIGNAL(textChanged()));
+    connect(m_edit, SIGNAL(textChanged(QString)), SLOT(onEditTextChanged()));
     editFrame->layout()->addWidget(m_edit);
     editFrame->layout()->addWidget(m_infoLabel = new QLabel);
     m_infoLabel->setFont(font());
@@ -117,9 +119,9 @@ FindBar::FindBar(QWidget *parent) :
     layout->addWidget(b);
 }
 
-Regex FindBar::regex()
+const Regex &FindBar::regex()
 {
-    return Regex(m_edit->text().toStdString());
+    return m_regex;
 }
 
 QToolButton *FindBar::makeButton(
@@ -172,6 +174,23 @@ void FindBar::setMatchInfo(int index, int count)
 void FindBar::selectAll()
 {
     m_edit->selectAll();
+}
+
+void FindBar::onEditTextChanged()
+{
+    Regex regex(m_edit->text().toStdString());
+
+    {
+        QPalette pal;
+        if (!regex.valid())
+            pal.setColor(m_edit->foregroundRole(), QColor(Qt::red));
+        m_edit->setPalette(pal);
+    }
+
+    if (regex.valid()) {
+        m_regex = regex;
+        emit regexChanged();
+    }
 }
 
 } // namespace Nav

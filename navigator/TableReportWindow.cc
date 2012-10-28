@@ -4,6 +4,7 @@
 #include <QKeyEvent>
 #include <QVBoxLayout>
 
+#include "Misc.h"
 #include "PlaceholderLineEdit.h"
 #include "Regex.h"
 #include "TableReport.h"
@@ -17,9 +18,7 @@ TableReportWindow::TableReportWindow(QWidget *parent) :
     new QVBoxLayout(this);
     m_view = new TableReportView;
     m_filterBox = new PlaceholderLineEdit;
-    m_filterBox->setPlaceholderText(
-                "Regex filter (RE2). "
-                "Case-sensitive if a capital letter exists.");
+    m_filterBox->setPlaceholderText(placeholderText);
 
     // TODO: centralize font settings.
     QFont font = m_filterBox->font();

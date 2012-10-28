@@ -20,6 +20,8 @@ int effectiveLineSpacing(const QFontMetrics &fm);
 
 void hackSwitchIconThemeToTheOneWithIcons();
 
+extern const char placeholderText[];
+
 } // namespace Nav
 
 #endif // NAV_MISC_H
