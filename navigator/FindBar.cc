@@ -139,12 +139,6 @@ QToolButton *FindBar::makeButton(
     return button;
 }
 
-void FindBar::showEvent(QShowEvent *event)
-{
-    m_edit->selectAll();
-    QFrame::showEvent(event);
-}
-
 void FindBar::setMatchInfo(int index, int count)
 {
     bool isError;
@@ -153,7 +147,16 @@ void FindBar::setMatchInfo(int index, int count)
         m_infoLabel->setVisible(false);
         isError = false;
     } else {
-        m_infoLabel->setText(QString("%0 of %1").arg(index + 1).arg(count));
+        QString label;
+        if (index == -1) {
+            if (count == 1)
+                label = "1 match";
+            else
+                label = QString("%0 matches").arg(count);
+        } else {
+            label = QString("%0 of %1").arg(index + 1).arg(count);
+        }
+        m_infoLabel->setText(label);
         m_infoLabel->setVisible(true);
         isError = (count == 0);
     }
@@ -164,6 +167,11 @@ void FindBar::setMatchInfo(int index, int count)
         p.setBrush(m_infoLabel->foregroundRole(), QColor(Qt::darkGray));
     m_infoLabel->setAutoFillBackground(isError);
     m_infoLabel->setPalette(p);
+}
+
+void FindBar::selectAll()
+{
+    m_edit->selectAll();
 }
 
 } // namespace Nav

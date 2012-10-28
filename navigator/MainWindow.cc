@@ -96,9 +96,9 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     connect(ui->actionEditCopy, SIGNAL(triggered()),
             m_sourceWidget, SLOT(copy()));
     connect(m_findBar, SIGNAL(closeBar()), SLOT(onFindBarClose()));
-    connect(m_findBar, SIGNAL(textChanged()), SLOT(updateFindText()));
-    connect(m_findBar, SIGNAL(previous()), SLOT(onFindBarPrevious()));
-    connect(m_findBar, SIGNAL(next()), SLOT(onFindBarNext()));
+    connect(m_findBar, SIGNAL(textChanged()), SLOT(onFindBarTextChanged()));
+    connect(m_findBar, SIGNAL(previous()), m_sourceWidget, SLOT(selectPreviousMatch()));
+    connect(m_findBar, SIGNAL(next()), m_sourceWidget, SLOT(selectNextMatch()));
 
     // Keyboard shortcuts.
     QShortcut *shortcut;
@@ -154,8 +154,10 @@ void MainWindow::on_actionEditFind_triggered()
 
     m_findBar->setVisible(true);
     m_findBar->setFocus();
+    m_findBar->selectAll();
     m_sourceWidget->setFocusPolicy(Qt::NoFocus);
-    updateFindText();
+    m_sourceWidget->recordFindStart();
+    m_sourceWidget->setFindRegex(m_findBar->regex(), /*advanceToMatch=*/false);
 }
 
 void MainWindow::onFindBarClose()
@@ -163,32 +165,12 @@ void MainWindow::onFindBarClose()
     m_findBar->hide();
     m_sourceWidget->setFocusPolicy(kDefaultSourceWidgetFocusPolicy);
     m_sourceWidget->setFocus();
-    updateFindText();
+    m_sourceWidget->endFind();
 }
 
-void MainWindow::updateFindText()
+void MainWindow::onFindBarTextChanged()
 {
-    const Regex &findRegex = m_findBar->isVisible() ?
-                m_findBar->regex() : Regex();
-    m_sourceWidget->setFindRegex(findRegex);
-}
-
-void MainWindow::onFindBarPrevious()
-{
-    const int count = m_sourceWidget->matchCount();
-    if (count == 0)
-        return;
-    m_sourceWidget->setSelectedMatchIndex(
-                (m_sourceWidget->selectedMatchIndex() - 1 + count) % count);
-}
-
-void MainWindow::onFindBarNext()
-{
-    const int count = m_sourceWidget->matchCount();
-    if (count == 0)
-        return;
-    m_sourceWidget->setSelectedMatchIndex(
-                (m_sourceWidget->selectedMatchIndex() + 1) % count);
+    m_sourceWidget->setFindRegex(m_findBar->regex(), /*advanceToMatch=*/true);
 }
 
 void MainWindow::updateFindBarInfo()

@@ -522,7 +522,7 @@ void SourceWidgetView::setFindRegex(const Regex &findRegex)
 
 void SourceWidgetView::setSelectedMatchIndex(int index)
 {
-    if ((index == -1) != m_findMatches.empty())
+    if (m_findMatches.empty() && (index != -1))
         return;
     if (index == m_selectedMatchIndex)
         return;
@@ -904,15 +904,12 @@ void SourceWidgetView::updateFindMatches()
     } else {
         m_findMatches = RegexMatchList(m_file->content(), m_findRegex);
     }
-    if (m_findMatches.empty()) {
-        m_selectedMatchIndex = -1;
-    } else {
-        // Tentatively just select the first match.  If updateFindMatches() was
-        // called because the user changed the search filter, then the parent
-        // SourceWidget class will take care of picking the most appropriate
-        // match to select, as well as scrolling it into view.
-        m_selectedMatchIndex = 0;
-    }
+
+    // Tentatively clear the match selection.  If updateFindMatches() was
+    // called because the user changed the search filter, then the parent
+    // SourceWidget class will take care of picking the most appropriate
+    // match to select, as well as scrolling it into view.
+    m_selectedMatchIndex = -1;
 
     emit findMatchListChanged();
 }
@@ -1080,87 +1077,39 @@ void SourceWidget::setViewportOrigin(const QPoint &pt)
     verticalScrollBar()->setValue(pt.y());
 }
 
-void SourceWidget::setFindRegex(const Regex &findRegex)
+// When the user starts a new search, record the viewport location so we can
+// return to it if the user clears their search / backspaces through part of
+// it.
+void SourceWidget::recordFindStart()
 {
-    if (findRegex == sourceWidgetView().findRegex())
-        return;
+    QPoint topLeft = viewportOrigin();
+    topLeft.setY(topLeft.y() + effectiveLineSpacing(font()) - 1);
+    m_findStartOffset =
+            sourceWidgetView().hitTest(topLeft).toOffset(*file());
+    m_findStartOrigin = viewportOrigin();
+}
 
-    const bool wasEmpty = sourceWidgetView().findRegex().empty();
+// Clear all find-related state.
+void SourceWidget::endFind()
+{
+    m_findStartOffset = -1;
+    m_findStartOrigin = QPoint();
+    sourceWidgetView().setFindRegex(Regex());
+}
+
+void SourceWidget::setFindRegex(const Regex &findRegex, bool advanceToMatch)
+{
+    if (findRegex.empty() && m_findStartOffset != -1 && advanceToMatch)
+        setViewportOrigin(m_findStartOrigin);
     const int previousIndex = sourceWidgetView().selectedMatchIndex();
     const int previousOffset = previousIndex == -1
             ? -1 : sourceWidgetView().findMatches()[previousIndex].first;
-
     sourceWidgetView().setFindRegex(findRegex);
-
-    if (findRegex.empty()) {
-        if (m_findStartOffset != -1)
-            setViewportOrigin(m_findStartOrigin);
-        m_findStartOffset = -1;
-        m_findStartOrigin = QPoint();
-    } else if (wasEmpty) {
-        QPoint topLeft = viewportOrigin();
-        topLeft.setY(topLeft.y() + effectiveLineSpacing(font()) - 1);
-        m_findStartOffset =
-                sourceWidgetView().hitTest(topLeft).toOffset(*file());
-        m_findStartOrigin = viewportOrigin();
-    }
-
-    // Decide which match to select.
-
-    const auto &matches = sourceWidgetView().findMatches();
-    int newIndex = -1;
-
-    if (matches.empty())
+    if (!advanceToMatch)
         return;
-
-    // Look for the first match before the previous offset (wrapping around if
-    // necessary).  If the first match is within the [FSO,PO] range, select it.
-    if (previousOffset != -1) {
-        // Find the first match <= the previous offset.
-        auto it = std::lower_bound(matches.begin(), matches.end(),
-                                   std::make_pair(previousOffset + 1, 0));
-        int index;
-        if (it > matches.begin()) {
-            --it;
-            index = it - matches.begin();
-        } else {
-            index = matches.size() - 1;
-        }
-        const int offset = matches[index].first;
-        if (m_findStartOffset <= previousOffset) {
-            if (offset >= m_findStartOffset && offset <= previousOffset) {
-                newIndex = index;
-            }
-        } else {
-            if (offset >= m_findStartOffset || offset <= previousOffset) {
-                newIndex = index;
-            }
-        }
-    }
-
-    // Then look for the first match after the previous offset.
-    if (newIndex == -1 && previousOffset != -1) {
-        auto it = std::lower_bound(matches.begin(), matches.end(),
-                                   std::make_pair(previousOffset, 0));
-        if (it == matches.end())
-            it = matches.begin();
-        newIndex = it - matches.begin();
-    }
-
-    // Then look for the first match after the starting offset.
-    if (newIndex == -1 && m_findStartOffset != -1) {
-        auto it = std::lower_bound(matches.begin(), matches.end(),
-                                   std::make_pair(m_findStartOffset, 0));
-        if (it != matches.end())
-            newIndex = it - matches.begin();
-    }
-
-    // Finally, just use the first index.
-    if (newIndex == -1)
-        newIndex = 0;
-
-    sourceWidgetView().setSelectedMatchIndex(newIndex);
-    ensureSelectedMatchVisible();
+    if (m_findStartOffset == -1)
+        recordFindStart();
+    setSelectedMatchIndex(bestMatchIndex(previousOffset));
 }
 
 int SourceWidget::matchCount()
@@ -1173,10 +1122,94 @@ int SourceWidget::selectedMatchIndex()
     return sourceWidgetView().selectedMatchIndex();
 }
 
+void SourceWidget::selectNextMatch()
+{
+    if (matchCount() == 0)
+        return;
+    if (m_findStartOffset == -1)
+        recordFindStart();
+    if (selectedMatchIndex() == -1)
+        setSelectedMatchIndex(bestMatchIndex(/*previousMatchOffset=*/-1));
+    else
+        setSelectedMatchIndex((selectedMatchIndex() + 1) % matchCount());
+}
+
+void SourceWidget::selectPreviousMatch()
+{
+    if (matchCount() == 0)
+        return;
+    if (m_findStartOffset == -1)
+        recordFindStart();
+    if (selectedMatchIndex() == -1)
+        setSelectedMatchIndex(bestMatchIndex(/*previousMatchOffset=*/-1));
+    setSelectedMatchIndex(
+                (selectedMatchIndex() + matchCount() - 1) % matchCount());
+}
+
 void SourceWidget::setSelectedMatchIndex(int index)
 {
     sourceWidgetView().setSelectedMatchIndex(index);
     ensureSelectedMatchVisible();
+}
+
+int SourceWidget::bestMatchIndex(int previousMatchOffset)
+{
+    const auto &matches = sourceWidgetView().findMatches();
+    if (matches.size() == 0)
+        return -1;
+
+    if (previousMatchOffset != -1) {
+        // Look for the first match before the previous offset (wrapping around
+        // if necessary).  If the first match is within the [FSO,PO] range,
+        // select it.
+
+        // Find the first match <= the previous offset.
+        {
+            auto it = std::lower_bound(
+                        matches.begin(), matches.end(),
+                        std::make_pair(previousMatchOffset + 1, 0));
+            int index;
+            if (it > matches.begin()) {
+                --it;
+                index = it - matches.begin();
+            } else {
+                index = matches.size() - 1;
+            }
+            const int offset = matches[index].first;
+            if (m_findStartOffset <= previousMatchOffset) {
+                if (offset >= m_findStartOffset &&
+                        offset <= previousMatchOffset) {
+                    return index;
+                }
+            } else {
+                if (offset >= m_findStartOffset ||
+                        offset <= previousMatchOffset) {
+                    return index;
+                }
+            }
+        }
+
+        // Then look for the first match after the previous offset.
+        {
+            auto it = std::lower_bound(matches.begin(), matches.end(),
+                                       std::make_pair(previousMatchOffset, 0));
+            if (it == matches.end())
+                it = matches.begin();
+            return it - matches.begin();
+        }
+    }
+
+    // If there was no previously selected match, look for the first match
+    // after the starting offset.
+    if (m_findStartOffset != -1) {
+        auto it = std::lower_bound(matches.begin(), matches.end(),
+                                   std::make_pair(m_findStartOffset, 0));
+        if (it != matches.end())
+            return it - matches.begin();
+    }
+
+    // If there was no match after the starting offset, use the first match.
+    return 0;
 }
 
 void SourceWidget::ensureSelectedMatchVisible()

@@ -40,9 +40,7 @@ public:
 private slots:
     void on_actionEditFind_triggered();
     void onFindBarClose();
-    void updateFindText();
-    void onFindBarPrevious();
-    void onFindBarNext();
+    void onFindBarTextChanged();
     void updateFindBarInfo();
     void on_actionViewFiles_triggered();
     void on_actionViewGlobalDefinitions_triggered();

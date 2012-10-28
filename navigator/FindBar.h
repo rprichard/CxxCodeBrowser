@@ -60,7 +60,6 @@ private:
             const QString &name,
             const QString &tooltip,
             const char *signal);
-    void showEvent(QShowEvent *event);
 
 signals:
     void previous();
@@ -70,6 +69,7 @@ signals:
 
 public slots:
     void setMatchInfo(int index, int count);
+    void selectAll();
 
 private:
     FindBarEdit *m_edit;

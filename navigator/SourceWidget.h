@@ -235,9 +235,6 @@ private:
     FileRange m_hoverHighlightRange;
     Regex m_findRegex;
     RegexMatchList m_findMatches;
-
-    // The index of the selected match.  This is -1 if and only if
-    // m_findMatches is empty.
     int m_selectedMatchIndex;
 };
 
@@ -255,11 +252,6 @@ public:
     void selectIdentifier(int line, int column, int endColumn);
     QPoint viewportOrigin();
     void setViewportOrigin(const QPoint &pt);
-    void setFindRegex(const Regex &findRegex);
-    int matchCount();
-    int selectedMatchIndex();
-    void setSelectedMatchIndex(int index);
-    void ensureSelectedMatchVisible();
 
 public slots:
     void copy();
@@ -282,6 +274,21 @@ private:
 private slots:
     void layoutSourceWidget(void);
     void viewPointSelected(QPoint point);
+
+    // Methods for the "find" functionality.
+public:
+    void recordFindStart();
+    void endFind();
+    void setFindRegex(const Regex &findRegex, bool advanceToMatch);
+    int matchCount();
+    int selectedMatchIndex();
+public slots:
+    void selectNextMatch();
+    void selectPreviousMatch();
+    void setSelectedMatchIndex(int index);
+private:
+    int bestMatchIndex(int previousMatchOffset);
+    void ensureSelectedMatchVisible();
 
 private:
     QWidget *m_lineAreaViewport;
