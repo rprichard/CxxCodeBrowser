@@ -270,7 +270,8 @@ void NameGenerator::VisitFunctionDecl(clang::FunctionDecl *decl)
         m_out << '>';
     }
 
-    // Function parameters.
+    // For extern "C++" function declarations, include the parameter types in
+    // the name.
     if (decl->getASTContext().getLangOpts().CPlusPlus && !isExternC) {
         m_out << '(';
         bool firstParm = true;
@@ -279,7 +280,9 @@ void NameGenerator::VisitFunctionDecl(clang::FunctionDecl *decl)
             clang::ParmVarDecl *parm = *it;
             if (!firstParm)
                 m_out << ", ";
-            m_out << parm->getType().getAsString(policy);
+            clang::QualType parmType = parm->getType();
+            parmType = parmType->getCanonicalTypeUnqualified();
+            m_out << parmType.getAsString(policy);
             firstParm = false;
         }
         m_out << ')';
