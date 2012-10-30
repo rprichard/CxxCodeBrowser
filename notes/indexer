@@ -160,15 +160,3 @@ can happen when a corrupted file is read in for merging.
 
  - Need to decide where to address this issue: in clang-indexer and/or in
    processlog.py.
-
-----
-
-BUG: extern templates appear as definitions, but they're not really defining
-anything.
-
-e.g.:
-
-    extern template class basic_string<wchar_t>;
-
-I can't currently jump to the definition of basic_string because the extern
-templates also appear as definitions.

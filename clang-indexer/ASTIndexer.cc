@@ -491,10 +491,20 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
                 RecordDeclRef(nd, loc, refType, symbolType);
             }
         } else if (clang::TagDecl *td = llvm::dyn_cast<clang::TagDecl>(d)) {
-            // TODO: Handle the C++11 fixed underlying type of enumeration
-            // declarations.
             RefType refType;
             refType = td->isThisDeclarationADefinition() ? RT_Definition : RT_Declaration;
+            // Mark an extern template declaration as a Declaration rather than
+            // a Definition.  For example:
+            //     template<typename T> class Foo {};  // Definition of Foo
+            //     extern template class Foo<int>;     // Declaration of Foo
+            if (clang::ClassTemplateSpecializationDecl *spec =
+                    llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(td)) {
+                if (spec->getTemplateSpecializationKind() !=
+                        clang::TSK_ExplicitSpecialization)
+                    refType = RT_Declaration;
+            }
+            // TODO: Handle the C++11 fixed underlying type of enumeration
+            // declarations.
             SymbolType symbolType = ST_Max;
             switch (td->getTagKind()) {
             case clang::TTK_Struct: symbolType = ST_Struct; break;
