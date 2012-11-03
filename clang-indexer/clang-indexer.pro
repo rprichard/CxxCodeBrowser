@@ -15,11 +15,13 @@ SOURCES += \
     DaemonPool.cc \
     Process.cc
 
-CONFIG += link_pkgconfig
-PKGCONFIG += jsoncpp
+DEFINES        += JSON_IS_AMALGAMATION
+INCLUDEPATH    += ../third_party/libjsoncpp
+PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libjsoncpp/libjsoncpp.a
+LIBS           += $${OUT_PWD}/../third_party/libjsoncpp/libjsoncpp.a
 
 PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
-LIBS +=           $${OUT_PWD}/../libindexdb/libindexdb.a
+LIBS           += $${OUT_PWD}/../libindexdb/libindexdb.a
 
 LIBS += -lsnappy
 

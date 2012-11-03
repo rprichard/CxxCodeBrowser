@@ -18,7 +18,7 @@
 #include <unistd.h>
 #endif
 
-#include <json/reader.h>
+#include <json/json.h>
 
 #include "../libindexdb/IndexArchiveBuilder.h"
 #include "../libindexdb/IndexArchiveReader.h"

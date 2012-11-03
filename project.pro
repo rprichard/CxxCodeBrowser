@@ -4,7 +4,8 @@ TEMPLATE = subdirs
 # that dependencies are built first.
 CONFIG += ordered
 
-SUBDIRS += libbtrace \
+SUBDIRS += third_party \
+           libbtrace \
            libindexdb \
            libre2 \
            clang-indexer \
