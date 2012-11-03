@@ -234,6 +234,83 @@ static std::string identityString(std::string str)
     return str;
 }
 
+// Strip -include options that try to include precompiled headers.
+//
+// Precompiled headers only work if the project is built using the same build
+// of Clang that this indexer uses, and if the project is already built.  It is
+// currently expected that the build compiler might be GCC, and even if it is
+// Clang, it might generate incompatible PCH files (e.g. different Clang
+// versions).
+//
+// There aren't many good options to deal with this problem.  The current
+// approach is to strip -include FOO if a FOO.{pch,pth,gch} file/directory
+// exists.  This works well for building Qt or Qt applications.  I considered
+// two other approaches that did not work with Qt:
+//
+// (1) Add a -include empty.h at the start of a command-line that also uses
+//     -include.  Clang ignores PCH files for the second and later -include
+//     options.
+// (2) For each -include FOO option that uses a PCH file, replace FOO with a
+//     dummy header file that itself includes FOO.  This way, the normal header
+//     file is used instead of the PCH file.
+//
+// I rejected solution (1) because it outputs these confusing warnings:
+//     warning: precompiled header 'QtTest.gch' was ignored because '-include QtTest' is not first '-include'
+// Neither solution works with Qt because the FOO path referred to by -include
+// does not have to exist, and in Qt's case, it is commonly the executable
+// being built rather than the precompiled header file.
+//
+// We could adopt solution (2) whenever the target of -include really is a
+// header file, but I think I'll try just stripping the broken -include options
+// instead.  If this doesn't work, then maybe the user will need to turn off
+// PCH in their build system.
+//
+void stripPCHIncludes(std::vector<SourceFileInfo> &sourceFiles)
+{
+    const std::string dashInclude = "-include";
+    std::unordered_map<std::string, bool> isPCHInclude;
+
+    for (auto &sfi : sourceFiles) {
+        std::vector<std::string> newClangArgv;
+        newClangArgv.reserve(sfi.clangArgv.size());
+        auto it = sfi.clangArgv.begin();
+        const auto itEnd = sfi.clangArgv.end();
+
+        while (it != itEnd) {
+            if (*it != dashInclude || (it + 1) == itEnd) {
+                newClangArgv.push_back(std::move(*it));
+                ++it;
+                continue;
+            }
+
+            const auto itPath = it + 1;
+            const QDir dir(sfi.workingDirectory.c_str());
+            const QFileInfo fi(dir, QString::fromStdString(*itPath));
+            std::string absolutePath = fi.absoluteFilePath().toStdString();
+            if (isPCHInclude.find(absolutePath) == isPCHInclude.end()) {
+                isPCHInclude[absolutePath] =
+                        QFile::exists((absolutePath + ".pch").c_str()) ||
+                        QFile::exists((absolutePath + ".pth").c_str()) ||
+                        QFile::exists((absolutePath + ".gch").c_str());
+                if (isPCHInclude[absolutePath]) {
+                    std::cout << "warning: Stripped -include " << *itPath
+                              << " because it is a pre-compiled header"
+                              << std::endl;
+                }
+            }
+
+            if (!isPCHInclude[absolutePath]) {
+                newClangArgv.push_back(std::move(*it));
+                newClangArgv.push_back(std::move(*itPath));
+            }
+
+            it += 2;
+        }
+
+        sfi.clangArgv = std::move(newClangArgv);
+    }
+}
+
 static int indexProject(const std::string &argv0, bool incremental)
 {
     std::vector<SourceFileInfo> sourceFiles;
@@ -250,6 +327,8 @@ static int indexProject(const std::string &argv0, bool incremental)
         // files exist.
         IndexBuilder builder(*mergedIndex, /*createIndexTables=*/false);
     }
+
+    stripPCHIncludes(sourceFiles);
 
     for (auto &sfi : sourceFiles) {
         if (!incremental)
