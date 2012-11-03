@@ -325,7 +325,7 @@ static int runCommand(const std::vector<std::string> &argv)
 
             // TODO: I suspect it also uses the clang vs clang++ to decide between the C and
             // C++ languages.  Verify whether that's the case, and if so, mention it because
-            // it's the reason a driver basename is executed rather than just a path to the
+            // it's the reason a driver basename is passed rather than just a path to the
             // include file directory.
 
     // TODO: Improve the argument parsing (allow --help anywhere, allow reversing the args)

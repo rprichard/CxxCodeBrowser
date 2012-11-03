@@ -6,10 +6,9 @@
 namespace indexer {
 
 // Constructs an IndexBuilder that populates the given Index.  It does not
-// take ownership of the Index object.  If createLocationTables is false, the
-// IndexBuilder does not build or populate the LocationToSymbol and
-// LocationToInclude tables.  These tables can be generated later by inverting
-// the SymbolToReference and IncludeToReference tables (typically after merging
+// take ownership of the Index object.  If createIndexTables is false, the
+// IndexBuilder does not build or populate index tables for the Reference or
+// Symbol tables.  These tables can be generated later (typically after merging
 // indices).
 IndexBuilder::IndexBuilder(indexdb::Index &index, bool createIndexTables) :
     m_index(index)
