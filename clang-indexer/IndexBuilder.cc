@@ -81,6 +81,7 @@ IndexBuilder::IndexBuilder(indexdb::Index &index, bool createIndexTables) :
 void IndexBuilder::populateIndexTables()
 {
     assert(m_refTable->isReadOnly());
+    assert(m_refIndexTable != NULL);
     assert(!m_refIndexTable->isReadOnly());
 
     {
@@ -99,6 +100,10 @@ void IndexBuilder::populateIndexTables()
             m_refIndexTable->add(destRow);
         }
     }
+
+    assert(m_symbolTable->isReadOnly());
+    assert(m_symbolTypeIndexTable != NULL);
+    assert(!m_symbolTypeIndexTable->isReadOnly());
 
     {
         indexdb::Row srcRow(m_symbolTable->columnCount());
