@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <iostream>
+#include <memory>
 #include <sstream>
 #include <vector>
 
@@ -239,7 +240,7 @@ static int indexProject(const std::string &argv0, bool incremental)
     readSourcesJson(std::string("compile_commands.json"), sourceFiles);
 
     DaemonPool daemonPool;
-    indexdb::Index *mergedIndex = new indexdb::Index;
+    std::unique_ptr<indexdb::Index> mergedIndex(new indexdb::Index);
     std::vector<std::pair<std::string, QFuture<std::string> > > futures;
     std::unordered_map<std::string, time_t> fileTimeCache;
 
