@@ -5,11 +5,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
-#include <unordered_map>
-#include <unordered_set>
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #ifdef __unix__
@@ -214,7 +214,8 @@ static std::string indexProjectFile(
         QTemporaryFile tempFile;
         tempFile.setAutoRemove(false);
         // TODO: Is this temporary file opened O_CLOEXEC?
-        tempFile.open();
+        bool success = tempFile.open();
+        assert(success && "Could not create temporary file (idx)");
         sfi->indexFilePath = tempFile.fileName().toStdString();
     }
 
