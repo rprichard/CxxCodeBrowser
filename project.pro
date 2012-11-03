@@ -1,18 +1,19 @@
 TEMPLATE = subdirs
 
-# Require that dependencies are built before building their users.
+# Require that sub-directories are built in the listed order, which will ensure
+# that dependencies are built first.
 CONFIG += ordered
 
-SUBDIRS += libindexdb \
+SUBDIRS += libbtrace \
+           libindexdb \
            libre2 \
-           index-tool \
-           navigator \
            clang-indexer \
-           libbtrace
+           index-tool \
+           navigator
 
 btrace_script.path = /
 btrace_script.files += libbtrace/btrace.sh
 INSTALLS += btrace_script
 
 # HACK: Stop qmake from attempting to strip btrace.sh.
-QMAKE_STRIP = true
+QMAKE_STRIP = /bin/true
