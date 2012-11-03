@@ -244,6 +244,13 @@ static int indexProject(const std::string &argv0, bool incremental)
     std::vector<std::pair<std::string, QFuture<std::string> > > futures;
     std::unordered_map<std::string, time_t> fileTimeCache;
 
+    {
+        // Make sure the non-index tables exist.  They are usually created when
+        // the first source file is merged, but it's possible that no source
+        // files exist.
+        IndexBuilder builder(*mergedIndex, /*createIndexTables=*/false);
+    }
+
     for (auto &sfi : sourceFiles) {
         if (!incremental)
             sfi.indexFilePath = "";
