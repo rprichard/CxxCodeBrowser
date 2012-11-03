@@ -160,3 +160,19 @@ can happen when a corrupted file is read in for merging.
 
  - Need to decide where to address this issue: in clang-indexer and/or in
    processlog.py.
+
+----
+
+TODO: How does the btrace processlog.py file deal with commands that output PCH
+files.
+
+TODO: Consider renaming processlog.py to match what I think is an existing
+naming convention in LLVM for scripts that generate compile_commands.json.
+
+TODO: Regarding PCH, consider that the build compiler could be Clang, but a
+different version of Clang than the one used by clang-indexer, so its PCH files
+would still be incompatible.  If clang-indexer just checks the 4-byte signature
+at the start of the PCH file, then it will fail to detect the incompatibility.
+
+See http://marc.info/?l=cfe-commits&m=128713917112525 regarding Qt, Clang, and
+PCH.

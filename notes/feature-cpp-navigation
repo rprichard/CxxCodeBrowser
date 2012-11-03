@@ -1,0 +1,28 @@
+Italicize overridden method declarations/definitions.
+
+Add ability to navigate from an override to the method it overrode.
+
+(Also: add ability to jump from a definition to its lone declaration.)
+
+Maybe it'd be cool to allow jumping from an overridden method to all of its
+overrides?
+
+There's a common pattern of using a pair of classes, e.g. IFoo and FooImpl,
+which allows using Foo without seeing Foo's implementation.  Suppose we have
+this code:
+   struct IFoo           { virtual void bar() = 0; }
+   struct FooImpl : IFoo { void bar(); }
+When looking at either a call to IFoo::bar() or the implementation of
+FooImpl::bar(), it is useful to see defs/refs of the other method.
+
+It might also be nice if browsing cross-references on a class Foo showed a
+call to Foo's constructor, but clicking on the constructor call still took
+me to the constructor rather than Foo.  (But maybe right-clicking the
+constructor call would show both the "Foo" and "Foo::Foo(...)" symbols.)
+
+---
+
+This stuff is C++-specific, I think.  I still have a vague goal of making the
+GUI language-agnostic.  I wonder if these features can be added while preserving
+this goal.  The goal is probably unrealistic until other languages are
+supported.
