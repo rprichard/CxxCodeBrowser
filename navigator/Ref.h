@@ -10,7 +10,6 @@
 namespace Nav {
 
 class File;
-class Project;
 
 class Ref
 {

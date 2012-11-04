@@ -1,7 +1,6 @@
 #include "DaemonPool.h"
 
 #include <QCoreApplication>
-#include <QDebug>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>

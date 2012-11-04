@@ -21,7 +21,6 @@ public:
 
 private:
     File &file(Folder *folder, const QString &relativePath);
-    //Folder *walkDirectory(Folder *parent, const QDir &dir);
 
 private:
     // Root folders.  These folders act like category headings in

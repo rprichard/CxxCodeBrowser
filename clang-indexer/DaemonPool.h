@@ -1,8 +1,6 @@
 #ifndef INDEXER_DAEMONPOOL_H
 #define INDEXER_DAEMONPOOL_H
 
-#include <QTextStream>
-#include <QProcess>
 #include <string>
 #include <vector>
 

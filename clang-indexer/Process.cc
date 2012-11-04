@@ -16,8 +16,7 @@
 namespace indexer {
 
 #ifdef __unix__
-struct ProcessPrivate
-{
+struct ProcessPrivate {
     pid_t pid;
     bool reaped;
     int status;
