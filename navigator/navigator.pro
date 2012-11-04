@@ -70,9 +70,9 @@ INCLUDEPATH    += ../third_party/libsnappy
 PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
 LIBS           += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
 
-INCLUDEPATH    += ../libre2
-PRE_TARGETDEPS += $${OUT_PWD}/../libre2/libre2.a
-LIBS           += $${OUT_PWD}/../libre2/libre2.a
+INCLUDEPATH    += ../third_party/libre2
+PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libre2/libre2.a
+LIBS           += $${OUT_PWD}/../third_party/libre2/libre2.a
 
 target.path = /
 INSTALLS += target

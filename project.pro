@@ -7,7 +7,6 @@ CONFIG += ordered
 SUBDIRS += third_party \
            libbtrace \
            libindexdb \
-           libre2 \
            clang-indexer \
            index-tool \
            navigator
