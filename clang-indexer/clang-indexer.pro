@@ -28,25 +28,15 @@ HEADERS += \
     TUIndexer.h \
     Util.h
 
-DEFINES        += JSON_IS_AMALGAMATION
-INCLUDEPATH    += ../third_party/libjsoncpp
-PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libjsoncpp/libjsoncpp.a
-LIBS           += $${OUT_PWD}/../third_party/libjsoncpp/libjsoncpp.a
-
-PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
-LIBS           += $${OUT_PWD}/../libindexdb/libindexdb.a
-
-INCLUDEPATH    += ../third_party/libsnappy
-PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
-LIBS           += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
-
-INCLUDEPATH    += ../third_party/libMurmurHash3
-PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libMurmurHash3/libMurmurHash3.a
-LIBS           += $${OUT_PWD}/../third_party/libMurmurHash3/libMurmurHash3.a
-
-INCLUDEPATH    += ../third_party/libsha2
-PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libsha2/libsha2.a
-LIBS           += $${OUT_PWD}/../third_party/libsha2/libsha2.a
+DEFINES += JSON_IS_AMALGAMATION
+INCLUDEPATH += ../third_party/libjsoncpp
+DEPENDENCY_LIBS = \
+    ../libindexdb/libindexdb.a \
+    ../third_party/libjsoncpp/libjsoncpp.a \
+    ../third_party/libsnappy/libsnappy.a \
+    ../third_party/libMurmurHash3/libMurmurHash3.a \
+    ../third_party/libsha2/libsha2.a
+include(../dependency_libs.pri)
 
 target.path = /
 INSTALLS += target
