@@ -7,7 +7,12 @@ TEMPLATE = lib
 
 DEFINES += JSON_IS_AMALGAMATION
 
-SOURCES += jsoncpp.cpp
+SOURCES += \
+        jsoncpp.cpp
+
+HEADERS += \
+        json/json-forwards.h \
+        json/json.h
 
 QMAKE_CXXFLAGS_WARN_ON += \
         -Wno-type-limits \
