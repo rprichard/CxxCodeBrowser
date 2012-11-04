@@ -1,3 +1,4 @@
+QT -= core gui
 CONFIG += static
 
 TARGET = indexdb

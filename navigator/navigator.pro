@@ -1,5 +1,3 @@
-QT += core gui
-
 TARGET = navigator
 TEMPLATE = app
 

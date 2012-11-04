@@ -1,3 +1,4 @@
+QT -= core gui
 CONFIG += dll
 
 # HACK: Make qmake use the C driver rather than the C++ driver.

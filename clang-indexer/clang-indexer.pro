@@ -1,4 +1,5 @@
 QT += core
+QT -= gui
 
 TARGET = clang-indexer
 TEMPLATE = app

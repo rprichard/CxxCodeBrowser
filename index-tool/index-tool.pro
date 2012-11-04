@@ -1,3 +1,5 @@
+QT -= core gui
+
 TARGET = index-tool
 TEMPLATE = app
 

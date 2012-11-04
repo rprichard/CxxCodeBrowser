@@ -1,5 +1,6 @@
 # subset of snappy-1.0.5 archive
 
+QT -= core gui
 CONFIG += static
 
 TARGET = snappy
