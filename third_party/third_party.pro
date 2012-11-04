@@ -2,4 +2,5 @@ TEMPLATE = subdirs
 
 CONFIG += ordered
 
-SUBDIRS += libjsoncpp
+SUBDIRS += libjsoncpp \
+           libsnappy

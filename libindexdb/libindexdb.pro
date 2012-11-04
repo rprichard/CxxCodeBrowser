@@ -27,5 +27,7 @@ HEADERS += \
     FileIo64BitSupport.h \
     sha2.h
 
+INCLUDEPATH += ../third_party/libsnappy
+
 QMAKE_CXXFLAGS += -std=c++0x
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter

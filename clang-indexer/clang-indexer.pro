@@ -23,7 +23,9 @@ LIBS           += $${OUT_PWD}/../third_party/libjsoncpp/libjsoncpp.a
 PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
 LIBS           += $${OUT_PWD}/../libindexdb/libindexdb.a
 
-LIBS += -lsnappy
+INCLUDEPATH    += ../third_party/libsnappy
+PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
+LIBS           += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
 
 target.path = /
 INSTALLS += target

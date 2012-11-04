@@ -64,13 +64,15 @@ FORMS += \
     MainWindow.ui
 
 PRE_TARGETDEPS += $${OUT_PWD}/../libindexdb/libindexdb.a
-LIBS +=           $${OUT_PWD}/../libindexdb/libindexdb.a
+LIBS           += $${OUT_PWD}/../libindexdb/libindexdb.a
 
+INCLUDEPATH    += ../third_party/libsnappy
+PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
+LIBS           += $${OUT_PWD}/../third_party/libsnappy/libsnappy.a
+
+INCLUDEPATH    += ../libre2
 PRE_TARGETDEPS += $${OUT_PWD}/../libre2/libre2.a
-LIBS +=           $${OUT_PWD}/../libre2/libre2.a
-INCLUDEPATH += ../libre2
-
-LIBS += -lsnappy
+LIBS           += $${OUT_PWD}/../libre2/libre2.a
 
 target.path = /
 INSTALLS += target
