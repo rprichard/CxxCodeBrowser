@@ -4,12 +4,13 @@ TEMPLATE = subdirs
 # that dependencies are built first.
 CONFIG += ordered
 
-SUBDIRS += third_party \
-           libbtrace \
-           libindexdb \
-           clang-indexer \
-           index-tool \
-           navigator
+SUBDIRS += \
+    third_party \
+    libbtrace \
+    libindexdb \
+    clang-indexer \
+    index-tool \
+    navigator
 
 btrace_script.path = /
 btrace_script.files += libbtrace/btrace.sh

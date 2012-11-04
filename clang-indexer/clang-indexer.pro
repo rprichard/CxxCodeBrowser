@@ -15,6 +15,19 @@ SOURCES += \
     DaemonPool.cc \
     Process.cc
 
+HEADERS += \
+    Switcher.h \
+    ASTIndexer.h \
+    Location.h \
+    IndexerPPCallbacks.h \
+    TUIndexer.h \
+    IndexBuilder.h \
+    IndexerContext.h \
+    NameGenerator.h \
+    Util.h \
+    DaemonPool.h \
+    Process.h
+
 DEFINES        += JSON_IS_AMALGAMATION
 INCLUDEPATH    += ../third_party/libjsoncpp
 PRE_TARGETDEPS += $${OUT_PWD}/../third_party/libjsoncpp/libjsoncpp.a
@@ -32,18 +45,5 @@ INSTALLS += target
 
 QMAKE_CXXFLAGS += -std=c++0x
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
-
-HEADERS += \
-    Switcher.h \
-    ASTIndexer.h \
-    Location.h \
-    IndexerPPCallbacks.h \
-    TUIndexer.h \
-    IndexBuilder.h \
-    IndexerContext.h \
-    NameGenerator.h \
-    Util.h \
-    DaemonPool.h \
-    Process.h
 
 include(../clang.pri)
