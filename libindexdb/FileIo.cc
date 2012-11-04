@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstring>
 #include <memory>
+
 #include <snappy.h>
 
 // UNIX headers

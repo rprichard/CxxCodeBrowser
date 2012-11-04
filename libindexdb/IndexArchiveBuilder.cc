@@ -2,9 +2,10 @@
 
 #include <cassert>
 
+#include <sha2.h>
+
 #include "FileIo.h"
 #include "IndexDb.h"
-#include "sha2.h"
 
 namespace indexdb {
 

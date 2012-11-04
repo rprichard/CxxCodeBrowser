@@ -10,9 +10,7 @@ SOURCES += \
     IndexArchiveBuilder.cc \
     IndexArchiveReader.cc \
     IndexDb.cc \
-    MurmurHash3.cpp \
-    StringTable.cc \
-    sha2.c
+    StringTable.cc
 
 HEADERS += \
     Buffer.h \
@@ -22,11 +20,11 @@ HEADERS += \
     IndexArchiveBuilder.h \
     IndexArchiveReader.h \
     IndexDb.h \
-    MurmurHash3.h \
     StringTable.h \
-    Util.h \
-    sha2.h
+    Util.h
 
+INCLUDEPATH += ../third_party/libMurmurHash3
+INCLUDEPATH += ../third_party/libsha2
 INCLUDEPATH += ../third_party/libsnappy
 
 QMAKE_CXXFLAGS += -std=c++0x

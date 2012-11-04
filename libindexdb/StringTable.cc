@@ -5,9 +5,10 @@
 #include <cstring>
 #include <iostream>
 
+#include <MurmurHash3.h>
+
 #include "Buffer.h"
 #include "FileIo.h"
-#include "MurmurHash3.h"
 #include "Util.h"
 
 namespace indexdb {

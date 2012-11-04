@@ -5,7 +5,9 @@
 #include <vector>
 #include <stdint.h>
 
-#include "sha2.h"
+// XXX/TODO: Try to remove this include.  It requires users of libindexdb to
+// also add libsha2 to their include path.
+#include <sha2.h>
 
 namespace indexdb {
 

@@ -5,8 +5,9 @@
 #include <iostream>
 #include <vector>
 
+#include <MurmurHash3.h>
+
 #include "FileIo.h"
-#include "MurmurHash3.h"
 #include "Util.h"
 
 namespace indexdb {
