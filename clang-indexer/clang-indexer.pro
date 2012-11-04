@@ -4,29 +4,29 @@ TARGET = clang-indexer
 TEMPLATE = app
 
 SOURCES += \
-    main.cc \
     ASTIndexer.cc \
-    IndexerPPCallbacks.cc \
-    TUIndexer.cc \
+    DaemonPool.cc \
     IndexBuilder.cc \
     IndexerContext.cc \
+    IndexerPPCallbacks.cc \
     NameGenerator.cc \
+    Process.cc \
+    TUIndexer.cc \
     Util.cc \
-    DaemonPool.cc \
-    Process.cc
+    main.cc
 
 HEADERS += \
-    Switcher.h \
     ASTIndexer.h \
-    Location.h \
-    IndexerPPCallbacks.h \
-    TUIndexer.h \
+    DaemonPool.h \
     IndexBuilder.h \
     IndexerContext.h \
+    IndexerPPCallbacks.h \
+    Location.h \
     NameGenerator.h \
-    Util.h \
-    DaemonPool.h \
-    Process.h
+    Process.h \
+    Switcher.h \
+    TUIndexer.h \
+    Util.h
 
 DEFINES        += JSON_IS_AMALGAMATION
 INCLUDEPATH    += ../third_party/libjsoncpp

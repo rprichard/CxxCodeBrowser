@@ -4,61 +4,61 @@ TARGET = navigator
 TEMPLATE = app
 
 SOURCES += \
-    main.cc \
-    MainWindow.cc \
-    Misc.cc \
-    Project.cc \
-    FileManager.cc \
-    File.cc \
-    Ref.cc \
-    SourceWidget.cc \
-    ReportFileList.cc \
-    ReportRefList.cc \
     CXXSyntaxHighlighter.cc \
-    TextWidthCalculator.cc \
-    History.cc \
+    File.cc \
+    FileManager.cc \
+    FindBar.cc \
     Folder.cc \
     FolderItem.cc \
     FolderWidget.cc \
+    History.cc \
+    MainWindow.cc \
+    Misc.cc \
     PlaceholderLineEdit.cc \
-    TableReportWindow.cc \
+    Project.cc \
+    Ref.cc \
+    Regex.cc \
+    RegexMatchList.cc \
+    ReportDefList.cc \
+    ReportFileList.cc \
+    ReportRefList.cc \
+    ReportSymList.cc \
+    SourceWidget.cc \
     TableReport.cc \
     TableReportView.cc \
-    Regex.cc \
-    ReportDefList.cc \
-    ReportSymList.cc \
-    FindBar.cc \
-    RegexMatchList.cc
+    TableReportWindow.cc \
+    TextWidthCalculator.cc \
+    main.cc
 
 HEADERS += \
-    Misc.h \
-    MainWindow.h \
-    Project.h \
-    FileManager.h \
-    File.h \
-    Ref.h \
-    SourceWidget.h \
-    ReportFileList.h \
-    ReportRefList.h \
     CXXSyntaxHighlighter.h \
     CXXSyntaxHighlighterDirectives.h \
     CXXSyntaxHighlighterKeywords.h \
-    TextWidthCalculator.h \
-    History.h \
+    File.h \
+    FileManager.h \
+    FindBar.h \
     Folder.h \
     FolderItem.h \
     FolderWidget.h \
-    StringRef.h \
+    History.h \
+    MainWindow.h \
+    Misc.h \
     PlaceholderLineEdit.h \
-    TableReportWindow.h \
+    Project.h \
+    RandomAccessIterator.h \
+    Ref.h \
+    Regex.h \
+    RegexMatchList.h \
+    ReportDefList.h \
+    ReportFileList.h \
+    ReportRefList.h \
+    ReportSymList.h \
+    SourceWidget.h \
+    StringRef.h \
     TableReport.h \
     TableReportView.h \
-    Regex.h \
-    ReportDefList.h \
-    ReportSymList.h \
-    FindBar.h \
-    RegexMatchList.h \
-    RandomAccessIterator.h
+    TableReportWindow.h \
+    TextWidthCalculator.h
 
 FORMS += \
     MainWindow.ui

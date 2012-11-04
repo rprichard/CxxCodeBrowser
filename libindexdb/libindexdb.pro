@@ -6,25 +6,25 @@ TEMPLATE = lib
 SOURCES += \
     Buffer.cc \
     FileIo.cc \
-    IndexDb.cc \
-    StringTable.cc \
-    MurmurHash3.cpp \
-    IndexArchiveReader.cc \
-    IndexArchiveBuilder.cc \
     FileIo64BitSupport.cc \
+    IndexArchiveBuilder.cc \
+    IndexArchiveReader.cc \
+    IndexDb.cc \
+    MurmurHash3.cpp \
+    StringTable.cc \
     sha2.c
 
 HEADERS += \
     Buffer.h \
-    FileIo.h \
-    IndexDb.h \
-    StringTable.h \
-    MurmurHash3.h \
-    Util.h \
     Endian.h \
-    IndexArchiveReader.h \
-    IndexArchiveBuilder.h \
+    FileIo.h \
     FileIo64BitSupport.h \
+    IndexArchiveBuilder.h \
+    IndexArchiveReader.h \
+    IndexDb.h \
+    MurmurHash3.h \
+    StringTable.h \
+    Util.h \
     sha2.h
 
 INCLUDEPATH += ../third_party/libsnappy

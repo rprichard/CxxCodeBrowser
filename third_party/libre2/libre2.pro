@@ -6,13 +6,6 @@ TARGET = re2
 TEMPLATE = lib
 
 SOURCES += \
-    util/arena.cc \
-    util/hash.cc \
-    util/rune.cc \
-    util/stringpiece.cc \
-    util/stringprintf.cc \
-    util/strutil.cc \
-    util/valgrind.cc \
     re2/bitstate.cc \
     re2/compile.cc \
     re2/dfa.cc \
@@ -31,36 +24,43 @@ SOURCES += \
     re2/simplify.cc \
     re2/tostring.cc \
     re2/unicode_casefold.cc \
-    re2/unicode_groups.cc
+    re2/unicode_groups.cc \
+    util/arena.cc \
+    util/hash.cc \
+    util/rune.cc \
+    util/stringpiece.cc \
+    util/stringprintf.cc \
+    util/strutil.cc \
+    util/valgrind.cc
 
 HEADERS += \
+    ./re2/filtered_re2.h \
+    ./re2/prefilter.h \
+    ./re2/prefilter_tree.h \
+    ./re2/prog.h \
+    ./re2/re2.h \
+    ./re2/regexp.h \
+    ./re2/set.h \
+    ./re2/stringpiece.h \
+    ./re2/unicode_casefold.h \
+    ./re2/unicode_groups.h \
+    ./re2/variadic_function.h \
+    ./re2/walker-inl.h \
+    ./util/arena.h \
+    ./util/atomicops.h \
+    ./util/benchmark.h \
+    ./util/flags.h \
     ./util/logging.h \
     ./util/mutex.h \
-    ./util/flags.h \
+    ./util/pcre.h \
+    ./util/random.h \
     ./util/sparse_array.h \
     ./util/sparse_set.h \
-    ./util/atomicops.h \
-    ./util/pcre.h \
+    ./util/test.h \
+    ./util/thread.h \
     ./util/utf.h \
     ./util/util.h \
-    ./util/valgrind.h \
-    ./util/test.h \
-    ./util/arena.h \
-    ./util/thread.h \
-    ./util/random.h \
-    ./util/benchmark.h \
-    ./re2/prefilter_tree.h \
-    ./re2/unicode_groups.h \
-    ./re2/walker-inl.h \
-    ./re2/prog.h \
-    ./re2/set.h \
-    ./re2/variadic_function.h \
-    ./re2/prefilter.h \
-    ./re2/filtered_re2.h \
-    ./re2/stringpiece.h \
-    ./re2/re2.h \
-    ./re2/unicode_casefold.h \
-    ./re2/regexp.h
+    ./util/valgrind.h
 
 QMAKE_CXXFLAGS_WARN_ON += \
     -Wno-sign-compare \
