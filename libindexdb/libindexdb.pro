@@ -24,9 +24,10 @@ HEADERS += \
     Util.h \
     WriterSha256Context.h
 
-INCLUDEPATH += ../third_party/libMurmurHash3
-INCLUDEPATH += ../third_party/libsha2
-INCLUDEPATH += ../third_party/libsnappy
+INCLUDEPATH +=  \
+    ../third_party/libMurmurHash3 \
+    ../third_party/libsha2 \
+    ../third_party/libsnappy
 
 QMAKE_CXXFLAGS += -std=c++0x
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
