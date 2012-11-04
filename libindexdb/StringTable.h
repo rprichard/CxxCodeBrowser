@@ -77,6 +77,7 @@ private:
 public:
     explicit StringTable(bool nullTerminateStrings=true);
     StringTable(StringTable &&other);
+    StringTable &operator=(StringTable &&other) = default;
     explicit StringTable(Reader &reader);
     void write(Writer &writer);
 

@@ -18,6 +18,7 @@
 #include "File.h"
 #include "Misc.h"
 #include "Project.h"
+#include "Project-inl.h"
 #include "Ref.h"
 #include "Regex.h"
 #include "RegexMatchList.h"

@@ -42,7 +42,8 @@ static std::vector<std::pair<int, int> > makeBatches(int count)
 ///////////////////////////////////////////////////////////////////////////////
 // TableReportView_ProxyReport
 
-struct TableReportView_ProxyReport {
+class TableReportView_ProxyReport {
+public:
     virtual ~TableReportView_ProxyReport() {}
     virtual int rowCount()              { return tableReport().rowCount(); }
     virtual int mapToSource(int row)    { return row; }
@@ -79,7 +80,8 @@ struct TableReportView_ProxyReport {
 ///////////////////////////////////////////////////////////////////////////////
 // TableReportView_DirectProxyReport
 
-struct TableReportView_DirectProxyReport : TableReportView_ProxyReport {
+class TableReportView_DirectProxyReport : public TableReportView_ProxyReport {
+public:
     TableReportView_DirectProxyReport(
             TableReport &report) :
         m_report(report)
@@ -97,7 +99,8 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 // TableReportView_SortProxyReport
 
-struct TableReportView_SortProxyReport : TableReportView_ProxyReport {
+class TableReportView_SortProxyReport : public TableReportView_ProxyReport {
+public:
     TableReportView_SortProxyReport(
             TableReportView_ProxyReport &report,
             int sortColumn,
@@ -157,7 +160,8 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 // TableReportView_FilterProxyReport
 
-struct TableReportView_FilterProxyReport : TableReportView_ProxyReport {
+class TableReportView_FilterProxyReport : public TableReportView_ProxyReport {
+public:
     TableReportView_FilterProxyReport(TableReportView_ProxyReport &report) :
         m_report(report)
     {

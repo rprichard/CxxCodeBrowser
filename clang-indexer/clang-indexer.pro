@@ -10,6 +10,7 @@ SOURCES += \
     IndexBuilder.cc \
     IndexerContext.cc \
     IndexerPPCallbacks.cc \
+    Mutex.cc \
     NameGenerator.cc \
     Process.cc \
     TUIndexer.cc \
@@ -23,6 +24,7 @@ HEADERS += \
     IndexerContext.h \
     IndexerPPCallbacks.h \
     Location.h \
+    Mutex.h \
     NameGenerator.h \
     Process.h \
     Switcher.h \

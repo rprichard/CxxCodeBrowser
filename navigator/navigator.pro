@@ -43,6 +43,7 @@ HEADERS += \
     Misc.h \
     PlaceholderLineEdit.h \
     Project.h \
+    Project-inl.h \
     RandomAccessIterator.h \
     Ref.h \
     Regex.h \

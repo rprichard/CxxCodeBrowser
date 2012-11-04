@@ -73,7 +73,7 @@ DaemonPool::~DaemonPool()
 
 Daemon *DaemonPool::get()
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    LockGuard<Mutex> lock(m_mutex);
     if (!m_daemons.empty()) {
         Daemon *result = m_daemons.back();
         m_daemons.pop_back();
@@ -85,7 +85,7 @@ Daemon *DaemonPool::get()
 
 void DaemonPool::release(Daemon *daemon)
 {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    LockGuard<Mutex> lock(m_mutex);
     m_daemons.push_back(daemon);
 }
 

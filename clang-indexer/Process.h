@@ -2,13 +2,14 @@
 #define INDEXER_PROCESS_H
 
 #include <cstdio>
-#include <mutex>
 #include <string>
 #include <vector>
 
+#include "Mutex.h"
+
 namespace indexer {
 
-class ProcessPrivate;
+struct ProcessPrivate;
 
 // A limited process abstraction, useful for running the clang-indexer daemon
 // and probably not much else.  It's similar to popen, but there are *two* pipe
@@ -26,12 +27,12 @@ public:
     void closeStdin();
     void closeStdout();
     int wait();
-    static std::mutex &creationMutex() { return m_creationMutex; }
+    static Mutex &creationMutex() { return m_creationMutex; }
 private:
     ProcessPrivate *m_p;
     FILE *m_stdin;
     FILE *m_stdout;
-    static std::mutex m_creationMutex;
+    static Mutex m_creationMutex;
 };
 
 } // namespace indexer

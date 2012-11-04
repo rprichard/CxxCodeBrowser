@@ -2,7 +2,6 @@
 
 #include <cassert>
 #include <cstring>
-#include <mutex>
 
 #ifdef __unix__
 #include <fcntl.h>
@@ -11,6 +10,7 @@
 #include <unistd.h>
 #endif
 
+#include "Mutex.h"
 #include "Util.h"
 
 namespace indexer {
@@ -27,7 +27,7 @@ struct ProcessPrivate
 // To avoid leaking open files to subprocesses, grab this mutex before creating
 // inheritable files and release it after marking the file
 // non-inheritable/O_CLOEXEC (or after closing it).
-std::mutex Process::m_creationMutex;
+Mutex Process::m_creationMutex;
 
 #ifdef __unix__
 static inline void writeError(const char *str)
@@ -112,7 +112,8 @@ int Process::wait()
 #ifdef __unix__
     if (!m_p->reaped) {
         m_p->status = -1;
-        EINTR_LOOP(waitpid(m_p->pid, &m_p->status, 0));
+        pid_t ret = EINTR_LOOP(waitpid(m_p->pid, &m_p->status, 0));
+        assert(ret == m_p->pid && "unexpected waitpid return value");
         m_p->reaped = true;
     }
     return m_p->status;

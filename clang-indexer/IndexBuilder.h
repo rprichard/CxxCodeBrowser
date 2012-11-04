@@ -5,7 +5,7 @@
 
 namespace indexer {
 
-class Location;
+struct Location;
 
 // This class creates indexdb databases with the appropriate scheme and
 // provides methods to populate the database.  It should be mostly independent

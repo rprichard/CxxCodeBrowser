@@ -8,8 +8,8 @@ namespace Nav {
 class File;
 class Folder;
 
-struct FolderItem
-{
+class FolderItem {
+public:
     virtual ~FolderItem() {}
     virtual Folder *parent() = 0;
     virtual bool isFolder() = 0;

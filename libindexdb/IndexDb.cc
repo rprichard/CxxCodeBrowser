@@ -290,7 +290,7 @@ void Table::setReadOnly(
 TableIterator Table::lowerBound(const Row &row)
 {
     assert(m_readonly);
-    assert(static_cast<size_t>(row.count()) <= columnCount());
+    assert(row.count() <= columnCount());
 
     TableIterator itMin = begin();
     TableIterator itMax = end();

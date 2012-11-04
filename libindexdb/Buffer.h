@@ -11,10 +11,10 @@ class Buffer {
 public:
     Buffer();
     Buffer(uint32_t size, int fillChar=0);
-    Buffer(Buffer &other) = delete;
+    Buffer(const Buffer &other) = delete;
     Buffer(Buffer &&other);
+    Buffer &operator=(const Buffer &other) = delete;
     Buffer &operator=(Buffer &&other);
-    Buffer &operator=(Buffer &other) = delete;
     static Buffer fromMappedBuffer(void *data, uint32_t size);
     ~Buffer();
     uint32_t size() const       { return m_size; }

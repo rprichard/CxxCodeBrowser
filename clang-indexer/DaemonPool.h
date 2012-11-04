@@ -3,9 +3,10 @@
 
 #include <QTextStream>
 #include <QProcess>
-#include <mutex>
 #include <string>
 #include <vector>
+
+#include "Mutex.h"
 
 namespace indexer {
 
@@ -41,7 +42,7 @@ public:
     void release(Daemon *daemon);
 
 private:
-    std::mutex m_mutex;
+    Mutex m_mutex;
     std::vector<Daemon*> m_daemons;
 };
 
