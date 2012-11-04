@@ -21,7 +21,8 @@ HEADERS += \
     IndexArchiveReader.h \
     IndexDb.h \
     StringTable.h \
-    Util.h
+    Util.h \
+    WriterSha256Context.h
 
 INCLUDEPATH += ../third_party/libMurmurHash3
 INCLUDEPATH += ../third_party/libsha2

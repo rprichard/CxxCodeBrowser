@@ -5,10 +5,6 @@
 #include <vector>
 #include <stdint.h>
 
-// XXX/TODO: Try to remove this include.  It requires users of libindexdb to
-// also add libsha2 to their include path.
-#include <sha2.h>
-
 namespace indexdb {
 
 class Buffer;
@@ -17,6 +13,8 @@ const int kMaxAlign = 8;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Writer
+
+struct WriterSha256Context;
 
 class Writer {
 public:
@@ -31,10 +29,10 @@ public:
     void writeSignature(const char *signature);
     uint64_t tell();
     void seek(uint64_t offset);
-    void setSha256Hash(sha256_ctx *sha256);
+    void setSha256Hash(WriterSha256Context *sha256);
     void setCompressed(bool compressed);
 private:
-    sha256_ctx *m_sha256;
+    WriterSha256Context *m_sha256;
     bool m_compressed;
     FILE *m_fp;
     uint64_t m_writeOffset;

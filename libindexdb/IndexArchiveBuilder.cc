@@ -6,6 +6,7 @@
 
 #include "FileIo.h"
 #include "IndexDb.h"
+#include "WriterSha256Context.h"
 
 namespace indexdb {
 
@@ -63,8 +64,8 @@ void IndexArchiveBuilder::write(const std::string &path, bool compressed)
     for (const auto &pair : m_indices) {
         writer.align(kMaxAlign);
 
-        sha256_ctx hashContext;
-        sha256_init(&hashContext);
+        WriterSha256Context hashContext;
+        sha256_init(&hashContext.ctx);
 
         entryOffsets.push_back(writer.tell());
         writer.setSha256Hash(&hashContext);
@@ -74,7 +75,7 @@ void IndexArchiveBuilder::write(const std::string &path, bool compressed)
         entryLengths.push_back(length);
 
         // Compute a SHA-256 hash.
-        sha256_final(&hashContext, hashDigest);
+        sha256_final(&hashContext.ctx, hashDigest);
         entryHashes.push_back(
                     std::string(reinterpret_cast<char*>(hashDigest),
                                 kHashByteSize));

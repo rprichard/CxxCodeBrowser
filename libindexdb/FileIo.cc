@@ -4,8 +4,6 @@
 #include <cstring>
 #include <memory>
 
-#include <snappy.h>
-
 // UNIX headers
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -13,9 +11,13 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <sha2.h>
+#include <snappy.h>
+
 #include "Buffer.h"
 #include "FileIo64BitSupport.h"
 #include "Util.h"
+#include "WriterSha256Context.h"
 
 namespace indexdb {
 
@@ -76,8 +78,12 @@ void Writer::writeString(const std::string &string)
 
 void Writer::writeData(const void *data, size_t count)
 {
-    if (m_sha256 != NULL)
-        sha256_update(m_sha256, static_cast<const unsigned char*>(data), count);
+    if (m_sha256 != NULL) {
+        sha256_update(
+                    &m_sha256->ctx,
+                    static_cast<const unsigned char*>(data),
+                    count);
+    }
     fwrite(data, 1, count, m_fp);
     m_writeOffset += count;
 }
@@ -123,7 +129,7 @@ void Writer::seek(uint64_t offset)
 // Configure the Writer with a SHA-256 hash context.  If sha is non-NULL, then
 // the hash context will be updated with every written byte.  The Writer does
 // not take ownership of the hash context.
-void Writer::setSha256Hash(sha256_ctx *sha256)
+void Writer::setSha256Hash(WriterSha256Context *sha256)
 {
     m_sha256 = sha256;
 }
