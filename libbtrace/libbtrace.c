@@ -1,69 +1,195 @@
-#include <assert.h>
+#include <alloca.h>
 #include <dlfcn.h>
 #include <stdarg.h>
 #include <stdbool.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/file.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
-/* Write the string to the FILE.  Spaces and newlines are quoted.  Backslashes
- * and quotes are escaped. */
-static void writeString(FILE *fp, const char *text)
+/* The code in this file must call only async-signal-safe POSIX/C functions. */
+
+#define BTRACE_LOG_ENV_VAR "BTRACE_LOG"
+
+static void safeAssertFail(
+        const char *filename,
+        const char *line,
+        const char *func,
+        const char *condition)
+{
+    const char *parts[] = {
+        "libbtrace.so: ", filename, ":", line, ": ",
+        func, ": Assertion `", condition, "' failed.\n", NULL
+    };
+    size_t total = 0;
+    for (int i = 0; parts[i] != NULL; ++i)
+        total += strlen(parts[i]);
+    char *message = alloca(total + 1);
+    message[0] = '\0';
+    for (int i = 0; parts[i] != NULL; ++i)
+        strcat(message, parts[i]);
+    write(STDERR_FILENO, message, total);
+    abort();
+}
+
+#define STRINGIFY_HELPER(x) #x
+#define STRINGIFY(x) STRINGIFY_HELPER(x)
+#define safeAssert(condition) \
+        if (!(condition)) \
+            safeAssertFail(__FILE__, STRINGIFY(__LINE__), \
+                           __FUNCTION__, #condition)
+
+#define EINTR_LOOP(expr)                        \
+    ({                                          \
+        __typeof__(expr) ret;                   \
+        do {                                    \
+            ret = (expr);                       \
+        } while (ret == -1 && errno == EINTR);  \
+        ret;                                    \
+    })
+
+static int (*real_execvpe)(const char*, char *const[], char *const[]) = NULL;
+static int (*real_execve)(const char*, char *const[], char *const[]) = NULL;
+static char g_logFileName[1024];
+
+void _init(void)
+{
+    /* dlsym is not async-signal-safe, so try calling it up-front in _init
+     * rather than lazily. */
+    real_execvpe = dlsym(RTLD_NEXT, "execvpe");
+    real_execve = dlsym(RTLD_NEXT, "execve");
+    const char *logFileVar = getenv(BTRACE_LOG_ENV_VAR);
+    if (logFileVar != NULL && strlen(logFileVar) < sizeof(g_logFileName))
+        strcpy(g_logFileName, logFileVar);
+}
+
+typedef struct {
+    int fd;
+    char buf[1024];
+    int bufCount;
+} LogFile;
+
+static void openLogFile(LogFile *logFile, const char *filename)
+{
+    logFile->fd = 0;
+    logFile->bufCount = 0;
+    errno = 0;
+    logFile->fd = EINTR_LOOP(open(
+            filename, O_WRONLY | O_APPEND | O_CREAT | O_CLOEXEC, 0644));
+    safeAssert(logFile->fd != -1 && "Error opening trace file for append.");
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    int lockRet = EINTR_LOOP(fcntl(logFile->fd, F_SETLKW, &lock));
+    safeAssert(lockRet == 0 && "Error locking trace file.");
+}
+
+static void flushLogFile(LogFile *logFile)
+{
+    ssize_t amount = EINTR_LOOP(
+                write(logFile->fd, logFile->buf, logFile->bufCount));
+    safeAssert(amount == logFile->bufCount && "Error writing to trace file.");
+    logFile->bufCount = 0;
+}
+
+static inline void writeChar(LogFile *logFile, char ch)
+{
+    if (logFile->bufCount == sizeof(logFile->buf))
+        flushLogFile(logFile);
+    logFile->buf[logFile->bufCount++] = ch;
+}
+
+static void closeLogFile(LogFile *logFile)
+{
+    flushLogFile(logFile);
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_UNLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    int unlockRet = fcntl(logFile->fd, F_SETLK, &lock);
+    safeAssert(unlockRet == 0 && "Error unlocking trace file.");
+    close(logFile->fd);
+}
+
+/* Write the string to the LogFile.  Spaces and newlines are quoted.
+ * Backslashes and quotes are escaped. */
+static void writeEscapedString(LogFile *logFile, const char *text)
 {
     bool needsQuotes =
         (strchr(text, ' ') != NULL ||
          strchr(text, '\n') != NULL);
     if (needsQuotes)
-        fputc('\"', fp);
+        writeChar(logFile, '\"');
     for (int i = 0; text[i] != '\0'; ++i) {
         char ch = text[i];
         if (ch == '\\' || ch == '\"')
-            fputc('\\', fp);
-        fputc(ch, fp);
+            writeChar(logFile, '\\');
+        writeChar(logFile, ch);
     }
     if (needsQuotes)
-        fputc('\"', fp);
+        writeChar(logFile, '\"');
+}
+
+static bool attemptWriteCwd(LogFile *logFile, size_t size)
+{
+    char *buf = alloca(size);
+    ssize_t amount = readlink("/proc/self/cwd", buf, size);
+    safeAssert(amount != -1 && "Error calling readlink on /proc/self/cwd");
+    if ((size_t)amount < size) {
+        buf[amount] = '\0';
+        writeEscapedString(logFile, buf);
+        writeChar(logFile, '\n');
+        return true;
+    } else {
+        safeAssert((size_t)amount == size &&
+                   "Invalid return value from readlink");
+        return false;
+    }
 }
 
 static void logExecution(const char *filename, char *const argv[])
 {
-    char *logFile = getenv("BTRACE_LOG");
-    if (logFile != NULL && logFile[0] != '\0') {
-        FILE *fp = fopen(logFile, "a");
-        flock(fileno(fp), LOCK_EX);
-        {
-            char path[8192];  /* TODO: replace fixed-size buffer */
-            char *result = getcwd(path, sizeof(path));
-            writeString(fp, result);
-            fputc('\n', fp);
-        }
-        {
-            writeString(fp, filename);
-            fputc('\n', fp);
-            for (int i = 0; argv[i] != NULL; ++i) {
-                if (i > 0)
-                    fputc(' ', fp);
-                writeString(fp, argv[i]);
+    if (g_logFileName[0] == '\0')
+        return;
+    LogFile logFile;
+    openLogFile(&logFile, g_logFileName);
+    {
+        bool success = false;
+        size_t bufSize = 256;
+        while (bufSize < 1024 * 1024) {
+            if (attemptWriteCwd(&logFile, bufSize)) {
+                success = true;
+                break;
             }
-            fputc('\n', fp);
+            bufSize <<= 1;
         }
-        flock(fileno(fp), LOCK_UN);
-        fclose(fp);
+        safeAssert(success && "Error getting current working directory.");
     }
+    {
+        writeEscapedString(&logFile, filename);
+        writeChar(&logFile, '\n');
+        for (int i = 0; argv[i] != NULL; ++i) {
+            if (i > 0)
+                writeChar(&logFile, ' ');
+            writeEscapedString(&logFile, argv[i]);
+        }
+        writeChar(&logFile, '\n');
+    }
+    closeLogFile(&logFile);
 }
 
 int execvpe(const char *filename,
             char *const argv[],
             char *const envp[])
 {
-    static int (*real_execvpe)(const char*, char *const[], char *const[]) = NULL;
-    if (real_execvpe == NULL)
-        real_execvpe = dlsym(RTLD_NEXT, "execvpe");
-
     logExecution(filename, argv);
-
     return real_execvpe(filename, argv, envp);
 }
 
@@ -71,10 +197,6 @@ int execve(const char *filename,
            char *const argv[],
            char *const envp[])
 {
-    static int (*real_execve)(const char*, char *const[], char *const[]) = NULL;
-    if (real_execve == NULL)
-        real_execve = dlsym(RTLD_NEXT, "execve");
-
     logExecution(filename, argv);
 
     return real_execve(filename, argv, envp);
@@ -100,18 +222,15 @@ int execl(const char *path, const char *arg, ...)
         count++;
     va_end(ap);
 
-    char **argv = malloc(sizeof(char*) * (count + 1));
-    assert(argv);
+    char **argv = alloca(sizeof(char*) * (count + 1));
+    safeAssert(argv);
     va_start(ap, arg);
     for (int i = 0; i < count; ++i)
         argv[i] = va_arg(ap, char*);
     argv[count] = NULL;
     va_end(ap);
 
-    int result = execv(path, argv);
-
-    free(argv);
-    return result;
+    return execv(path, argv);
 }
 
 int execlp(const char *file, const char *arg, ...)
@@ -124,18 +243,15 @@ int execlp(const char *file, const char *arg, ...)
         count++;
     va_end(ap);
 
-    char **argv = malloc(sizeof(char*) * (count + 1));
-    assert(argv);
+    char **argv = alloca(sizeof(char*) * (count + 1));
+    safeAssert(argv);
     va_start(ap, arg);
     for (int i = 0; i < count; ++i)
         argv[i] = va_arg(ap, char*);
     argv[count] = NULL;
     va_end(ap);
 
-    int result = execvp(file, argv);
-
-    free(argv);
-    return result;
+    return execvp(file, argv);
 }
 
 int execle(const char *path, const char *arg, ...)
@@ -148,8 +264,8 @@ int execle(const char *path, const char *arg, ...)
         count++;
     va_end(ap);
 
-    char **argv = malloc(sizeof(char*) * (count + 1));
-    assert(argv);
+    char **argv = alloca(sizeof(char*) * (count + 1));
+    safeAssert(argv);
     va_start(ap, arg);
     for (int i = 0; i < count; ++i)
         argv[i] = va_arg(ap, char*);
@@ -157,8 +273,5 @@ int execle(const char *path, const char *arg, ...)
     char **envp = va_arg(ap, char**);
     va_end(ap);
 
-    int result = execve(path, argv, envp);
-
-    free(argv);
-    return result;
+    return execve(path, argv, envp);
 }

@@ -27,6 +27,9 @@ DEFINES += _GNU_SOURCE
 LIBS += -ldl
 
 QMAKE_CFLAGS += -std=c99
+QMAKE_LFLAGS += -nostartfiles
 
 target.path = /
 INSTALLS += target
+
+QMAKE_CFLAGS_WARN_ON += -Wno-unused-result
