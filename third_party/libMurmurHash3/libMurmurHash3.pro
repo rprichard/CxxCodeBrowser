@@ -1,7 +1,7 @@
 # MurmurHash3 SVN r147 (http://code.google.com/p/smhasher/)
 
 QT -= core gui
-CONFIG += static
+CONFIG += static create_prl
 
 TARGET = MurmurHash3
 TEMPLATE = lib

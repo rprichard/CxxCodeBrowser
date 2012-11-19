@@ -1,7 +1,7 @@
 # Olivier Gay's SHA-2 library (http://www.ouah.org/ogay/sha2/)
 
 QT -= core gui
-CONFIG += static
+CONFIG += static create_prl
 
 TARGET = sha2
 TEMPLATE = lib

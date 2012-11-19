@@ -1,3 +1,5 @@
+CONFIG += link_prl
+
 TARGET = navigator
 TEMPLATE = app
 
@@ -62,16 +64,10 @@ HEADERS += \
 FORMS += \
     MainWindow.ui
 
-INCLUDEPATH += \
+DEPENDENCY_STATIC_LIBS = \
+    ../libindexdb \
     ../third_party/libre2
-
-DEPENDENCY_LIBS = \
-    ../libindexdb/libindexdb.a \
-    ../third_party/libsnappy/libsnappy.a \
-    ../third_party/libMurmurHash3/libMurmurHash3.a \
-    ../third_party/libsha2/libsha2.a \
-    ../third_party/libre2/libre2.a
-include(../dependency_libs.pri)
+include(../dependency_static_libs.pri)
 
 target.path = /
 INSTALLS += target

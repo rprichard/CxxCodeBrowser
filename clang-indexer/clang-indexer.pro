@@ -1,6 +1,8 @@
 QT += core
 QT -= gui
 
+CONFIG += link_prl
+
 TARGET = clang-indexer
 TEMPLATE = app
 
@@ -32,14 +34,10 @@ HEADERS += \
     Util.h
 
 DEFINES += JSON_IS_AMALGAMATION
-INCLUDEPATH += ../third_party/libjsoncpp
-DEPENDENCY_LIBS = \
-    ../libindexdb/libindexdb.a \
-    ../third_party/libjsoncpp/libjsoncpp.a \
-    ../third_party/libsnappy/libsnappy.a \
-    ../third_party/libMurmurHash3/libMurmurHash3.a \
-    ../third_party/libsha2/libsha2.a
-include(../dependency_libs.pri)
+DEPENDENCY_STATIC_LIBS = \
+    ../libindexdb \
+    ../third_party/libjsoncpp
+include(../dependency_static_libs.pri)
 
 target.path = /
 INSTALLS += target

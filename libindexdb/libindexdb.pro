@@ -1,5 +1,5 @@
 QT -= core gui
-CONFIG += static
+CONFIG += static create_prl
 
 TARGET = indexdb
 TEMPLATE = lib
@@ -25,10 +25,11 @@ HEADERS += \
     Util.h \
     WriterSha256Context.h
 
-INCLUDEPATH +=  \
+DEPENDENCY_STATIC_LIBS += \
     ../third_party/libMurmurHash3 \
     ../third_party/libsha2 \
     ../third_party/libsnappy
+include(../dependency_static_libs.pri)
 
 QMAKE_CXXFLAGS += -std=c++0x
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
