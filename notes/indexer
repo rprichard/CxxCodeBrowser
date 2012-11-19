@@ -176,3 +176,17 @@ at the start of the PCH file, then it will fail to detect the incompatibility.
 
 See http://marc.info/?l=cfe-commits&m=128713917112525 regarding Qt, Clang, and
 PCH.
+
+----
+
+BUG: libbtrace/processlog.py probably do not work with ccache because they log
+both the parent and child compile commands.
+
+BUG: clang-indexer seems to be crashing on qmake:
+Stack dump:
+0.	../../../../qt/config.tests/unix/libtiff/libtiff.cpp:42:2: current parser token 'include'
+clang-indexer: daemon exited unexpectedly
+Stack dump:
+0.	../../../../qt/config.tests/unix/libmng/libmng.cpp:42:2: current parser token 'include'
+
+----
