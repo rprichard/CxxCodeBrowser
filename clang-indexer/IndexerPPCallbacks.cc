@@ -25,6 +25,13 @@ void IndexerPPCallbacks::InclusionDirective(
         llvm::StringRef searchPath,
         llvm::StringRef relativePath)
 {
+    if (file == NULL) {
+        // The file can be NULL, in which case there is nothing for the indexer
+        // to record.  (For example, the target of an #include might not be
+        // found.)
+        return;
+    }
+
     // Get the location of the #include filename.
     auto range = getIncludeFilenameLoc(isAngled, endLoc);
     IndexerFileContext &fileContext = *std::get<0>(range);
@@ -153,6 +160,7 @@ void IndexerPPCallbacks::MacroExpands(
         const clang::MacroInfo *mi,
         clang::SourceRange range)
 {
+    assert(mi != NULL);
     recordReference(macroNameToken, RT_Expansion);
 }
 
@@ -160,6 +168,7 @@ void IndexerPPCallbacks::MacroDefined(
         const clang::Token &macroNameToken,
         const clang::MacroInfo *mi)
 {
+    assert(mi != NULL);
     recordReference(macroNameToken, RT_Definition);
 }
 
@@ -167,6 +176,7 @@ void IndexerPPCallbacks::MacroUndefined(
         const clang::Token &macroNameToken,
         const clang::MacroInfo *mi)
 {
+    assert(mi != NULL);
     recordReference(macroNameToken, RT_Undefinition);
 }
 
