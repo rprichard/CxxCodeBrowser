@@ -50,6 +50,7 @@ private:
         TextWidthCalculator *itemWidthCalculator;
         int maxWidth;
         QPoint origin;
+        std::vector<bool> levelHasMoreSiblings;
         // outputs
         QSize sizeHintOut;
         FolderItem *hitTestOut;
@@ -73,6 +74,9 @@ private:
     void traverseLayout(LayoutTraversalState &state) const;
     void traverseLayoutItem(
             FolderItem *item,
+            LayoutTraversalState &state) const;
+    void traverseLayoutFolderChildren(
+            Folder *folder,
             LayoutTraversalState &state) const;
     void paintFolderItem(
             FolderItem *item,

@@ -19,9 +19,9 @@ namespace Nav {
 const QMargins kFolderViewMargins(3, 3, 3, 3);
 const int kExtraItemTopPx = 1;
 const int kExtraItemBottomPx = 1;
-const int kBranchSizePx = 16;
-const int kBranchMarginPx = 18;
+const int kIndentationPx = 16;
 const int kCategoryPaddingPx = 12;
+const int kItemRightMarginPx = 4;
 
 ///////////////////////////////////////////////////////////////////////////////
 // FolderView
@@ -251,11 +251,7 @@ void FolderWidgetView::traverseLayout(LayoutTraversalState &state) const
                         state.maxWidth,
                         state.origin.x() + catFM.width(category->title()));
 
-        // Traverse the children.
-        foreach (FolderItem *item, category->folders())
-            traverseLayoutItem(item, state);
-        foreach (FolderItem *item, category->files())
-            traverseLayoutItem(item, state);
+        traverseLayoutFolderChildren(category, state);
     }
     state.origin.ry() += kFolderViewMargins.bottom();
     state.sizeHintOut = QSize(state.maxWidth + kFolderViewMargins.right(),
@@ -269,8 +265,9 @@ void FolderWidgetView::traverseLayoutItem(
     const int top = state.origin.y();
     const int height = state.itemLS;
     if (state.wantSizeHint) {
-        int width = kBranchMarginPx +
-                    state.itemWidthCalculator->calculate(item->title());
+        int width = kIndentationPx * state.levelHasMoreSiblings.size() +
+                    state.itemWidthCalculator->calculate(item->title()) +
+                    kItemRightMarginPx;
         state.maxWidth = std::max(state.maxWidth, state.origin.x() + width);
     }
     if (state.painter != NULL &&
@@ -290,13 +287,29 @@ void FolderWidgetView::traverseLayoutItem(
 
     // Children.
     if (item->isFolder() && m_openFolders.contains(item->asFolder())) {
-        const int indentPx = 12;
-        state.origin.rx() += indentPx;
-        foreach (FolderItem *child, item->asFolder()->folders())
-            traverseLayoutItem(child, state);
-        foreach (FolderItem *child, item->asFolder()->files())
-            traverseLayoutItem(child, state);
-        state.origin.rx() -= indentPx;
+        Folder *folder = item->asFolder();
+        traverseLayoutFolderChildren(folder, state);
+    }
+}
+
+void FolderWidgetView::traverseLayoutFolderChildren(
+        Folder *folder,
+        LayoutTraversalState &state) const
+{
+    FolderItem *lastItem =
+            !folder->files().empty() ?
+                static_cast<FolderItem*>(folder->files().back()) :
+            !folder->folders().empty() ?
+                static_cast<FolderItem*>(folder->folders().back()) : NULL;
+    foreach (Folder *child, folder->folders()) {
+        state.levelHasMoreSiblings.push_back(child != lastItem);
+        traverseLayoutItem(child, state);
+        state.levelHasMoreSiblings.pop_back();
+    }
+    foreach (File *child, folder->files()) {
+        state.levelHasMoreSiblings.push_back(child != lastItem);
+        traverseLayoutItem(child, state);
+        state.levelHasMoreSiblings.pop_back();
     }
 }
 
@@ -304,36 +317,67 @@ void FolderWidgetView::paintFolderItem(
         FolderItem *item,
         LayoutTraversalState &state) const
 {
-    state.painter->setFont(state.itemFont);
-    if (item->isFolder()) {
-        QStyleOption option;
-        option.state |= QStyle::State_Children;
-        if (m_openFolders.contains(item->asFolder()))
-            option.state |= QStyle::State_Open;
-        option.rect = QRect(state.origin.x(), state.origin.y(), kBranchSizePx, state.itemLS);
+    QFlags<QStyle::StateFlag> stateFlags;
+    stateFlags |= QStyle::State_Enabled;
+    if (item == m_selectedFile) {
+        stateFlags |= QStyle::State_Selected;
+    }
+    if (isActiveWindow())
+        stateFlags |= QStyle::State_Active;
+
+    {
+        // Draw the row background.  (With some themes, the highlighting runs
+        // from the item to the right edge, so the highlighting is done on the
+        // drawControl call instead.)
+        QStyleOptionViewItemV4 option;
+        option.font = font();
+        option.state = stateFlags;
+        option.rect = QRect(0, state.origin.y(), width(), state.itemLS);
+        option.backgroundBrush = palette().brush(backgroundRole());
+        option.showDecorationSelected = true;
+        style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, state.painter, NULL);
+
+        // Draw the item.
+        const int x = state.origin.x() +
+                kIndentationPx * state.levelHasMoreSiblings.size();
+        option.rect = QRect(x,
+                            state.origin.y(),
+                            width() - x, state.itemLS);
+        option.text = item->title();
+        option.textElideMode = Qt::ElideNone;
+        option.features |= QStyleOptionViewItemV2::HasDisplay;
+        style()->drawControl(QStyle::CE_ItemViewItem, &option, state.painter, NULL);
+    }
+
+    {
+        assert(!state.levelHasMoreSiblings.empty());
+        QRect primitiveRect(state.origin, QSize(kIndentationPx, state.itemLS));
+        QStyleOptionViewItemV4 option;
+        for (size_t i = 0; i < state.levelHasMoreSiblings.size() - 1; ++i) {
+            if (state.levelHasMoreSiblings[i]) {
+                option.rect = primitiveRect;
+                option.state = stateFlags | QStyle::State_Sibling;
+                style()->drawPrimitive(
+                            QStyle::PE_IndicatorBranch,
+                            &option,
+                            state.painter);
+            }
+            primitiveRect.translate(kIndentationPx, 0);
+        }
+        option.rect = primitiveRect;
+        option.state = stateFlags | QStyle::State_Item;
+        if (state.levelHasMoreSiblings.back())
+            option.state |= QStyle::State_Sibling;
+        if (item->isFolder()) {
+            option.state |= QStyle::State_Children;
+            if (m_openFolders.contains(item->asFolder()))
+                option.state |= QStyle::State_Open;
+        }
         style()->drawPrimitive(
                     QStyle::PE_IndicatorBranch,
                     &option,
                     state.painter);
     }
-    if (item == m_selectedFile) {
-        // Draw the selection background.
-        QStyleOptionViewItemV4 option;
-        option.rect = QRect(0, state.origin.y(), width(), state.itemLS);
-        option.state |= QStyle::State_Selected;
-        if (isActiveWindow())
-            option.state |= QStyle::State_Active;
-        style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, state.painter, this);
-
-        // Use the selection text color.
-        state.painter->setPen(palette().color(QPalette::HighlightedText));
-    } else {
-        // Use the default text color.
-        state.painter->setPen(palette().color(QPalette::Text));
-    }
-    state.painter->drawText(state.origin.x() + kBranchMarginPx,
-                            state.origin.y() + state.itemAscent,
-                            item->title());
 }
 
 
