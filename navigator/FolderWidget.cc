@@ -45,6 +45,8 @@ FolderWidgetView::FolderWidgetView(FileManager &fileManager, QWidget *parent) :
 
 void FolderWidgetView::selectFile(File *file)
 {
+    if (m_selectedFile == file)
+        return;
     m_selectedFile = file;
     update();
 }
@@ -414,16 +416,19 @@ void FolderWidget::selectFile(File *file)
 {
     m_folderView->selectFile(file);
     if (m_folderView->ancestorsAreOpen(file)) {
-        ensureItemVisible(file);
+        ensureItemVisible(file, 0);
     }
 }
 
-void FolderWidget::ensureItemVisible(FolderItem *item)
+void FolderWidget::ensureItemVisible(FolderItem *item, int ymargin)
 {
     m_folderView->openAncestors(item);
     QRect itemBoundingRect = m_folderView->itemBoundingRect(item);
     int x = horizontalScrollBar()->value();
-    ensureVisible(x, itemBoundingRect.top());
+    ensureVisible(x, itemBoundingRect.top(),
+                  0, ymargin);
+    ensureVisible(x, itemBoundingRect.top() + itemBoundingRect.height(),
+                  0, ymargin);
 }
 
 void FolderWidget::resizeFolderView()

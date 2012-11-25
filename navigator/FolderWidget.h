@@ -100,7 +100,7 @@ public:
     explicit FolderWidget(FileManager &fileManager, QWidget *parent = 0);
     void selectFile(File *file);
     File *selectedFile() { return m_folderView->selectedFile(); }
-    void ensureItemVisible(FolderItem *item);
+    void ensureItemVisible(FolderItem *item, int ymargin=50);
 
 signals:
     void selectionChanged();
