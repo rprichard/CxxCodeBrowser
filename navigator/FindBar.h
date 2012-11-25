@@ -38,10 +38,19 @@ class FindBarEditFrame : public QWidget {
     Q_OBJECT
 public:
     FindBarEditFrame(QWidget *parent = 0);
-    int frameWidth();
-    void initStyleOption(QStyleOptionFrameV2 &option);
+    QSize sizeHint() const;
+    QSize minimumSizeHint() const { return sizeHint(); }
+    FindBarEdit *findBarEdit() { return m_edit; }
+    QLabel *infoLabel() { return m_infoLabel; }
 private:
+    void initStyleOption(QStyleOptionFrameV2 &option) const;
     void paintEvent(QPaintEvent *event);
+    void resizeEvent(QResizeEvent *event);
+    bool event(QEvent *event);
+    void layoutChildren();
+
+    FindBarEdit *m_edit;
+    QLabel *m_infoLabel;
 };
 
 
@@ -75,9 +84,8 @@ private slots:
     void onEditTextChanged();
 
 private:
-    FindBarEdit *m_edit;
-    QLabel *m_infoLabel;
     Regex m_regex;
+    FindBarEditFrame *m_editFrame;
 };
 
 } // namespace Nav

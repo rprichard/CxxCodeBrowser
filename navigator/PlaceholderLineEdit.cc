@@ -1,4 +1,5 @@
 #include "PlaceholderLineEdit.h"
+#include "Misc.h"
 
 #include <QPainter>
 
@@ -29,7 +30,10 @@ void PlaceholderLineEdit::paintEvent(QPaintEvent *event)
         f.setItalic(true);
         p.setFont(f);
         p.setPen(QColor(Qt::lightGray));
-        p.drawText(6, 5 + fontMetrics().ascent(), m_placeholderText);
+        p.drawText(6,
+                   fontMetrics().ascent() +
+                        (height() - effectiveLineSpacing(fontMetrics())) / 2,
+                   m_placeholderText);
     }
 }
 
