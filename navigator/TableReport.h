@@ -21,7 +21,7 @@ public:
     virtual int rowCount() = 0;
     virtual const char *text(int row, int column, std::string &tempBuf) = 0;
     virtual void select(int row)        {}
-    virtual void activate(int row)      {}
+    virtual bool activate(int row)      { return false; }
     virtual int compare(int row1, int row2, int col);
     virtual bool filter(int row, const Regex &regex, std::string &tempBuf);
 };

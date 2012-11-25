@@ -694,8 +694,11 @@ void TableReportView::keyPressEvent(QKeyEvent *event)
     } else if (event->key() == Qt::Key_Enter ||
                event->key() == Qt::Key_Return) {
         const int selectedReportIndex = this->selectedReportIndex();
-        if (selectedReportIndex != -1)
-            m_report->activate(selectedReportIndex);
+        if (selectedReportIndex != -1) {
+            if (m_report->activate(selectedReportIndex)) {
+                window()->close();
+            }
+        }
     } else {
         QAbstractScrollArea::keyPressEvent(event);
     }

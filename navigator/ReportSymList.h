@@ -21,7 +21,7 @@ public:
     int rowCount();
     const char *text(int row, int column, std::string &tempBuf);
     int compare(int row1, int row2, int col);
-    void activate(int row);
+    bool activate(int row);
 
 private:
     Project &m_project;

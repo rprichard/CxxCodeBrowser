@@ -21,6 +21,7 @@ public:
     int rowCount();
     const char *text(int row, int column, std::string &tempBuf);
     void select(int row);
+    bool activate(int row) { select(row); return true; }
     int compare(int row1, int row2, int col);
 
 private:

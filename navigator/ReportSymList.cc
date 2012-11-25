@@ -53,7 +53,7 @@ int ReportSymList::compare(int row1, int row2, int col)
     }
 }
 
-void ReportSymList::activate(int row)
+bool ReportSymList::activate(int row)
 {
     TableReportWindow *tw = new TableReportWindow;
     tw->setTableReport(new ReportRefList(
@@ -61,6 +61,7 @@ void ReportSymList::activate(int row)
                            m_project.symbolStringTable().item(row),
                            tw));
     tw->show();
+    return false;
 }
 
 } // namespace Nav
