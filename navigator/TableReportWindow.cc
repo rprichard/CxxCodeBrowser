@@ -15,6 +15,8 @@ namespace Nav {
 TableReportWindow::TableReportWindow(QWidget *parent) :
     QWidget(parent)
 {
+    setAttribute(Qt::WA_DeleteOnClose);
+
     new QVBoxLayout(this);
     m_view = new TableReportView;
     m_filterBox = new PlaceholderLineEdit;

@@ -39,6 +39,7 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    setAttribute(Qt::WA_DeleteOnClose);
 
     // Left pane: folder widget.
     m_folderWidget = new FolderWidget(project.fileManager());
@@ -274,6 +275,7 @@ void MainWindow::actionRevealInSideBar()
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     QApplication::quit();
+    QMainWindow::closeEvent(event);
 }
 
 bool MainWindow::eventFilter(QObject *object, QEvent *event)
