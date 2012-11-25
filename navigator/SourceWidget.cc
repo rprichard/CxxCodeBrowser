@@ -65,6 +65,7 @@ static Qt::GlobalColor colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind)
     case CXXSyntaxHighlighter::KindKeyword:
         return Qt::darkYellow;
     default:
+        // Qt::black is later converted to the foregroundRole() color.
         return Qt::black;
     }
 }
@@ -387,6 +388,7 @@ void SourceWidgetView::paintLine(
     const int hovEndOff = m_hoverHighlightRange.end.toOffset(*m_file);
     const QBrush matchBrush(Qt::yellow);
     const QBrush selectedMatchBrush(QColor(255, 140, 0));
+    const QBrush hoverBrush(QColor(200, 200, 200));
 
     // Fill the line's background.
     {
@@ -417,7 +419,7 @@ void SourceWidgetView::paintLine(
 
             // Hover and selection backgrounds.
             if (charFileIndex >= hovStartOff && charFileIndex < hovEndOff)
-                fillBrush = &palette().dark();
+                fillBrush = &hoverBrush;
             if (charFileIndex >= selStartOff && charFileIndex < selEndOff)
                 fillBrush = &palette().highlight();
 
@@ -434,7 +436,10 @@ void SourceWidgetView::paintLine(
     // Draw characters.
     {
         LineLayout lay(font(), m_margins, *m_file, line);
-        QColor currentColor(Qt::black);
+        QPalette pal(palette());
+        QColor defaultTextColor(pal.color(foregroundRole()));
+        QColor currentColor(defaultTextColor);
+        QColor charColor;
         painter.setPen(currentColor);
         while (lay.hasMoreChars()) {
             lay.advanceChar();
@@ -444,16 +449,20 @@ void SourceWidgetView::paintLine(
                 continue;
             if (!lay.charText().empty()) {
                 FileLocation loc(line, lay.charColumn());
-                QColor color(m_syntaxColoring[lay.charFileIndex()]);
+                Qt::GlobalColor gc = m_syntaxColoring[lay.charFileIndex()];
+                if (gc == Qt::black)
+                    charColor = defaultTextColor;
+                else
+                    charColor = gc;
 
                 // Override the color for selected text.
                 if (loc >= m_selectedRange.start && loc < m_selectedRange.end)
-                    color = palette().highlightedText().color();
+                    charColor = pal.highlightedText().color();
 
                 // Set the painter pen when the color changes.
-                if (color != currentColor) {
-                    painter.setPen(color);
-                    currentColor = color;
+                if (charColor != currentColor) {
+                    painter.setPen(charColor);
+                    currentColor = charColor;
                 }
 
                 painter.drawText(
