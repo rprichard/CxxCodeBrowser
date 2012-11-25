@@ -465,7 +465,7 @@ int TableReportView::itemHeight() const
             kTableItemMargins.top() + kTableItemMargins.bottom();
 }
 
-// It's better if this size is an understimate rather than an overestimate.
+// It's better if this size is an underestimate rather than an overestimate.
 // It takes the current scrollbar status into account, unlike
 // viewport()->size(), which uses layout information cached somewhere and
 // only incorporates scrollbar status after some layout process completes.

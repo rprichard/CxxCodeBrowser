@@ -336,7 +336,8 @@ void FolderWidgetView::paintFolderItem(
         option.showDecorationSelected = true;
         style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, state.painter, NULL);
 
-        // Draw the item.
+        // Draw the item.  This call draws the item text, and with some themes,
+        // it also draws the selection background/box.
         const int x = state.origin.x() +
                 kIndentationPx * state.levelHasMoreSiblings.size();
         option.rect = QRect(x,
@@ -349,9 +350,15 @@ void FolderWidgetView::paintFolderItem(
     }
 
     {
+        // Draw branches.  In some styles (e.g. GtkStyle(Cleanlooks)), there
+        // are no branch lines, but there are still arrow or plus/minus icons
+        // on the folder items.
         assert(!state.levelHasMoreSiblings.empty());
         QRect primitiveRect(state.origin, QSize(kIndentationPx, state.itemLS));
         QStyleOptionViewItemV4 option;
+
+        // For each parent, draw a sibling branch (i.e. a stylized vertical
+        // line), if the parent has more siblings below the current item.
         for (size_t i = 0; i < state.levelHasMoreSiblings.size() - 1; ++i) {
             if (state.levelHasMoreSiblings[i]) {
                 option.rect = primitiveRect;
@@ -363,6 +370,10 @@ void FolderWidgetView::paintFolderItem(
             }
             primitiveRect.translate(kIndentationPx, 0);
         }
+
+        // Draw the current item's branch.  Typically, there is always a
+        // vertical line from the middle of the branch rect going up.
+        // State_Item enables a line from the middle of the rect going right.
         option.rect = primitiveRect;
         option.state = stateFlags | QStyle::State_Item;
         if (state.levelHasMoreSiblings.back())
