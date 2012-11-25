@@ -703,7 +703,9 @@ void TableReportView::keyPressEvent(QKeyEvent *event)
 
 int TableReportView::indexFromPoint(const QPoint &pos)
 {
-    int index = pos.y() / itemHeight() + verticalScrollBar()->value();
+    const int itemHeight = this->itemHeight();
+    int64_t startOffset = verticalScrollBar()->value() * itemHeight;
+    int index = (startOffset + pos.y()) / itemHeight;
     index = std::max(0, index);
     index = std::min(itemCount() - 1, index);
     return index;
