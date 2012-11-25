@@ -210,6 +210,7 @@ private:
     void navMouseTripleDownEvent(QMouseEvent *event);
     void mouseMoveEvent(QMouseEvent *event);
     void moveEvent(QMoveEvent *event);
+    bool event(QEvent *event);
     void updateSelectionAndHover();
     void updateSelectionAndHover(QPoint pos);
     void mouseReleaseEvent(QMouseEvent *event);
@@ -228,6 +229,7 @@ private:
     int m_maxLineLength;
     QPoint m_tripleClickPoint;
     QTime m_tripleClickTime;
+    bool m_mouseHoveringInWidget;
     enum SelectingMode { SM_Inactive, SM_Ref, SM_Char, SM_Word, SM_Line }
         m_selectingMode;
     FileRange m_selectedRange;

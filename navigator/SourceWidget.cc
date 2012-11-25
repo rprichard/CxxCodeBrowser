@@ -268,11 +268,13 @@ SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
     m_margins(margins),
     m_project(project),
     m_file(NULL),
+    m_mouseHoveringInWidget(false),
     m_selectingMode(SM_Inactive),
     m_selectedMatchIndex(-1)
 {
     setBackgroundRole(QPalette::NoRole);
     setMouseTracking(true);
+    setAttribute(Qt::WA_Hover);
     updateFindMatches();
 }
 
@@ -746,6 +748,20 @@ void SourceWidgetView::moveEvent(QMoveEvent *event)
     updateSelectionAndHover();
 }
 
+bool SourceWidgetView::event(QEvent *event)
+{
+    if (event->type() == QEvent::HoverMove ||
+            event->type() == QEvent::HoverEnter) {
+        m_mouseHoveringInWidget = true;
+        updateSelectionAndHover();
+    }
+    if (event->type() == QEvent::HoverLeave) {
+        m_mouseHoveringInWidget = false;
+        updateSelectionAndHover();
+    }
+    return QWidget::event(event);
+}
+
 void SourceWidgetView::updateSelectionAndHover()
 {
     updateSelectionAndHover(mapFromGlobal(QCursor::pos()));
@@ -759,7 +775,7 @@ void SourceWidgetView::updateSelectionAndHover(QPoint mousePos)
         return;
     if (m_selectingMode == SM_Inactive) {
         FileRange word;
-        if (rect().contains(mousePos))
+        if (rect().contains(mousePos) && m_mouseHoveringInWidget)
             word = findRefAtPoint(mousePos);
         setHoverHighlight(word);
         setCursor(word.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
