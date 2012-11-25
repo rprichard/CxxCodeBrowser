@@ -333,7 +333,6 @@ void FolderWidgetView::paintFolderItem(
         option.font = font();
         option.state = stateFlags;
         option.rect = QRect(0, state.origin.y(), width(), state.itemLS);
-        option.backgroundBrush = palette().brush(backgroundRole());
         option.showDecorationSelected = true;
         style()->drawPrimitive(QStyle::PE_PanelItemViewRow, &option, state.painter, NULL);
 
