@@ -26,31 +26,22 @@ signals:
     void shiftReturnPressed();
     void escapePressed();
 
+public:
+    QString infoText() const { return m_infoText; }
+    void setInfoText(const QString &infoText);
+    void setInfoColors(
+            const QColor &infoForeground,
+            const QColor &infoBackground);
+    int rightFrameWidth();
+    QColor infoForeground() const { return m_infoForeground; }
+    QColor infoBackground() const { return m_infoBackground; }
+
 private:
     void keyPressEvent(QKeyEvent *event);
-};
-
-
-///////////////////////////////////////////////////////////////////////////////
-// FindBarEditFrame
-
-class FindBarEditFrame : public QWidget {
-    Q_OBJECT
-public:
-    FindBarEditFrame(QWidget *parent = 0);
-    QSize sizeHint() const;
-    QSize minimumSizeHint() const { return sizeHint(); }
-    FindBarEdit *findBarEdit() { return m_edit; }
-    QLabel *infoLabel() { return m_infoLabel; }
-private:
-    void initStyleOption(QStyleOptionFrameV2 &option) const;
     void paintEvent(QPaintEvent *event);
-    void resizeEvent(QResizeEvent *event);
-    bool event(QEvent *event);
-    void layoutChildren();
-
-    FindBarEdit *m_edit;
-    QLabel *m_infoLabel;
+    QString m_infoText;
+    QColor m_infoForeground;
+    QColor m_infoBackground;
 };
 
 
@@ -85,7 +76,7 @@ private slots:
 
 private:
     Regex m_regex;
-    FindBarEditFrame *m_editFrame;
+    FindBarEdit *m_edit;
 };
 
 } // namespace Nav

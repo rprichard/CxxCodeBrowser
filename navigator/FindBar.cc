@@ -17,8 +17,53 @@ namespace Nav {
 ///////////////////////////////////////////////////////////////////////////////
 // FindBarEdit
 
-FindBarEdit::FindBarEdit(QWidget *parent) : PlaceholderLineEdit(parent)
+const int kInfoLabelLeftMarginPx = 3;
+const int kInfoLabelRightMarginPx = 3;
+
+FindBarEdit::FindBarEdit(QWidget *parent) :
+    PlaceholderLineEdit(parent),
+    m_infoBackground(Qt::transparent)
 {
+    m_infoForeground = palette().color(foregroundRole());
+}
+
+void FindBarEdit::setInfoText(const QString &infoText)
+{
+    if (infoText == m_infoText)
+        return;
+    m_infoText = infoText;
+    int rightMargin = 0;
+    if (!m_infoText.isEmpty()) {
+        int textWidth = fontMetrics().width(m_infoText);
+        rightMargin =
+                kInfoLabelLeftMarginPx +
+                kInfoLabelRightMarginPx +
+                rightFrameWidth() +
+                textWidth;
+    }
+    setTextMargins(0, 0, rightMargin, 0);
+    update();
+}
+
+void FindBarEdit::setInfoColors(
+        const QColor &infoForeground,
+        const QColor &infoBackground)
+{
+    if (infoForeground == m_infoForeground &&
+            infoBackground == m_infoBackground)
+        return;
+    m_infoForeground = infoForeground;
+    m_infoBackground = infoBackground;
+    update();
+}
+
+int FindBarEdit::rightFrameWidth()
+{
+    QStyleOptionFrameV2 option;
+    initStyleOption(&option);
+    QRect subRect = style()->subElementRect(
+                QStyle::SE_LineEditContents, &option, this);
+    return width() - subRect.x() - subRect.width();
 }
 
 void FindBarEdit::keyPressEvent(QKeyEvent *event)
@@ -35,108 +80,22 @@ void FindBarEdit::keyPressEvent(QKeyEvent *event)
     }
 }
 
-
-///////////////////////////////////////////////////////////////////////////////
-// FindBarEditFrame
-
-const int kInfoLabelLeftMarginPx = 3;
-const int kInfoLabelRightMarginPx = 3;
-const int kInfoLabelVerticalMarginPx = 3;
-
-FindBarEditFrame::FindBarEditFrame(QWidget *parent) : QWidget(parent)
+void FindBarEdit::paintEvent(QPaintEvent *event)
 {
-    // TODO: Move this...
-    QFont f = font();
-    f.setPointSize(9);
-    setFont(f);
-
-    m_edit = new FindBarEdit(this);
-    m_edit->setFrame(false);
-    m_edit->setFont(f);
-    m_edit->setPlaceholderText(placeholderText);
-    QPalette editPalette = m_edit->palette();
-    editPalette.setColor(m_edit->backgroundRole(), Qt::transparent);
-    m_edit->setPalette(editPalette);
-
-    m_infoLabel = new QLabel(this);
-    m_infoLabel->setFont(font());
-
-    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setFocusProxy(m_edit);
-
-    layoutChildren();
-}
-
-QSize FindBarEditFrame::sizeHint() const
-{
-    QFontMetrics fm = fontMetrics();
-    QStyleOptionFrameV2 option;
-    initStyleOption(option);
-    QSize contentsSize(
-                fm.width('x') * 4 + (2 * 2),
-                fm.height() + (2 * 1));
-    QSize labelSize = m_infoLabel->sizeHint();
-    contentsSize.rwidth() += kInfoLabelLeftMarginPx + kInfoLabelRightMarginPx;
-    contentsSize.rheight() = std::max(
-                contentsSize.height(),
-                labelSize.height() + 2 * kInfoLabelVerticalMarginPx);
-    contentsSize = contentsSize.expandedTo(QApplication::globalStrut());
-    QSize styledSize = style()->sizeFromContents(
-                QStyle::CT_LineEdit, &option, contentsSize, m_edit);
-    return styledSize;
-}
-
-void FindBarEditFrame::initStyleOption(QStyleOptionFrameV2 &option) const
-{
-    option.initFrom(this);
-    option.fontMetrics = fontMetrics();
-    option.rect = rect();
-    option.lineWidth = style()->pixelMetric(
-                QStyle::PM_DefaultFrameWidth, &option, m_edit);
-    option.midLineWidth = 0;
-    option.features = QStyleOptionFrameV2::None;
-}
-
-void FindBarEditFrame::paintEvent(QPaintEvent *event)
-{
-    QWidget::paintEvent(event);
+    PlaceholderLineEdit::paintEvent(event);
+    int textWidth = fontMetrics().width(m_infoText);
+    int textX = width() -
+            kInfoLabelRightMarginPx -
+            rightFrameWidth() -
+            textWidth;
+    int textHeight = effectiveLineSpacing(fontMetrics());
+    int textY = (height() - textHeight) / 2;
     QPainter painter(this);
-    QStyleOptionFrameV2 option;
-    initStyleOption(option);
-    option.state |= QStyle::State_Enabled | QStyle::State_Sunken;
-    style()->drawPrimitive(QStyle::PE_PanelLineEdit, &option, &painter);
-}
-
-void FindBarEditFrame::resizeEvent(QResizeEvent *event)
-{
-    layoutChildren();
-}
-
-bool FindBarEditFrame::event(QEvent *event)
-{
-    if (event->type() == QEvent::LayoutRequest)
-        layoutChildren();
-    return QWidget::event(event);
-}
-
-void FindBarEditFrame::layoutChildren()
-{
-    QStyleOptionFrameV2 option;
-    initStyleOption(option);
-    QRect contentRect = style()->subElementRect(
-                QStyle::SE_LineEditContents, &option, m_edit);
-    QSize infoSize = m_infoLabel->sizeHint();
-
-    int x4 = contentRect.x() + contentRect.width() - kInfoLabelRightMarginPx;
-    int x3 = x4 - infoSize.width();
-    int x2 = x3 - kInfoLabelLeftMarginPx;
-    int x1 = contentRect.x();
-
-    int infoLabelTop = contentRect.y() +
-            std::max(0, (contentRect.height() - infoSize.height()) / 2);
-
-    m_edit->setGeometry(x1, contentRect.y(), x2 - x1, contentRect.height());
-    m_infoLabel->setGeometry(x3, infoLabelTop, x4 - x3, infoSize.height());
+    painter.save();
+    painter.setPen(m_infoForeground);
+    painter.fillRect(textX, textY, textWidth, textHeight, m_infoBackground);
+    painter.drawText(textX, textY + fontMetrics().ascent(), m_infoText);
+    painter.restore();
 }
 
 
@@ -157,17 +116,18 @@ FindBar::FindBar(QWidget *parent) :
     layout->setMargin(2);
     layout->setSpacing(2);
 
-    m_editFrame = new FindBarEditFrame;
-    layout->addWidget(m_editFrame);
-    FindBarEdit *edit = m_editFrame->findBarEdit();
+    m_edit = new FindBarEdit;
+    m_edit->setPlaceholderText(placeholderText);
+    layout->addWidget(m_edit);
 
-    connect(edit, SIGNAL(returnPressed()), SIGNAL(next()));
-    connect(edit, SIGNAL(shiftReturnPressed()), SIGNAL(previous()));
-    connect(edit, SIGNAL(escapePressed()), SIGNAL(closeBar()));
-    connect(edit, SIGNAL(textChanged(QString)), SLOT(onEditTextChanged()));
+    connect(m_edit, SIGNAL(returnPressed()), SIGNAL(next()));
+    connect(m_edit, SIGNAL(shiftReturnPressed()), SIGNAL(previous()));
+    connect(m_edit, SIGNAL(escapePressed()), SIGNAL(closeBar()));
+    connect(m_edit, SIGNAL(textChanged(QString)), SLOT(onEditTextChanged()));
 
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-    setFocusProxy(m_editFrame);
+    m_edit->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    setFocusProxy(m_edit);
 
     QToolButton *b;
     b = makeButton("go-previous", "Previous (Shift-Enter)", "",
@@ -206,51 +166,42 @@ QToolButton *FindBar::makeButton(
 void FindBar::setMatchInfo(int index, int count)
 {
     bool isError;
-    FindBarEdit *edit = m_editFrame->findBarEdit();
-    QLabel *infoLabel = m_editFrame->infoLabel();
-    if (edit->text().isEmpty()) {
-        infoLabel->setText("");
-        infoLabel->setVisible(false);
+    QString infoText;
+    if (m_edit->text().isEmpty()) {
+        infoText = "";
         isError = false;
     } else {
-        QString label;
         if (index == -1) {
             if (count == 1)
-                label = "1 match";
+                infoText = "1 match";
             else
-                label = QString("%0 matches").arg(count);
+                infoText = QString("%0 matches").arg(count);
         } else {
-            label = QString("%0 of %1").arg(index + 1).arg(count);
+            infoText = QString("%0 of %1").arg(index + 1).arg(count);
         }
-        infoLabel->setText(label);
-        infoLabel->setVisible(true);
         isError = (count == 0);
     }
-    QPalette p;
-    if (isError)
-        p.setBrush(infoLabel->backgroundRole(), QColor(255, 102, 102));
-    else
-        p.setBrush(infoLabel->foregroundRole(), QColor(Qt::darkGray));
-    infoLabel->setAutoFillBackground(isError);
-    infoLabel->setPalette(p);
+    m_edit->setInfoColors(
+                isError ? palette().color(foregroundRole()) : Qt::darkGray,
+                isError ? QColor(255, 102, 102) : Qt::transparent);
+    m_edit->setInfoText(infoText);
 }
 
 void FindBar::selectAll()
 {
-    m_editFrame->findBarEdit()->selectAll();
+    m_edit->selectAll();
 }
 
 void FindBar::onEditTextChanged()
 {
-    FindBarEdit *edit = m_editFrame->findBarEdit();
-    Regex regex(edit->text().toStdString());
+    Regex regex(m_edit->text().toStdString());
 
     {
-        QPalette pal = edit->palette();
-        pal.setColor(edit->foregroundRole(),
-                     regex.valid() ? palette().color(edit->foregroundRole())
+        QPalette pal = m_edit->palette();
+        pal.setColor(m_edit->foregroundRole(),
+                     regex.valid() ? palette().color(m_edit->foregroundRole())
                                    : QColor(Qt::red));
-        edit->setPalette(pal);
+        m_edit->setPalette(pal);
     }
 
     if (regex.valid()) {

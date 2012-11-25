@@ -22,7 +22,7 @@ public:
     void setPlaceholderText(const QString &placeholder);
     QString placeholderText() const;
 
-private:
+protected:
     void paintEvent(QPaintEvent *event);
 
     QString m_placeholderText;
