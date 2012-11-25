@@ -625,20 +625,26 @@ void TableReportView::paintEvent(QPaintEvent *event)
         if (row == m_selectedIndex) {
             // Draw the selection background.
             QStyleOptionViewItemV4 option;
-            option.rect = QRect(0, y, viewport()->width(), lineSpacing);
-            option.state |= QStyle::State_Selected;
+            option.state = QStyle::State_Enabled | QStyle::State_Selected;
             if (isActiveWindow())
                 option.state |= QStyle::State_Active;
+            option.font = font();
+            option.showDecorationSelected = true;
+            option.rect = QRect(-horizontalScrollBar()->value(), y,
+                                m_headerView->width(), lineSpacing);
             style()->drawPrimitive(QStyle::PE_PanelItemViewRow,
                                    &option, &painter, this);
-
-            // Use the selection text color.
-            painter.setPen(palette().color(QPalette::HighlightedText));
-        } else {
-            // Use the default text color.
-            painter.setPen(palette().color(QPalette::Text));
+            style()->drawControl(QStyle::CE_ItemViewItem, &option, &painter);
+            option.state &= ~QStyle::State_Selected;
         }
 
+        // Draw each column's text.
+        painter.save();
+        if (row == m_selectedIndex) {
+            painter.setPen(palette().color(QPalette::HighlightedText));
+        } else {
+            painter.setPen(palette().color(QPalette::Text));
+        }
         for (int col = 0; col < columnCount; ++col) {
             int x = m_headerView->sectionViewportPosition(col);
             x -= horizontalScrollBar()->value();
@@ -648,6 +654,7 @@ void TableReportView::paintEvent(QPaintEvent *event)
                         col, tempBuf);
             painter.drawText(x, y + ascent, text);
         }
+        painter.restore();
 
         y += lineSpacing;
     }
