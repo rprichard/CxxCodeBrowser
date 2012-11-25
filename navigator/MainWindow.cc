@@ -200,6 +200,7 @@ void MainWindow::on_actionViewGlobalDefinitions_triggered()
     ReportDefList *r = new ReportDefList(*theProject, tw);
     tw->setTableReport(r);
     tw->setFilterBoxVisible(true);
+    tw->resize(kReportDefListDefaultSize);
     tw->show();
 }
 
@@ -209,6 +210,7 @@ void MainWindow::on_actionViewSymbols_triggered()
     ReportSymList *r = new ReportSymList(*theProject, tw);
     tw->setTableReport(r);
     tw->setFilterBoxVisible(true);
+    tw->resize(kReportSymListDefaultSize);
     tw->show();
 }
 

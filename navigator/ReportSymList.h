@@ -2,6 +2,7 @@
 #define NAV_REPORTSYMLIST_H
 
 #include <QObject>
+#include <QSize>
 #include <QString>
 #include <string>
 
@@ -10,6 +11,8 @@
 namespace Nav {
 
 class Project;
+
+const QSize kReportSymListDefaultSize(600, 800);
 
 class ReportSymList : public TableReport
 {

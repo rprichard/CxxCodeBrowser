@@ -1,6 +1,7 @@
 #ifndef NAV_REPORTDEFLIST_H
 #define NAV_REPORTDEFLIST_H
 
+#include <QSize>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,8 @@ namespace Nav {
 
 class Project;
 class Ref;
+
+const QSize kReportDefListDefaultSize(600, 800);
 
 class ReportDefList : public TableReport
 {
