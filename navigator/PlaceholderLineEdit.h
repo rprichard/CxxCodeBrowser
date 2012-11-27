@@ -9,8 +9,8 @@ namespace Nav {
 // line of text that is visible if and only if text() is empty.
 //
 // Qt's QLineEdit has a placeholderText property, but unfortunately, Qt does
-// not display the placeholder if the widget has focus.  The query results
-// window (i.e. GotoWindow) has a filter input box that always has focus.
+// not display the placeholder if the widget has focus.  The FindBar and the
+// TableReportWindow both have filter input boxes that always have focus.
 //
 class PlaceholderLineEdit : public QLineEdit
 {
