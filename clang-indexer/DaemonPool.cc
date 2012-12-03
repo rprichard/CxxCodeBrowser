@@ -47,7 +47,8 @@ int Daemon::run(
         bool isEof;
         std::string line = readLine(m_process->stdout(), &isEof);
         if (isEof) {
-            std::cerr << "clang-indexer: daemon exited unexpectedly" << std::endl;
+            std::cerr << "sw-clang-indexer: daemon exited unexpectedly"
+                      << std::endl;
             return 1;
         }
         if (stringStartsWith(line, "DONE ")) {

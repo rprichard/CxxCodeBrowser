@@ -79,7 +79,7 @@ Process::Process(
         close(pipes[1]);
         close(pipes[2]);
         execv(programPathPtr, argvPtr);
-        writeError("clang-indexer: Failed to exec ");
+        writeError("sw-clang-indexer: Failed to exec ");
         writeError(programPathPtr);
         writeError("\n");
         _Exit(1);

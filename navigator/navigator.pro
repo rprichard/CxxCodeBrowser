@@ -1,6 +1,6 @@
 CONFIG += link_prl
 
-TARGET = navigator
+TARGET = sourceweb
 TEMPLATE = app
 
 SOURCES += \

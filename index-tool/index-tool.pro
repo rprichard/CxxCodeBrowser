@@ -2,7 +2,7 @@ QT -= core gui
 
 CONFIG += link_prl
 
-TARGET = index-tool
+TARGET = sw-index-tool
 TEMPLATE = app
 
 SOURCES += \

@@ -3,7 +3,7 @@ QT -= gui
 
 CONFIG += link_prl
 
-TARGET = clang-indexer
+TARGET = sw-clang-indexer
 TEMPLATE = app
 
 SOURCES += \

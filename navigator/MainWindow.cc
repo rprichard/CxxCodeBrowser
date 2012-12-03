@@ -236,7 +236,7 @@ void MainWindow::actionForward()
 
 void MainWindow::sourceWidgetFileChanged(File *file)
 {
-    setWindowTitle(file->path() + " - Navigator");
+    setWindowTitle(file->path() + " - SourceWeb");
     m_folderWidget->selectFile(file);
 }
 
