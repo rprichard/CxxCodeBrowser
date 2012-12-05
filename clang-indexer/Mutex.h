@@ -1,8 +1,11 @@
 #ifndef INDEXER_MUTEX_H
 #define INDEXER_MUTEX_H
 
-#ifdef __unix__
+#if defined(__unix__)
 #define INDEXER_MUTEX_USE_PTHREADS 1
+#elif defined(_WIN32)
+// MinGW32 also does not provide C++11 threading.  (MinGW-w64 might, though.)
+#define INDEXER_MUTEX_USE_WIN32 1
 #endif
 
 // Use pthreads on Unix instead of C++11's chrono header.  There is a bug in
@@ -15,6 +18,8 @@
 //
 #if INDEXER_MUTEX_USE_PTHREADS
 #include <pthread.h>
+#elif INDEXER_MUTEX_USE_WIN32
+#include <windows.h>
 #else
 #include <chrono>
 #endif
@@ -29,8 +34,10 @@ public:
     void unlock();
 
 private:
-#ifdef INDEXER_MUTEX_USE_PTHREADS
+#if INDEXER_MUTEX_USE_PTHREADS
     pthread_mutex_t mutex;
+#elif INDEXER_MUTEX_USE_WIN32
+    CRITICAL_SECTION mutex;
 #else
     std::mutex mutex;
 #endif
