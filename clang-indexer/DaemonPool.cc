@@ -25,7 +25,7 @@ Daemon::Daemon()
 
 Daemon::~Daemon()
 {
-    fprintf(m_process->stdout(), "\n");
+    fprintf(m_process->stdoutFile(), "\n");
     delete m_process;
 }
 
@@ -34,18 +34,18 @@ int Daemon::run(
         const std::vector<std::string> &args)
 {
     // Send the job.
-    fprintf(m_process->stdin(), "%s\n", workingDirectory.c_str());
+    fprintf(m_process->stdinFile(), "%s\n", workingDirectory.c_str());
     for (const std::string &arg : args) {
         // TODO: What about embedded newlines in arguments?
-        fprintf(m_process->stdin(), "%s\n", arg.c_str());
+        fprintf(m_process->stdinFile(), "%s\n", arg.c_str());
     }
-    fprintf(m_process->stdin(), "\n");
-    fflush(m_process->stdin());
+    fprintf(m_process->stdinFile(), "\n");
+    fflush(m_process->stdinFile());
 
     // Wait for completion.
     while (true) {
         bool isEof;
-        std::string line = readLine(m_process->stdout(), &isEof);
+        std::string line = readLine(m_process->stdoutFile(), &isEof);
         if (isEof) {
             std::cerr << "sw-clang-indexer: daemon exited unexpectedly"
                       << std::endl;

@@ -22,16 +22,16 @@ public:
     Process(const std::string &programPath,
             const std::vector<std::string> &args);
     ~Process();
-    FILE *stdin() { return m_stdin; }
-    FILE *stdout() { return m_stdout; }
+    FILE *stdinFile() { return m_stdinFile; }
+    FILE *stdoutFile() { return m_stdoutFile; }
     void closeStdin();
     void closeStdout();
     int wait();
     static Mutex &creationMutex() { return m_creationMutex; }
 private:
     ProcessPrivate *m_p;
-    FILE *m_stdin;
-    FILE *m_stdout;
+    FILE *m_stdinFile;
+    FILE *m_stdoutFile;
     static Mutex m_creationMutex;
 };
 

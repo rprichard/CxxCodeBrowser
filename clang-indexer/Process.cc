@@ -86,8 +86,8 @@ Process::Process(
     } else {
         // Parent process.
         m_creationMutex.unlock();
-        m_stdin = fdopen(pipes[1], "w");
-        m_stdout = fdopen(pipes[2], "r");
+        m_stdinFile = fdopen(pipes[1], "w");
+        m_stdoutFile = fdopen(pipes[2], "r");
         close(pipes[0]);
         close(pipes[3]);
     }
@@ -123,17 +123,17 @@ int Process::wait()
 
 void Process::closeStdin()
 {
-    if (m_stdin != NULL) {
-        fclose(m_stdin);
-        m_stdin = NULL;
+    if (m_stdinFile != NULL) {
+        fclose(m_stdinFile);
+        m_stdinFile = NULL;
     }
 }
 
 void Process::closeStdout()
 {
-    if (m_stdout != NULL) {
-        fclose(m_stdout);
-        m_stdout = NULL;
+    if (m_stdoutFile != NULL) {
+        fclose(m_stdoutFile);
+        m_stdoutFile = NULL;
     }
 }
 
