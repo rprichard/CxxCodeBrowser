@@ -3,11 +3,15 @@
 #include <cassert>
 #include <cstring>
 
-#ifdef __unix__
+#if defined(__unix__)
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#elif defined(_WIN32)
+#include <fcntl.h>
+#include <io.h>
+#include <windows.h>
 #endif
 
 #include "Mutex.h"
@@ -15,9 +19,15 @@
 
 namespace indexer {
 
-#ifdef __unix__
+#if defined(__unix__)
 struct ProcessPrivate {
     pid_t pid;
+    bool reaped;
+    int status;
+};
+#elif defined(_WIN32)
+struct ProcessPrivate {
+    HANDLE hproc;
     bool reaped;
     int status;
 };
@@ -36,13 +46,65 @@ static inline void writeError(const char *str)
 }
 #endif
 
+#ifdef _WIN32
+// Convert argc/argv into a Win32 command-line following the escaping convention
+// documented on MSDN.  (e.g. see CommandLineToArgvW documentation)
+// Copied from winpty project.
+static std::string argvToCommandLine(const std::vector<std::string> &argv)
+{
+    std::string result;
+    for (size_t argIndex = 0; argIndex < argv.size(); ++argIndex) {
+        if (argIndex > 0)
+            result.push_back(' ');
+        const char *arg = argv[argIndex].c_str();
+        const bool quote =
+            strchr(arg, ' ') != NULL ||
+            strchr(arg, '\t') != NULL ||
+            *arg == '\0';
+        if (quote)
+            result.push_back('\"');
+        int bsCount = 0;
+        for (const char *p = arg; *p != '\0'; ++p) {
+            if (*p == '\\') {
+                bsCount++;
+            } else if (*p == '\"') {
+                result.append(bsCount * 2 + 1, '\\');
+                result.push_back('\"');
+                bsCount = 0;
+            } else {
+                result.append(bsCount, '\\');
+                bsCount = 0;
+                result.push_back(*p);
+            }
+        }
+        if (quote) {
+            result.append(bsCount * 2, '\\');
+            result.push_back('\"');
+        } else {
+            result.append(bsCount, '\\');
+        }
+    }
+    return result;
+}
+
+static std::string makeCommandLine(
+        const std::string &programPath,
+        const std::vector<std::string> &args)
+{
+    std::vector<std::string> argv;
+    argv.push_back(programPath);
+    argv.insert(argv.end(), args.begin(), args.end());
+    return argvToCommandLine(argv);
+}
+#endif
+
 Process::Process(
         const std::string &programPath,
         const std::vector<std::string> &args)
     : m_p(new ProcessPrivate)
 {
-#ifdef __unix__
     memset(m_p, 0, sizeof(*m_p));
+#ifdef __unix__
     int pipes[4];
     m_creationMutex.lock();
     int ret;
@@ -57,7 +119,8 @@ Process::Process(
     for (const std::string &arg : args)
         argv.push_back(arg.c_str());
     argv.push_back(NULL);
-    // The const_cast is safe.  (http://stackoverflow.com/questions/190184/execv-and-const-ness)
+    // The const_cast is safe.
+    // http://stackoverflow.com/questions/190184/execv-and-const-ness
     char *const *argvPtr = const_cast<char *const *>(argv.data());
     const char *programPathPtr = programPath.c_str();
 
@@ -91,6 +154,60 @@ Process::Process(
         close(pipes[0]);
         close(pipes[3]);
     }
+#elif defined(_WIN32)
+    // Try leaving the handles non-inheritable and pass bInheritHandles=FALSE to
+    // CreateProcess.  I don't know whether this is supposed to work, but it
+    // seems to.  CreateProcess seems to decide that the standard handles must
+    // be inherited no matter what.
+    BOOL success;
+    std::string cmdLine = makeCommandLine(programPath, args);
+    STARTUPINFOA sui;
+    PROCESS_INFORMATION pi;
+    memset(&sui, 0, sizeof(sui));
+    memset(&pi, 0, sizeof(pi));
+    sui.dwFlags = STARTF_USESTDHANDLES;
+    HANDLE hStdinRead;
+    HANDLE hStdinWrite;
+    HANDLE hStdoutRead;
+    HANDLE hStdoutWrite;
+    success = CreatePipe(&hStdinRead, &hStdinWrite, NULL, 0);
+    assert(success);
+    success = CreatePipe(&hStdoutRead, &hStdoutWrite, NULL, 0);
+    assert(success);
+    sui.cb = sizeof(sui);
+    sui.hStdInput = hStdinRead;
+    sui.hStdOutput = hStdoutWrite;
+    sui.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    BOOL ret = CreateProcessA(
+                programPath.c_str(),
+                &cmdLine[0],
+                NULL, NULL,
+                /*bInheritHandles=*/FALSE,
+                /*dwCreationFlags=*/0,
+                /*lpEnvironment=*/NULL,
+                /*lpCurrentDirectory=*/NULL,
+                &sui, &pi);
+    if (!ret) {
+        fprintf(stderr, "sw-clang-indexer: Error starting daemon process\n");
+        exit(1);
+    }
+    m_p->hproc = pi.hProcess;
+    CloseHandle(pi.hThread);
+    CloseHandle(hStdinRead);
+    CloseHandle(hStdoutWrite);
+    // Calling close() on these file descriptors will call CloseHandle().
+    // (i.e. Ownership of the HANDLE is transferred.  See the _open_osfhandle
+    // MSDN page.)
+    int stdinFd = _open_osfhandle(reinterpret_cast<intptr_t>(hStdinWrite),
+                                  _O_TEXT | _O_RDWR);
+    int stdoutFd = _open_osfhandle(reinterpret_cast<intptr_t>(hStdoutRead),
+                                   _O_TEXT | _O_RDONLY);
+    assert(stdinFd != -1);
+    assert(stdoutFd != -1);
+    m_stdinFile = _fdopen(stdinFd, "wt");
+    m_stdoutFile = _fdopen(stdoutFd, "rt");
+    assert(m_stdinFile != NULL);
+    assert(m_stdoutFile != NULL);
 #else
 #error "Process::Process not implemented on this OS."
 #endif
@@ -108,12 +225,25 @@ int Process::wait()
 {
     closeStdin();
     closeStdout();
-#ifdef __unix__
+#if defined(__unix__)
     if (!m_p->reaped) {
         m_p->status = -1;
         pid_t ret = EINTR_LOOP(waitpid(m_p->pid, &m_p->status, 0));
         assert(ret == m_p->pid && "unexpected waitpid return value");
         m_p->reaped = true;
+    }
+    return m_p->status;
+#elif defined(_WIN32)
+    if (!m_p->reaped) {
+        DWORD ret = WaitForSingleObject(m_p->hproc, INFINITE);
+        assert(ret == WAIT_OBJECT_0 && "wait on child process HANDLE failed");
+        DWORD exitCode = 0;
+        BOOL success = GetExitCodeProcess(m_p->hproc, &exitCode);
+        assert(success && "GetExitCodeProcess on child process failed");
+        m_p->status = exitCode;
+        m_p->reaped = true;
+        CloseHandle(m_p->hproc);
+        m_p->hproc = INVALID_HANDLE_VALUE;
     }
     return m_p->status;
 #else
