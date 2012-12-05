@@ -1,13 +1,10 @@
 #include "Buffer.h"
+
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <utility>
-
-// UNIX headers
-#include <sys/mman.h>
-#include <unistd.h>
 
 #include "FileIo.h"
 
