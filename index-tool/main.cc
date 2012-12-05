@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
                       << std::endl;
         }
     } else {
-        std::cout << "Usage:" << argv[0] << " (--dump|--dump-json) indexdb-file"
+        std::cout << "Usage: " << argv[0] << " (--dump|--dump-json) indexdb-file"
                   << std::endl;
     }
 }
