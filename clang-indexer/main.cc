@@ -12,8 +12,10 @@
 #include <unordered_set>
 #include <vector>
 
-#ifdef __unix__
+#if defined(__unix__)
 #include <unistd.h>
+#elif defined(_WIN32)
+#include <direct.h>
 #endif
 
 #include <json/json.h>
