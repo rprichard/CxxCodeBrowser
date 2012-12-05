@@ -1,11 +1,26 @@
 #include "ReportRefList.h"
 
+#include <stdint.h>
+#include <cstring>
+
 #include "File.h"
 #include "MainWindow.h"
 #include "Project.h"
 #include "Ref.h"
 
 namespace Nav {
+
+static void uint32ToString(char *output, uint32_t val)
+{
+    char tempBuf[32];
+    char *ptr = &tempBuf[31];
+    *ptr = '\0';
+    do {
+        *(--ptr) = '0' + val % 10;
+        val /= 10;
+    } while (val != 0);
+    strcpy(output, ptr);
+}
 
 ReportRefList::ReportRefList(
         Project &project,
@@ -43,8 +58,9 @@ const char *ReportRefList::text(int row, int col, std::string &tempBuf)
     if (col == 0) {
         return ref.fileNameCStr();
     } else if (col == 1) {
-        tempBuf = std::to_string(ref.line());
-        return tempBuf.c_str();
+        tempBuf.resize(32);
+        uint32ToString(&tempBuf[0], ref.line());
+        return &tempBuf[0];
     } else if (col == 2) {
         return ref.kindCStr();
     } else {
