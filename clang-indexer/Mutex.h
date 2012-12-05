@@ -8,9 +8,9 @@
 #define INDEXER_MUTEX_USE_WIN32 1
 #endif
 
-// Use pthreads on Unix instead of C++11's chrono header.  There is a bug in
-// the chrono header in libstdc++ 4.6 and 4.7 that prevents Clang 3.1 from
-// parsing it.  Newer versions of Clang might work around the bug.
+// Use pthreads on Unix instead of C++11's mutex header.  There is a bug in the
+// chrono header in libstdc++ 4.6 and 4.7 that prevents Clang 3.1 from parsing
+// the mutex header.  Newer versions of Clang might work around the bug.
 //
 // http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=666539
 // http://llvm.org/bugs/show_bug.cgi?id=12893
@@ -21,7 +21,7 @@
 #elif INDEXER_MUTEX_USE_WIN32
 #include <windows.h>
 #else
-#include <chrono>
+#include <mutex>
 #endif
 
 namespace indexer {
