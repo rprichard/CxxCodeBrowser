@@ -12,8 +12,10 @@
 
 namespace re2 {
 
+#if defined(__unix__)
 #define HAVE_PTHREAD 1
 #define HAVE_RWLOCK 1
+#endif
 
 #if defined(NO_THREADS)
   typedef int MutexType;      // to keep a lock-count
@@ -31,7 +33,7 @@ namespace re2 {
 #elif defined(HAVE_PTHREAD)
 # include <pthread.h>
   typedef pthread_mutex_t MutexType;
-#elif defined(WIN32)
+#elif defined(_WIN32)
 # define WIN32_LEAN_AND_MEAN  // We only need minimal includes
 # ifdef GMUTEX_TRYLOCK
   // We need Windows NT or later for TryEnterCriticalSection().  If you
@@ -129,7 +131,7 @@ void Mutex::ReaderLock()   { Lock(); }      // we don't have read-write locks
 void Mutex::ReaderUnlock() { Unlock(); }
 #undef SAFE_PTHREAD
 
-#elif defined(WIN32)
+#elif defined(_WIN32)
 
 Mutex::Mutex()             { InitializeCriticalSection(&mutex_); }
 Mutex::~Mutex()            { DeleteCriticalSection(&mutex_); }
