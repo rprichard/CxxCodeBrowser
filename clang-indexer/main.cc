@@ -13,8 +13,6 @@
 #include <vector>
 
 #ifdef __unix__
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #endif
 
@@ -140,26 +138,6 @@ static void readSourcesJson(
     Json::Value rootJson;
     r.parse(f, rootJson);
     readSourcesJson(rootJson, output);
-}
-
-const time_t kInvalidTime = static_cast<time_t>(-1);
-
-static time_t getPathModTime(const std::string &path)
-{
-#if defined(__unix__)
-    // TODO: What about symlinks?  It seems that the perfect behavior is to use
-    // the non-symlink modtime for the index file itself, but for input files,
-    // to use the highest modtime among all the symlinks and the non-symlink.
-    // That's complicated, though, so just use the modtime of the non-symlink.
-    struct stat buf;
-    if (stat(path.c_str(), &buf) != 0)
-        return kInvalidTime;
-    return buf.st_mtime;
-#elif defined(_WIN32)
-#error "Should use GetFileInformation on Win32 -- not implemented yet"
-#else
-#error "Not implemented on this OS."
-#endif
 }
 
 static time_t getCachedPathModTime(

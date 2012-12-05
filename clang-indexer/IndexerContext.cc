@@ -6,6 +6,7 @@
 #include "../libindexdb/IndexDb.h"
 #include "../libindexdb/IndexArchiveBuilder.h"
 #include "NameGenerator.h"
+#include "Util.h"
 
 namespace indexer {
 
@@ -157,7 +158,7 @@ IndexerFileContext &IndexerContext::fileContext(clang::FileID fileID)
         const clang::FileEntry *pFE =
                 m_sourceManager.getFileEntryForID(fileID);
         if (pFE != NULL) {
-            char *filename = realpath(pFE->getName(), NULL);
+            char *filename = portableRealPath(pFE->getName());
             if (filename != NULL) {
                 pathSymbolName += filename;
                 free(filename);

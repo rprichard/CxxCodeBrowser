@@ -7,6 +7,7 @@
 #include "IndexBuilder.h"
 #include "IndexerContext.h"
 #include "Location.h"
+#include "Util.h"
 
 namespace indexer {
 
@@ -41,7 +42,7 @@ void IndexerPPCallbacks::InclusionDirective(
     auto it = m_includePathMap.find(file);
     if (it == m_includePathMap.end()) {
         std::string symbol = "@";
-        char *path = realpath(file->getName(), NULL);
+        char *path = portableRealPath(file->getName());
         symbol += path;
         free(path);
         m_includePathMap[file] = symbol;

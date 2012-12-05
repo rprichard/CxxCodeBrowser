@@ -1,6 +1,17 @@
 #include "Util.h"
 
+#include <climits>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
+
+#if defined(__unix__)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#elif defined(_WIN32)
+#include <windows.h>
+#endif
 
 namespace indexer {
 
@@ -24,6 +35,54 @@ const char *const_basename(const char *path)
         path++;
     }
     return ret;
+}
+
+char *portableRealPath(const char *path)
+{
+#if defined(__unix__)
+    return realpath(path, NULL);
+#elif defined(_WIN32)
+    return _fullpath(NULL, path, 0);
+#else
+#error "portableRealPath not implemented for this target."
+#endif
+}
+
+time_t getPathModTime(const std::string &path)
+{
+#if defined(__unix__)
+    // TODO: What about symlinks?  It seems that the perfect behavior is to use
+    // the non-symlink modtime for the index file itself, but for input files,
+    // to use the highest modtime among all the symlinks and the non-symlink.
+    // That's complicated, though, so just use the modtime of the non-symlink.
+    struct stat buf;
+    if (stat(path.c_str(), &buf) != 0)
+        return kInvalidTime;
+    return buf.st_mtime;
+#elif defined(_WIN32)
+    // [rprichard] 2012-12-04.  Use GetFileAttributesEx instead of stat.  In my
+    // experience, stat is unreliable.  It calls FindFirstFile, which has this
+    // comment about it on MSDN:
+    //    Note:  In rare cases or on a heavily loaded system, file attribute
+    //    information on NTFS file systems may not be current at the time this
+    //    function is called. To be assured of getting the current NTFS file
+    //    system file attributes, call the GetFileInformationByHandle function.
+    // I do not want to open the file, so I'm calling GetFileAttributesEx
+    // instead.  It would be nice if someone else could corroborate my
+    // experience.
+    WIN32_FILE_ATTRIBUTE_DATA attrData;
+    memset(&attrData, 0, sizeof(attrData));
+    if (!GetFileAttributesExA(path.c_str(), GetFileExInfoStandard, &attrData))
+        return kInvalidTime;
+    uint64_t t;
+    t = static_cast<uint64_t>(attrData.ftLastWriteTime.dwHighDateTime) << 32;
+    t |= attrData.ftLastWriteTime.dwLowDateTime;
+    t -= 116444736000000000;
+    t /= 10000000;
+    return static_cast<time_t>(t);
+#else
+#error "Not implemented on this OS."
+#endif
 }
 
 bool stringStartsWith(const std::string &str, const std::string &suffix)
