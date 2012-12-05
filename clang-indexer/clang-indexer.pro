@@ -3,6 +3,7 @@ QT -= gui
 
 TARGET = sw-clang-indexer
 TEMPLATE = app
+CONFIG += console
 
 SOURCES += \
     ASTIndexer.cc \

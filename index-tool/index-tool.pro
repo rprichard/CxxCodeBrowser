@@ -2,6 +2,7 @@ QT -= core gui
 
 TARGET = sw-index-tool
 TEMPLATE = app
+CONFIG += console
 
 SOURCES += \
     main.cc
