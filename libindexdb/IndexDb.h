@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <cassert>
+#include <cstdlib>
 #include <cstring>
 #include <map>
 #include <string>

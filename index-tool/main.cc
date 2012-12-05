@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <iostream>
 
 #include "../libindexdb/FileIo.h"

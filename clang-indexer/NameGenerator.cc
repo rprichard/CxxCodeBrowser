@@ -1,5 +1,6 @@
 #include "NameGenerator.h"
 
+#include <clang/AST/ASTContext.h>
 #include <clang/AST/DeclVisitor.h>
 #include <clang/Basic/FileManager.h>
 #include <clang/Basic/SourceManager.h>

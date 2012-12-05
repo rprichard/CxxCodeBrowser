@@ -1,6 +1,7 @@
 #include "TUIndexer.h"
 
 #include <clang/AST/ASTConsumer.h>
+#include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/DeclGroup.h>
 #include <clang/Basic/Diagnostic.h>
