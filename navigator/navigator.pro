@@ -1,5 +1,3 @@
-CONFIG += link_prl
-
 TARGET = sourceweb
 TEMPLATE = app
 
@@ -61,13 +59,14 @@ HEADERS += \
     TableReportWindow.h \
     TextWidthCalculator.h
 
+OTHER_FILES += \
+    dependencies.cfg
+
 FORMS += \
     MainWindow.ui
 
-DEPENDENCY_STATIC_LIBS = \
-    ../libindexdb \
-    ../third_party/libre2
-include(../dependency_static_libs.pri)
+ROOT_DIR = ..
+include(../add_dependencies.pri)
 
 target.path = /
 INSTALLS += target

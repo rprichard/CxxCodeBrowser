@@ -1,7 +1,7 @@
 # Mercurial commit 401ab4168e8e of https://re2.googlecode.com/hg
 
 QT -= core gui
-CONFIG += static create_prl
+CONFIG += static
 
 TARGET = re2
 TEMPLATE = lib

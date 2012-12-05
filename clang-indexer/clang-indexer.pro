@@ -1,8 +1,6 @@
 QT += core
 QT -= gui
 
-CONFIG += link_prl
-
 TARGET = sw-clang-indexer
 TEMPLATE = app
 
@@ -33,11 +31,13 @@ HEADERS += \
     TUIndexer.h \
     Util.h
 
+OTHER_FILES += \
+    dependencies.cfg
+
 DEFINES += JSON_IS_AMALGAMATION
-DEPENDENCY_STATIC_LIBS = \
-    ../libindexdb \
-    ../third_party/libjsoncpp
-include(../dependency_static_libs.pri)
+
+ROOT_DIR = ..
+include(../add_dependencies.pri)
 
 target.path = /
 INSTALLS += target

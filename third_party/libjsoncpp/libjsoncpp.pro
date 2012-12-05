@@ -1,7 +1,7 @@
 # jsoncpp 0.6.0-rc2 amalgamation
 
 QT -= core gui
-CONFIG += static create_prl
+CONFIG += static
 
 TARGET = jsoncpp
 TEMPLATE = lib

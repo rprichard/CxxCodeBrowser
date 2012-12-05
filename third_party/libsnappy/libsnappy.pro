@@ -1,7 +1,7 @@
 # subset of snappy-1.0.5 archive
 
 QT -= core gui
-CONFIG += static create_prl
+CONFIG += static
 
 TARGET = snappy
 TEMPLATE = lib
