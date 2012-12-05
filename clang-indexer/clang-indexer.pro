@@ -43,7 +43,10 @@ include(../add_dependencies.pri)
 target.path = /
 INSTALLS += target
 
-QMAKE_CXXFLAGS += -std=c++0x
+# On Win32, we must use the gnu++0x dialect so that isascii is defined in
+# cctype.  Clang's Expr.h uses isascii.
+win32: QMAKE_CXXFLAGS += -std=gnu++0x
+unix: QMAKE_CXXFLAGS += -std=c++0x
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
 
 include(../clang.pri)

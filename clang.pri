@@ -5,8 +5,10 @@
 LLVM_DIR=/home/rprichard/llvm-3.1-configure-release-install
 
 INCLUDEPATH += $${LLVM_DIR}/include
-QMAKE_CXXFLAGS += -fPIC -fvisibility-inlines-hidden -fno-rtti -fno-exceptions -pthread
+unix: QMAKE_CXXFLAGS += -fPIC -pthread
+QMAKE_CXXFLAGS += -fvisibility-inlines-hidden -fno-rtti -fno-exceptions
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-strict-aliasing
+win32: QMAKE_CXXFLAGS_WARN_ON += -Wno-enum-compare
 DEFINES += _GNU_SOURCE __STDC_CONSTANT_MACROS __STDC_FORMAT_MACROS __STDC_LIMIT_MACROS
 
 LIBS += -L$${LLVM_DIR}/lib
@@ -17,4 +19,5 @@ LIBS += -lclangFrontend -lclangSerialization -lclangDriver \
 
 LIBS += -lLLVMMC -lLLVMObject -lLLVMSupport
 
-LIBS += -ldl
+unix: LIBS += -ldl
+win32: LIBS += -lpsapi -limagehlp
