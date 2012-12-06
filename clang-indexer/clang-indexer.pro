@@ -49,4 +49,6 @@ win32: QMAKE_CXXFLAGS += -std=gnu++0x
 unix: QMAKE_CXXFLAGS += -std=c++0x
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
 
-include(../clang.pri)
+include(../link-clang.pri)
+
+DEFINES += INDEXER_LLVM_DIR=$${LLVM_DIR}

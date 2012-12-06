@@ -30,10 +30,12 @@
 
 namespace indexer {
 
-// TODO: This needs to be configured somehow.
+#define STRINGIFY(x) #x
+#define XSTRINGIFY(x) STRINGIFY(x)
+
 // The Clang driver uses this driver path to locate its built-in include files
 // which are at ../lib/clang/<VERSION>/include from the bin directory.
-#define kDriverPath "/home/rprichard/llvm-install/bin/clang"
+const char kDriverPath[] = XSTRINGIFY(INDEXER_LLVM_DIR) "/bin/clang";
 
 static std::vector<std::string> splitCommandLine(const std::string &commandLine)
 {

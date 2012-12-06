@@ -16,3 +16,5 @@ linux-* {
     # HACK: Stop qmake from attempting to strip btrace.sh.
     QMAKE_STRIP = /bin/true
 }
+
+include(./check-clang.pri)

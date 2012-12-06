@@ -1,8 +1,10 @@
 #
-# Build against a Clang 3.1 install directory.
+# Modify build settings to link against Clang -- update the include path,
+# update the LIBS list, suppress diagnostics from the Clang headers, and
+# configure C++ backend options.
 #
 
-LLVM_DIR=/home/rprichard/llvm-3.1-configure-release-install
+include(./check-clang.pri)
 
 INCLUDEPATH += $${LLVM_DIR}/include
 unix: QMAKE_CXXFLAGS += -fPIC -pthread
@@ -12,12 +14,9 @@ win32: QMAKE_CXXFLAGS_WARN_ON += -Wno-enum-compare
 DEFINES += _GNU_SOURCE __STDC_CONSTANT_MACROS __STDC_FORMAT_MACROS __STDC_LIMIT_MACROS
 
 LIBS += -L$${LLVM_DIR}/lib
-
-LIBS += -lclangFrontend -lclangSerialization -lclangDriver \
-           -lclangTooling -lclangParse -lclangSema -lclangAnalysis \
-           -lclangEdit -lclangAST -lclangLex -lclangBasic
-
-LIBS += -lLLVMMC -lLLVMObject -lLLVMSupport
+for(CLANG_LIB, CLANG_LIBS) {
+    LIBS += -l$${CLANG_LIB}
+}
 
 unix: LIBS += -ldl
 win32: LIBS += -lpsapi -limagehlp
