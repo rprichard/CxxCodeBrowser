@@ -43,6 +43,7 @@ static const char *symbolTypeNames[] = {
     "Constructor",
     "Destructor",
     "Enum",
+    "Enumerator",
     "Field",
     "Function",
     "GlobalVariable",

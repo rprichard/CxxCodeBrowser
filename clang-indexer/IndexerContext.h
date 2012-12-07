@@ -57,6 +57,7 @@ enum SymbolType : int {
     ST_Constructor,
     ST_Destructor,
     ST_Enum,
+    ST_Enumerator,
     ST_Field,
     ST_Function,
     ST_GlobalVariable,

@@ -541,6 +541,8 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
             RecordDeclRef(nd, loc, RT_Declaration, ST_Typedef);
         } else if (llvm::isa<clang::NamespaceDecl>(d)) {
             RecordDeclRef(nd, loc, RT_Declaration, ST_Namespace);
+        } else if (llvm::isa<clang::EnumConstantDecl>(d)) {
+            RecordDeclRef(nd, loc, RT_Declaration, ST_Enumerator);
         } else {
             RecordDeclRef(nd, loc, RT_Declaration);
         }
