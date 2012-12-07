@@ -902,7 +902,9 @@ void SourceWidgetView::contextMenuEvent(QContextMenuEvent *event)
                             this, SLOT(copy()));
         } else {
             for (const auto &symbol : symbols) {
-                QAction *action = menu->addAction(symbol.c_str());
+                QString actionText = QString::fromStdString(symbol);
+                actionText.replace('&', "&&");
+                QAction *action = menu->addAction(actionText);
                 action->setEnabled(false);
                 QFont f = action->font();
                 f.setBold(true);

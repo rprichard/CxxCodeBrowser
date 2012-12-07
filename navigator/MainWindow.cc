@@ -185,7 +185,7 @@ void MainWindow::updateFindBarInfo()
                 m_sourceWidget->matchCount());
 }
 
-void MainWindow::on_actionViewFiles_triggered()
+void MainWindow::on_actionBrowseFiles_triggered()
 {
     TableReportWindow *tw = new TableReportWindow;
     ReportFileList *r = new ReportFileList(*theProject, tw);
@@ -194,7 +194,7 @@ void MainWindow::on_actionViewFiles_triggered()
     tw->show();
 }
 
-void MainWindow::on_actionViewGlobalDefinitions_triggered()
+void MainWindow::on_actionBrowseGlobalDefinitions_triggered()
 {
     TableReportWindow *tw = new TableReportWindow;
     ReportDefList *r = new ReportDefList(*theProject, tw);
@@ -204,7 +204,7 @@ void MainWindow::on_actionViewGlobalDefinitions_triggered()
     tw->show();
 }
 
-void MainWindow::on_actionViewSymbols_triggered()
+void MainWindow::on_actionBrowseSymbols_triggered()
 {
     TableReportWindow *tw = new TableReportWindow;
     ReportSymList *r = new ReportSymList(*theProject, tw);

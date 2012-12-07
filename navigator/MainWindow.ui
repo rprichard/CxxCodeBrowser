@@ -23,13 +23,13 @@
      <height>25</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuView">
+   <widget class="QMenu" name="menuBrowse">
     <property name="title">
-     <string>&amp;View</string>
+     <string>&amp;Browse</string>
     </property>
-    <addaction name="actionViewFiles"/>
-    <addaction name="actionViewGlobalDefinitions"/>
-    <addaction name="actionViewSymbols"/>
+    <addaction name="actionBrowseFiles"/>
+    <addaction name="actionBrowseGlobalDefinitions"/>
+    <addaction name="actionBrowseSymbols"/>
    </widget>
    <widget class="QMenu" name="menuFile">
     <property name="title">
@@ -46,7 +46,7 @@
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
-   <addaction name="menuView"/>
+   <addaction name="menuBrowse"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <widget class="QToolBar" name="toolBar">
@@ -69,7 +69,7 @@
     <bool>false</bool>
    </attribute>
   </widget>
-  <action name="actionViewFiles">
+  <action name="actionBrowseFiles">
    <property name="text">
     <string>&amp;Files...</string>
    </property>
@@ -82,7 +82,9 @@
   </action>
   <action name="actionFileExit">
    <property name="icon">
-    <iconset theme="application-exit"/>
+    <iconset theme="application-exit">
+     <normaloff/>
+    </iconset>
    </property>
    <property name="text">
     <string>E&amp;xit</string>
@@ -90,8 +92,11 @@
    <property name="shortcut">
     <string>Ctrl+Q</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ApplicationShortcut</enum>
+   </property>
   </action>
-  <action name="actionViewGlobalDefinitions">
+  <action name="actionBrowseGlobalDefinitions">
    <property name="text">
     <string>Global &amp;Definitions...</string>
    </property>
@@ -102,7 +107,7 @@
     <enum>Qt::ApplicationShortcut</enum>
    </property>
   </action>
-  <action name="actionViewSymbols">
+  <action name="actionBrowseSymbols">
    <property name="text">
     <string>&amp;Symbols...</string>
    </property>
@@ -128,7 +133,9 @@
   </action>
   <action name="actionEditFind">
    <property name="icon">
-    <iconset theme="edit-find"/>
+    <iconset theme="edit-find">
+     <normaloff/>
+    </iconset>
    </property>
    <property name="text">
     <string>&amp;Find...</string>

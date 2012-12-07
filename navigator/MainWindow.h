@@ -42,9 +42,9 @@ private slots:
     void onFindBarClose();
     void onFindBarRegexChanged();
     void updateFindBarInfo();
-    void on_actionViewFiles_triggered();
-    void on_actionViewGlobalDefinitions_triggered();
-    void on_actionViewSymbols_triggered();
+    void on_actionBrowseFiles_triggered();
+    void on_actionBrowseGlobalDefinitions_triggered();
+    void on_actionBrowseSymbols_triggered();
     void actionBack();
     void actionForward();
     void sourceWidgetFileChanged(File *file);

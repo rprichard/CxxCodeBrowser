@@ -21,7 +21,7 @@ FileManager::FileManager(
         const QStringList &indexPaths)
 {
     m_categoryProject = new Folder(NULL, "", "Project");
-    m_categoryOutside = new Folder(NULL, "", "Outside");
+    m_categoryOutside = new Folder(NULL, "", "External");
     m_categorySpecial = new Folder(NULL, "", "Special");
     m_allItems.append(m_categoryProject);
     m_allItems.append(m_categoryOutside);
