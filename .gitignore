@@ -1,6 +1,1 @@
-build
-install
-*.o
-*.s
-a.out
 *.pro.user

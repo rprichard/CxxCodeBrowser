@@ -35,7 +35,7 @@ namespace indexer {
 
 // The Clang driver uses this driver path to locate its built-in include files
 // which are at ../lib/clang/<VERSION>/include from the bin directory.
-const char kDriverPath[] = XSTRINGIFY(INDEXER_LLVM_DIR) "/bin/clang";
+const char kDriverPath[] = XSTRINGIFY(INDEXER_CLANG_DIR) "/bin/clang";
 
 static std::vector<std::string> splitCommandLine(const std::string &commandLine)
 {

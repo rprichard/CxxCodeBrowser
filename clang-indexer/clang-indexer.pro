@@ -1,3 +1,5 @@
+include(../config.pri)
+
 QT += core
 QT -= gui
 
@@ -40,7 +42,7 @@ DEFINES += JSON_IS_AMALGAMATION
 ROOT_DIR = ..
 include(../add_dependencies.pri)
 
-target.path = /
+target.path = $$BINDIR
 INSTALLS += target
 
 # On Win32, we must use the gnu++0x dialect so that isascii is defined in
@@ -51,4 +53,4 @@ QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter
 
 include(../link-clang.pri)
 
-DEFINES += INDEXER_LLVM_DIR=$${LLVM_DIR}
+DEFINES += INDEXER_CLANG_DIR=$${CLANG_DIR}

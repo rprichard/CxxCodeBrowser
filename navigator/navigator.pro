@@ -1,3 +1,5 @@
+include(../config.pri)
+
 TARGET = sourceweb
 TEMPLATE = app
 
@@ -68,7 +70,7 @@ FORMS += \
 ROOT_DIR = ..
 include(../add_dependencies.pri)
 
-target.path = /
+target.path = $$BINDIR
 INSTALLS += target
 
 QMAKE_CXXFLAGS += -std=c++0x

@@ -1,0 +1,83 @@
+#!/bin/sh
+
+CLANG_VER=3.1
+SRCDIR=$(cd "$(dirname "$0")" && pwd)
+
+usage() {
+    cat <<EOF
+Usage: $0 [options]
+
+Configures SourceWeb and runs qmake to generate makefiles.
+
+Installation directories:
+  --prefix=PREFIX         Base path for build/install.  Default: /usr/local
+  --bindir=BINDIR         Directory for binaries.  Default: PREFIX/bin
+
+Dependency options:
+  --with-clang-dir=CLANG_DIR
+                          Root of Clang $CLANG_VER installation.  This path
+                          should identify a Clang installation directory
+                          containing bin, lib, and include directories.  It
+                          should not refer to a Clang build directory.
+EOF
+}
+
+while [ $# -gt 0 ]; do
+    ARG=$1
+    case $ARG in
+        --prefix|--bindir|--with-clang-dir)
+            shift
+            ARG=$ARG=$1
+    esac
+    case $ARG in
+        --prefix=*) PREFIX=${ARG#*=}; shift;;
+        --bindir=*) BINDIR=${ARG#*=}; shift;;
+        --with-clang-dir=*) CLANG_DIR=${ARG#*=}; shift;;
+        -h|--help) usage; exit 0;;
+        *) echo "error: Unrecognized argument $ARG"; exit 1;;
+    esac
+done
+
+PREFIX=${PREFIX:-/usr/local}
+BINDIR=${BINDIR:-$PREFIX/bin}
+
+find_qmake()
+{
+    which qmake-qt4 > /dev/null
+    if [ $? -eq 0 ]; then
+        which qmake-qt4
+        exit 0
+    fi
+    which qmake > /dev/null
+    if [ $? -eq 0 ]; then
+        which qmake
+        exit 0
+    fi
+    echo "error: Could not find qmake-qt4 or qmake." >&2
+    exit 1
+}
+
+QMAKE=$(find_qmake) || exit 1
+
+if ! (which g++ > /dev/null); then
+    echo "error: Could not find g++ in the PATH." >&2
+    exit 1
+fi
+
+if [ "$CLANG_DIR" = "" ]; then
+    echo "error: A Clang $CLANG_VER directory must be specified using --with-clang-dir."
+    exit 1
+fi
+
+run()
+{
+    echo running: $@
+    "$@"
+}
+
+run "$QMAKE" -r "$SRCDIR/sourceweb.pro" \
+    PREFIX="$PREFIX" BINDIR="$BINDIR" CLANG_DIR="$CLANG_DIR"
+if [ $? -ne 0 ]; then
+    echo qmake failed
+    exit 1
+fi
