@@ -41,41 +41,68 @@ done
 PREFIX=${PREFIX:-/usr/local}
 BINDIR=${BINDIR:-$PREFIX/bin}
 
-find_qmake()
-{
-    which qmake-qt4 > /dev/null
-    if [ $? -eq 0 ]; then
-        which qmake-qt4
-        exit 0
-    fi
-    which qmake > /dev/null
-    if [ $? -eq 0 ]; then
-        which qmake
-        exit 0
-    fi
-    echo "error: Could not find qmake-qt4 or qmake." >&2
-    exit 1
-}
-
-QMAKE=$(find_qmake) || exit 1
-
-if ! (which g++ > /dev/null); then
-    echo "error: Could not find g++ in the PATH." >&2
-    exit 1
-fi
-
 if [ "$CLANG_DIR" = "" ]; then
     echo "error: A Clang $CLANG_VER directory must be specified using --with-clang-dir."
     exit 1
 fi
 
-run()
+
+################################################################################
+# Find qmake.
+
+echo "Looking for qmake..."
+echo "- which qmake-qt4"
+which qmake-qt4 > /dev/null
+if [ $? -eq 0 ]; then
+    QMAKE=$(which qmake-qt4)
+    echo "- found $QMAKE"
+else
+    echo "- found nothing"
+    echo "- which qmake"
+    which qmake > /dev/null
+    if [ $? -eq 0 ]; then
+        QMAKE=$(which qmake)
+        echo "- found $QMAKE"
+    else
+        echo "- found nothing"
+        echo "- error: Could not find qmake"
+        exit 1
+    fi
+fi
+
+
+################################################################################
+# Test C++11 support using qmake.
+
+run_test()
 {
-    echo running: $@
+    echo "- running: $@"
+    "$@" >cxx11-compat-test.log 2>&1
+}
+
+# Test that the qmake configuration is working and has sufficient C++11 support.
+echo "Testing C++11 support using $QMAKE..."
+run_test "$SRCDIR/cxx11-compat-test/run-test.sh" "$QMAKE"
+if [ $? -ne 0 ]; then
+    echo "- Command failed.  Output of $PWD/cxx11-compat-test.log:"
+    while read LINE; do
+        echo "    $LINE"
+    done < cxx11-compat-test.log
+    exit 1
+fi
+echo "- passed"
+
+
+################################################################################
+# Invoke qmake.
+
+run_qmake()
+{
+    echo "running: $@"
     "$@"
 }
 
-run "$QMAKE" -r "$SRCDIR/sourceweb.pro" \
+run_qmake "$QMAKE" -r "$SRCDIR/sourceweb.pro" \
     PREFIX="$PREFIX" BINDIR="$BINDIR" CLANG_DIR="$CLANG_DIR"
 if [ $? -ne 0 ]; then
     echo qmake failed
