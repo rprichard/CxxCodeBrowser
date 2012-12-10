@@ -18,5 +18,5 @@ for(CLANG_LIB, CLANG_LIBS) {
     LIBS += -l$${CLANG_LIB}
 }
 
-unix: LIBS += -ldl
+linux-*: LIBS += -ldl
 win32: LIBS += -lpsapi -limagehlp
