@@ -1,6 +1,8 @@
 #include "Process.h"
 
 #include <cassert>
+#include <cerrno>
+#include <cstdlib>
 #include <cstring>
 
 #if defined(__unix__)

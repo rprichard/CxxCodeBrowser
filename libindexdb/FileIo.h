@@ -1,6 +1,7 @@
 #ifndef INDEXDB_FILEIO_H
 #define INDEXDB_FILEIO_H
 
+#include <cstdio>
 #include <string>
 #include <vector>
 #include <stdint.h>

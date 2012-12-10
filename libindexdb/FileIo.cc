@@ -1,6 +1,7 @@
 #include "FileIo.h"
 
 #include <cassert>
+#include <cerrno>
 #include <cstdio>
 #include <cstring>
 #include <memory>
