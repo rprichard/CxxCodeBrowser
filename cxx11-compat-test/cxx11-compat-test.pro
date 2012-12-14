@@ -7,4 +7,4 @@ CONFIG += console
 SOURCES += \
     main.cc
 
-QMAKE_CXXFLAGS += -std=c++0x
+include(../enable-cxx11.pri)

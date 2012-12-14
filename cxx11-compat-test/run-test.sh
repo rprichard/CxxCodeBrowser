@@ -6,7 +6,7 @@ cat <<EOF
 Usage: $0 qmake-command [optional-qmake-arguments]
 
 Tests that a qmake configuration is working and has sufficient C++11 support.
-This script will create a cxx11-compat-test directory in PWD.
+This script will create a cxx11-compat-test-build directory in PWD.
 EOF
 }
 
@@ -19,9 +19,9 @@ SRCDIR=$(cd "$(dirname "$0")" && pwd)
 rm -fr cxx11-compat-test-build
 
 set -e -x
-cp -a "$SRCDIR" cxx11-compat-test-build
+mkdir cxx11-compat-test-build
 cd cxx11-compat-test-build
-"$@" cxx11-compat-test.pro
+"$@" "$SRCDIR/cxx11-compat-test.pro"
 make
 set +x
 
