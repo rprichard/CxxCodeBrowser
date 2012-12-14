@@ -24,16 +24,16 @@ E i;
 // rvalue references and defaulted functions
 struct A {
     A();
-    A(A &other) = delete;
+    A(const A &other) = delete;
     A(A &&other) {}
-    A &operator=(A &other) = delete;
+    A &operator=(const A &other) = delete;
     A &operator=(A &&other) { return *this; }
 };
 struct B {
     B();
-    B(B &other) = delete;
+    B(const B &other) = delete;
     B(B &&other) = default;
-    B &operator=(B &other) = delete;
+    B &operator=(const B &other) = delete;
     B &operator=(B &&other) = default;
     A a;
 };
