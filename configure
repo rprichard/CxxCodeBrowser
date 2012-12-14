@@ -90,7 +90,7 @@ if [ $? -ne 0 ]; then
     done < cxx11-compat-test.log
     exit 1
 fi
-echo "- passed"
+echo "- test passed"
 
 
 ################################################################################
