@@ -5,6 +5,7 @@ QT -= core gui
 TARGET = sw-index-tool
 TEMPLATE = app
 CONFIG += console
+CONFIG -= app_bundle
 
 SOURCES += \
     main.cc

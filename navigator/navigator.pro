@@ -70,7 +70,12 @@ FORMS += \
 ROOT_DIR = ..
 include(../add_dependencies.pri)
 
-target.path = $$BINDIR
+macx {
+    # OS X: Install the sourceweb.app bundle in $$PREFIX rather than $$BINDIR.
+    target.path = $$PREFIX
+} else {
+    target.path = $$BINDIR
+}
 INSTALLS += target
 
 include(../enable-cxx11.pri)
