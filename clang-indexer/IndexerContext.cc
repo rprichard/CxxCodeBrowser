@@ -163,13 +163,13 @@ IndexerFileContext &IndexerContext::fileContext(clang::FileID fileID)
             if (filename != NULL) {
                 pathSymbolName += filename;
                 free(filename);
-            } else {
-                pathSymbolName += "<invalid>";
             }
         } else {
             pathSymbolName +=
                     m_sourceManager.getBuffer(fileID)->getBufferIdentifier();
         }
+        if (pathSymbolName.size() == 1)
+            pathSymbolName += "<blank>";
     }
 
     IndexerFileContext *ret = NULL;

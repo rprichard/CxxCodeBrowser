@@ -40,6 +40,8 @@ const char *const_basename(const char *path)
 
 char *portableRealPath(const char *path)
 {
+    if (path == NULL)
+        return NULL;
 #if defined(SOURCEWEB_UNIX)
     return realpath(path, NULL);
 #elif defined(_WIN32)
