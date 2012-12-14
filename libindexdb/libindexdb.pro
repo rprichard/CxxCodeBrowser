@@ -31,5 +31,5 @@ OTHER_FILES += \
 ROOT_DIR = ..
 include(../add_dependencies.pri)
 
-QMAKE_CXXFLAGS += -std=c++0x
+include(../enable-cxx11.pri)
 QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter

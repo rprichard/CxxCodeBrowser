@@ -73,5 +73,5 @@ include(../add_dependencies.pri)
 target.path = $$BINDIR
 INSTALLS += target
 
-QMAKE_CXXFLAGS += -std=c++0x
+include(../enable-cxx11.pri)
 QMAKE_CXXFLAGS_WARN_ON += -Wall -Wno-unused-parameter

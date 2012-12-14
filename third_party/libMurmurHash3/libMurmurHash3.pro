@@ -8,3 +8,5 @@ TEMPLATE = lib
 
 SOURCES += MurmurHash3.cpp
 HEADERS += MurmurHash3.h
+
+include(../../enable-cxx11.pri)

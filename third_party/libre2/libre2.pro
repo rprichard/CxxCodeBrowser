@@ -63,6 +63,8 @@ HEADERS += \
     ./util/util.h \
     ./util/valgrind.h
 
+include(../../enable-cxx11.pri)
+
 QMAKE_CXXFLAGS_WARN_ON += \
     -Wno-sign-compare \
     -Wno-unused-parameter \
