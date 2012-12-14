@@ -72,6 +72,21 @@ fi
 
 
 ################################################################################
+# By default, qmake on OS X generates an Xcode project file.  We need it to
+# generate a Makefile instead, so provide a spec file unless QMAKESPEC is set.
+
+OSX_SPEC_ARG=""
+if [ "$QMAKESPEC" = "" ]; then
+    case $(uname) in
+        Darwin)
+            echo "The default qmake spec is not suitable.  Overriding it."
+            OSX_SPEC_ARG="-spec unsupported/macx-clang"
+            ;;
+    esac
+fi
+
+
+################################################################################
 # Test C++11 support using qmake.
 
 run_test()
@@ -82,7 +97,7 @@ run_test()
 
 # Test that the qmake configuration is working and has sufficient C++11 support.
 echo "Testing C++11 support using $QMAKE..."
-run_test "$SRCDIR/cxx11-compat-test/run-test.sh" "$QMAKE"
+run_test "$SRCDIR/cxx11-compat-test/run-test.sh" "$QMAKE" $OSX_SPEC_ARG
 if [ $? -ne 0 ]; then
     echo "- Command failed.  Output of $PWD/cxx11-compat-test.log:"
     while read LINE; do
@@ -102,7 +117,7 @@ run_qmake()
     "$@"
 }
 
-run_qmake "$QMAKE" -r "$SRCDIR/sourceweb.pro" \
+run_qmake "$QMAKE" -r "$SRCDIR/sourceweb.pro" $OSX_SPEC_ARG \
     PREFIX="$PREFIX" BINDIR="$BINDIR" CLANG_DIR="$CLANG_DIR"
 if [ $? -ne 0 ]; then
     echo qmake failed
