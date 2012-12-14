@@ -40,6 +40,7 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
 {
     ui->setupUi(this);
     setAttribute(Qt::WA_DeleteOnClose);
+    setUnifiedTitleAndToolBarOnMac(true);
 
     // Left pane: folder widget.
     m_folderWidget = new FolderWidget(project.fileManager());
