@@ -1,6 +1,7 @@
 #ifndef INDEXDB_UTIL_H
 #define INDEXDB_UTIL_H
 
+#include "../shared_headers/host.h"
 #include <stdint.h>
 
 #ifdef __linux__
@@ -9,7 +10,7 @@
 
 #include "Endian.h"
 
-#ifdef __unix__
+#if defined(SOURCEWEB_UNIX)
 #define EINTR_LOOP(expr)                        \
     ({                                          \
         decltype(expr) ret;                     \

@@ -1,11 +1,12 @@
 #include "Process.h"
+#include "../shared_headers/host.h"
 
 #include <cassert>
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
 
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -21,7 +22,7 @@
 
 namespace indexer {
 
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
 struct ProcessPrivate {
     pid_t pid;
     bool reaped;
@@ -40,7 +41,7 @@ struct ProcessPrivate {
 // non-inheritable/O_CLOEXEC (or after closing it).
 Mutex Process::m_creationMutex;
 
-#ifdef __unix__
+#if defined(SOURCEWEB_UNIX)
 static inline void writeError(const char *str)
 {
     size_t __attribute__((unused)) dummy;  // Silence compiler warning.
@@ -106,7 +107,7 @@ Process::Process(
     : m_p(new ProcessPrivate)
 {
     memset(m_p, 0, sizeof(*m_p));
-#ifdef __unix__
+#if defined(SOURCEWEB_UNIX)
     int pipes[4];
     m_creationMutex.lock();
     int ret;
@@ -227,7 +228,7 @@ int Process::wait()
 {
     closeStdin();
     closeStdout();
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
     if (!m_p->reaped) {
         m_p->status = -1;
         pid_t ret = EINTR_LOOP(waitpid(m_p->pid, &m_p->status, 0));

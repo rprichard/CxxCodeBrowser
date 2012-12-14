@@ -1,3 +1,5 @@
+#include "../shared_headers/host.h"
+
 #include <QCoreApplication>
 #include <QtCore>
 #include <QtDebug>
@@ -12,7 +14,7 @@
 #include <unordered_set>
 #include <vector>
 
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
 #include <unistd.h>
 #elif defined(_WIN32)
 #include <direct.h>

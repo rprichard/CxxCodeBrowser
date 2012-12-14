@@ -1,6 +1,8 @@
 #ifndef INDEXER_UTIL_H
 #define INDEXER_UTIL_H
 
+#include "../shared_headers/host.h"
+
 #include <cstdio>
 #include <ctime>
 #include <string>
@@ -9,7 +11,7 @@ namespace indexer {
 
 const time_t kInvalidTime = static_cast<time_t>(-1);
 
-#ifdef __unix__
+#if defined(SOURCEWEB_UNIX)
 #define EINTR_LOOP(expr)                        \
     ({                                          \
         decltype(expr) ret;                     \

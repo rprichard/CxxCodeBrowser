@@ -1,3 +1,5 @@
+#include "../shared_headers/host.h"
+
 // All UNIX systems should have fseeko, which uses an off_t argument instead of
 // a long argument.  It appears that Linux defines off_t to be long by default,
 // which is 32-bit on 32-bit machines.  The _FILE_OFFSET_BITS macro should fix
@@ -6,7 +8,7 @@
 #define _FILE_OFFSET_BITS 64
 #endif
 
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
 #include <unistd.h>
 #elif defined(_WIN32)
 #include <io.h>
@@ -21,7 +23,7 @@ namespace indexdb {
 // whence is one of SEEK_{CUR,END,SET}, just as with fseek.
 int Seek64(FILE *fp, uint64_t offset, int whence)
 {
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
     return fseeko(fp, offset, whence);
 #elif defined(_WIN32)
     return _fseeki64(fp, offset, whence);
@@ -33,7 +35,7 @@ int Seek64(FILE *fp, uint64_t offset, int whence)
 
 uint64_t Tell64(FILE *fp)
 {
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
     return ftello(fp);
 #elif defined(_WIN32)
     return _ftelli64(fp);
@@ -45,7 +47,7 @@ uint64_t Tell64(FILE *fp)
 
 uint64_t LSeek64(int fd, uint64_t offset, int whence)
 {
-#if defined(__unix__)
+#if defined(SOURCEWEB_UNIX)
     return lseek(fd, offset, whence);
 #elif defined(_WIN32)
     return _lseeki64(fd, offset, whence);

@@ -1,4 +1,5 @@
 #include "FileIo.h"
+#include "../shared_headers/host.h"
 
 #include <cassert>
 #include <cerrno>
@@ -30,7 +31,7 @@ namespace indexdb {
 Writer::Writer(const std::string &path) : m_sha256(NULL), m_compressed(false)
 {
     const char *pathPtr = path.c_str();
-#ifdef __unix__
+#if defined(SOURCEWEB_UNIX)
     const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
     int fd = EINTR_LOOP(open(pathPtr, flags, 0666));
     m_fp = fdopen(fd, "w");
@@ -307,7 +308,7 @@ void MappedReader::readData(void *output, size_t size)
 UnmappedReader::UnmappedReader(const std::string &path)
 {
     const char *pathPtr = path.c_str();
-#ifdef __unix__
+#if defined(SOURCEWEB_UNIX)
     int fd = EINTR_LOOP(open(pathPtr, O_RDONLY | O_CLOEXEC));
     m_fp = fdopen(fd, "r");
 #else
