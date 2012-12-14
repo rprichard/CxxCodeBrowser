@@ -12,7 +12,7 @@
 
 namespace re2 {
 
-#if defined(__unix__)
+#if defined(__unix__) || defined(__APPLE__)
 #define HAVE_PTHREAD 1
 #define HAVE_RWLOCK 1
 #endif
