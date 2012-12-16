@@ -24,12 +24,16 @@ TEMPLATE = lib
 SOURCES += \
     libbtrace.c
 
+OTHER_FILES += \
+    version_script
+
 DEFINES += _GNU_SOURCE
 
 LIBS += -ldl
 
 QMAKE_CFLAGS += -std=c99
 QMAKE_LFLAGS += -nostartfiles
+QMAKE_LFLAGS += -Wl,--version-script,$$_PRO_FILE_PWD_/version_script
 
 # XXX: Perhaps libbtrace should be installed into a library directory, but then
 # the btrace.sh has to locate the library somehow.  Perhaps it could look in
