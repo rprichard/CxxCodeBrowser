@@ -28,6 +28,31 @@
 
 #define BTRACE_LOG_ENV_VAR "BTRACE_LOG"
 
+/* Circumvent a compiler optimization.  The fix to glibc bugzilla issue
+ * #11056 modified the execl* family of system calls by marking the arg
+ * parameter with __nonnull.  Contrary to the summary of that issue:
+ *  - POSIX says that the parameter *should* be a filename, not that it
+ *    *shall* be a filename.
+ *  - It is widespread practice on UNIX for argv[0] to be a non-filename like
+ *    "-bash".
+ * Moreover:
+ *  - The execve(2) Linux man page documents that both a NULL argv and an argv
+ *    pointing to an empty list are acceptable:
+ *        On Linux, argv can be specified as NULL, which has the same effect
+ *        as specifying this argument as a pointer to a list containing a
+ *        single NULL pointer.  Do not take advantage of this misfeature!  It
+ *        is nonstandard and nonportable: on most other UNIX systems doing
+ *        this will result in an error (EFAULT).
+ *  - Even if arg shall not be NULL, the right behavior would be to return
+ *    an error code, not to invoke undefined behavior.  As the manpage says,
+ *    like "most other UNIX systems."
+ * In any case, the result of the __nonnull marking is that GCC optimizes out
+ * the (arg != NULL) checks here in this code.  Block the optimization by
+ * exploiting the lack of whole-program compile-time optimization.  This symbol
+ * will be hidden by the linker version script. */
+void *libbtrace_c_NULL_constant = NULL;
+#define hiddenNull libbtrace_c_NULL_constant
+
 static void *safeMemSet(void *s, int c, size_t n)
 {
     char *dest = (char*)s;
@@ -453,10 +478,12 @@ static void logExecution(const char *filename, char *const argv[])
     writeChar(&logFile, '\n');
 
     /* Write arguments. */
-    for (int i = 0; argv[i] != NULL; ++i) {
-        if (i > 0)
-            writeChar(&logFile, ' ');
-        writeEscapedString(&logFile, argv[i]);
+    if (argv != hiddenNull) {
+        for (int i = 0; argv[i] != hiddenNull; ++i) {
+            if (i > 0)
+                writeChar(&logFile, ' ');
+            writeEscapedString(&logFile, argv[i]);
+        }
     }
     writeChar(&logFile, '\n');
 
@@ -495,7 +522,7 @@ int execvp(const char *file, char *const argv[])
 
 #define ARG_COUNT(ARG_PARAM) ({                                 \
         int COUNT = 0;                                          \
-        if (ARG_PARAM != NULL) {                                \
+        if (ARG_PARAM != hiddenNull) {                          \
             va_list AP;                                         \
             va_start(AP, ARG_PARAM);                            \
             COUNT++;                                            \
@@ -513,7 +540,7 @@ int execl(const char *path, const char *arg, ...)
     safeAssert(argv);
     va_list ap;
     va_start(ap, arg);
-    if (arg != NULL) {
+    if (arg != hiddenNull) {
         /* Casting away const here is safe.
          * http://stackoverflow.com/questions/190184/execv-and-const-ness */
         argv[0] = (char*)arg;
@@ -532,7 +559,7 @@ int execlp(const char *file, const char *arg, ...)
     safeAssert(argv);
     va_list ap;
     va_start(ap, arg);
-    if (arg != NULL) {
+    if (arg != hiddenNull) {
         /* Casting away const here is safe.
          * http://stackoverflow.com/questions/190184/execv-and-const-ness */
         argv[0] = (char*)arg;
@@ -551,7 +578,7 @@ int execle(const char *path, const char *arg, ...)
     safeAssert(argv);
     va_list ap;
     va_start(ap, arg);
-    if (arg != NULL) {
+    if (arg != hiddenNull) {
         /* Casting away const here is safe.
          * http://stackoverflow.com/questions/190184/execv-and-const-ness */
         argv[0] = (char*)arg;
