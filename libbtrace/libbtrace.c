@@ -204,8 +204,8 @@ static void safeAssertFail(
         ret;                                    \
     })
 
-static int (*real_execvpe)(const char*, char *const[], char *const[]) = NULL;
 static int (*real_execve)(const char*, char *const[], char *const[]) = NULL;
+static int (*real_execvpe)(const char*, char *const[], char *const[]) = NULL;
 static char g_logFileName[1024];
 static uint64_t g_bootTimeInJiffies;
 
@@ -213,10 +213,10 @@ void _init(void)
 {
     /* dlsym is not async-signal-safe, so try calling it up-front in _init
      * rather than lazily. */
-    real_execvpe = dlsym(RTLD_NEXT, "execvpe");
     real_execve = dlsym(RTLD_NEXT, "execve");
-    safeAssert(real_execvpe != NULL);
+    real_execvpe = dlsym(RTLD_NEXT, "execvpe");
     safeAssert(real_execve != NULL);
+    safeAssert(real_execvpe != NULL);
 
     const char *logFileVar = getenv(BTRACE_LOG_ENV_VAR);
     if (logFileVar != NULL && safeStrLen(logFileVar) < sizeof(g_logFileName))
@@ -493,31 +493,46 @@ static void logExecution(const char *filename, char *const argv[])
     closeLogFile(&logFile);
 }
 
-int execvpe(const char *filename,
-            char *const argv[],
-            char *const envp[])
+static int wrap_execve(
+        const char *path,
+        char *const argv[],
+        char *const envp[])
 {
-    logExecution(filename, argv);
-    return real_execvpe(filename, argv, envp);
+    logExecution(path, argv);
+    return real_execve(path, argv, envp);
 }
 
-int execve(const char *filename,
-           char *const argv[],
-           char *const envp[])
+static int wrap_execvpe(
+        const char *file,
+        char *const argv[],
+        char *const envp[])
 {
-    logExecution(filename, argv);
-
-    return real_execve(filename, argv, envp);
+    logExecution(file, argv);
+    return real_execvpe(file, argv, envp);
 }
 
 int execv(const char *path, char *const argv[])
 {
-    return execve(path, argv, environ);
+    return wrap_execve(path, argv, environ);
 }
 
 int execvp(const char *file, char *const argv[])
 {
-    return execvpe(file, argv, environ);
+    return wrap_execvpe(file, argv, environ);
+}
+
+int execve(const char *path,
+           char *const argv[],
+           char *const envp[])
+{
+    return wrap_execve(path, argv, envp);
+}
+
+int execvpe(const char *file,
+            char *const argv[],
+            char *const envp[])
+{
+    return wrap_execvpe(file, argv, envp);
 }
 
 #define ARG_COUNT(ARG_PARAM) ({                                 \
@@ -549,7 +564,7 @@ int execl(const char *path, const char *arg, ...)
     }
     argv[count] = NULL;
     va_end(ap);
-    return execv(path, argv);
+    return wrap_execve(path, argv, environ);
 }
 
 int execlp(const char *file, const char *arg, ...)
@@ -568,7 +583,7 @@ int execlp(const char *file, const char *arg, ...)
     }
     argv[count] = NULL;
     va_end(ap);
-    return execvp(file, argv);
+    return wrap_execvpe(file, argv, environ);
 }
 
 int execle(const char *path, const char *arg, ...)
@@ -589,5 +604,5 @@ int execle(const char *path, const char *arg, ...)
     argv[count] = NULL;
     char **envp = va_arg(ap, char**);
     va_end(ap);
-    return execve(path, argv, envp);
+    return wrap_execve(path, argv, envp);
 }

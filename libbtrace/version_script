@@ -1,9 +1,9 @@
 {
     global:
-        execvpe;
-        execve;
         execv;
         execvp;
+        execve;
+        execvpe;
         execl;
         execlp;
         execle;
