@@ -1,6 +1,7 @@
 #include "Util.h"
 #include "../shared_headers/host.h"
 
+#include <cerrno>
 #include <climits>
 #include <cstdlib>
 #include <cstring>
@@ -40,8 +41,10 @@ const char *const_basename(const char *path)
 
 char *portableRealPath(const char *path)
 {
-    if (path == NULL)
+    if (path == NULL) {
+        errno = EINVAL;
         return NULL;
+    }
 #if defined(SOURCEWEB_UNIX)
     return realpath(path, NULL);
 #elif defined(_WIN32)
