@@ -493,66 +493,74 @@ int execvp(const char *file, char *const argv[])
     return execvpe(file, argv, environ);
 }
 
+#define ARG_COUNT(ARG_PARAM) ({                                 \
+        int COUNT = 0;                                          \
+        if (ARG_PARAM != NULL) {                                \
+            va_list AP;                                         \
+            va_start(AP, ARG_PARAM);                            \
+            COUNT++;                                            \
+            while (va_arg(AP, const char*) != NULL)             \
+                COUNT++;                                        \
+            va_end(AP);                                         \
+        }                                                       \
+        COUNT;                                                  \
+    })
+
 int execl(const char *path, const char *arg, ...)
 {
-    va_list ap;
-
-    va_start(ap, arg);
-    int count = 0;
-    while (va_arg(ap, const char*) != NULL)
-        count++;
-    va_end(ap);
-
+    int count = ARG_COUNT(arg);
     char **argv = alloca(sizeof(char*) * (count + 1));
     safeAssert(argv);
+    va_list ap;
     va_start(ap, arg);
-    for (int i = 0; i < count; ++i)
-        argv[i] = va_arg(ap, char*);
+    if (arg != NULL) {
+        /* Casting away const here is safe.
+         * http://stackoverflow.com/questions/190184/execv-and-const-ness */
+        argv[0] = (char*)arg;
+        for (int i = 1; i < count; ++i)
+            argv[i] = va_arg(ap, char*);
+    }
     argv[count] = NULL;
     va_end(ap);
-
     return execv(path, argv);
 }
 
 int execlp(const char *file, const char *arg, ...)
 {
-    va_list ap;
-
-    va_start(ap, arg);
-    int count = 0;
-    while (va_arg(ap, const char*) != NULL)
-        count++;
-    va_end(ap);
-
+    int count = ARG_COUNT(arg);
     char **argv = alloca(sizeof(char*) * (count + 1));
     safeAssert(argv);
+    va_list ap;
     va_start(ap, arg);
-    for (int i = 0; i < count; ++i)
-        argv[i] = va_arg(ap, char*);
+    if (arg != NULL) {
+        /* Casting away const here is safe.
+         * http://stackoverflow.com/questions/190184/execv-and-const-ness */
+        argv[0] = (char*)arg;
+        for (int i = 1; i < count; ++i)
+            argv[i] = va_arg(ap, char*);
+    }
     argv[count] = NULL;
     va_end(ap);
-
     return execvp(file, argv);
 }
 
 int execle(const char *path, const char *arg, ...)
 {
-    va_list ap;
-
-    va_start(ap, arg);
-    int count = 0;
-    while (va_arg(ap, const char*) != NULL)
-        count++;
-    va_end(ap);
-
+    int count = ARG_COUNT(arg);
     char **argv = alloca(sizeof(char*) * (count + 1));
     safeAssert(argv);
+    va_list ap;
     va_start(ap, arg);
-    for (int i = 0; i < count; ++i)
-        argv[i] = va_arg(ap, char*);
+    if (arg != NULL) {
+        /* Casting away const here is safe.
+         * http://stackoverflow.com/questions/190184/execv-and-const-ness */
+        argv[0] = (char*)arg;
+        for (int i = 1; i < count; ++i)
+            argv[i] = va_arg(ap, char*);
+        va_arg(ap, char*);
+    }
     argv[count] = NULL;
     char **envp = va_arg(ap, char**);
     va_end(ap);
-
     return execve(path, argv, envp);
 }
