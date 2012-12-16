@@ -1083,14 +1083,32 @@ void SourceWidget::keyPressEvent(QKeyEvent *event)
 }
 
 // Line and column indices are 1-based.
-void SourceWidget::selectIdentifier(int line, int column, int endColumn)
+void SourceWidget::selectIdentifier(
+        int line,
+        int column,
+        int endColumn,
+        bool forceCenter)
 {
     SourceWidgetView &w = sourceWidgetView();
+
     FileRange r(FileLocation(line - 1, column - 1),
                 FileLocation(line - 1, endColumn - 1));
     w.setSelection(r);
+
+    // Scroll the selected identifier into range.  If it's already visible,
+    // do nothing.  Otherwise, center the identifier in the viewport.
     QPoint wordTopLeft = w.locationToPoint(r.start);
-    ensureVisible(wordTopLeft.x(), wordTopLeft.y());
+    QPoint wordBottomRight = w.locationToPoint(r.end);
+    wordBottomRight.ry() += effectiveLineSpacing(fontMetrics());
+    QRect viewportRect(viewportOrigin(), viewport()->size());
+    if (forceCenter ||
+            !viewportRect.contains(wordTopLeft) ||
+            !viewportRect.contains(wordBottomRight)) {
+        QPoint wordCenter = (wordTopLeft + wordBottomRight) / 2;
+        ensureVisible(wordCenter.x(), wordCenter.y(),
+                      /*xmargin=*/viewport()->width() / 2,
+                      /*ymargin=*/viewport()->height() / 2);
+    }
 }
 
 QPoint SourceWidget::viewportOrigin()

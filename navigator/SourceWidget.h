@@ -251,7 +251,11 @@ public:
     explicit SourceWidget(Project &project, QWidget *parent = 0);
     void setFile(File *file);
     File *file() { return sourceWidgetView().file(); }
-    void selectIdentifier(int line, int column, int endColumn);
+    void selectIdentifier(
+            int line,
+            int column,
+            int endColumn,
+            bool forceCenter);
     QPoint viewportOrigin();
     void setViewportOrigin(const QPoint &pt);
 

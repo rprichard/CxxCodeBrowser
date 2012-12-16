@@ -142,10 +142,12 @@ void MainWindow::navigateToRef(const Ref &ref)
     if (ref.isNull())
         return;
     History::Location loc = currentLocation();
+    bool forceCenter = m_sourceWidget->file() != &ref.file();
     m_sourceWidget->setFile(&ref.file());
     m_sourceWidget->selectIdentifier(ref.line(),
                                      ref.column(),
-                                     ref.endColumn());
+                                     ref.endColumn(),
+                                     forceCenter);
     m_history.recordJump(loc, currentLocation());
 }
 
