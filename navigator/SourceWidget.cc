@@ -1096,7 +1096,8 @@ void SourceWidget::selectIdentifier(
     w.setSelection(r);
 
     // Scroll the selected identifier into range.  If it's already visible,
-    // do nothing.  Otherwise, center the identifier in the viewport.
+    // do nothing.  Otherwise, center the identifier vertically in the
+    // viewport, and scroll as far left as possible.
     QPoint wordTopLeft = w.locationToPoint(r.start);
     QPoint wordBottomRight = w.locationToPoint(r.end);
     wordBottomRight.ry() += effectiveLineSpacing(fontMetrics());
@@ -1104,10 +1105,11 @@ void SourceWidget::selectIdentifier(
     if (forceCenter ||
             !viewportRect.contains(wordTopLeft) ||
             !viewportRect.contains(wordBottomRight)) {
-        QPoint wordCenter = (wordTopLeft + wordBottomRight) / 2;
-        ensureVisible(wordCenter.x(), wordCenter.y(),
-                      /*xmargin=*/viewport()->width() / 2,
-                      /*ymargin=*/viewport()->height() / 2);
+        int wordCenterY = ((wordTopLeft + wordBottomRight) / 2).y();
+        int originX = std::min(wordBottomRight.x() + 20 - viewport()->width(),
+                               wordTopLeft.x() - 20);
+        int originY = wordCenterY - viewport()->height() / 2;
+        setViewportOrigin(QPoint(originX, originY));
     }
 }
 
