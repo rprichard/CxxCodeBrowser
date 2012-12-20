@@ -176,3 +176,10 @@ at the start of the PCH file, then it will fail to detect the incompatibility.
 
 See http://marc.info/?l=cfe-commits&m=128713917112525 regarding Qt, Clang, and
 PCH.
+
+----
+
+BUG: In LLVM, line 41 of include/llvm/SymbolTableListTraits.h, why are there
+no references on ilist_default_traits?  Similarly, getSymTab on line 32 of
+/home/rprichard/llvm/lib/VMCore/SymbolTableListTraitsImpl.h also has no
+references.
