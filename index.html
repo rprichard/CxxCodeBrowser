@@ -1,0 +1,142 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>SourceWeb</title>
+    <style>
+        body { margin: 0; }
+        h1,h2,h3 { font-family: Arial; }
+        .demodiv { background-color: #336ea5; width: 958px; margin: auto; }
+        #playerContainer {
+            width: 950px;
+            height: 500px;
+            padding: 4px;
+        }
+        .playerCaption {
+            background-color: #c0c0c0;
+            padding: 4px;
+            height: 40px;
+        }
+        .playerCaptionText {
+            font-family: Arial;
+            color: black;
+        }
+        .nav {
+            font-family: Arial;
+            margin: 4px 12px 4px 4px;
+            border-radius: 4px;
+            background-color: #a0a0a0;
+        }
+        .navText { margin: 2px; padding: 4px 0px 4px 0px; }
+        .navButton { border-radius: 4px; margin: 2px; padding: 4px 8px 4px 8px; }
+        .navButtonLink:link, .navButtonLink:visited, .navButtonLink:active, .navButtonLink:focus {
+            color: black; text-decoration: none;
+        }
+        .navButtonLink:hover {
+            color: black; background-color: #606060;
+        }
+    </style>
+</head>
+<body>
+
+<h1 style="text-align: center;">SourceWeb</h1>
+<h3 style="text-align: center;">A C/C++ source code indexer and navigator</h3>
+
+
+<!-- HTML for animated demo  -->
+
+<div class=demodiv>
+    <div id="playerContainer"></div>
+    <div class="playerCaption">
+        <div class="nav" style="float: left;">
+            <div style="float:left;">
+                <a class="navButtonLink" href="javascript: playerAdvance(-1);">
+                    <div class="navButton navButtonLink">←</div>
+                </a>
+            </div>
+            <div class="navText" id="playerNavText" style="float: left;"></div>
+            <div style="float: left;">
+                <a class="navButtonLink" href="javascript: playerAdvance(1);">
+                    <div class="navButton navButtonLink">→</div>
+                </a>
+            </div>
+        </div>
+        <span class="playerCaptionText" id="playerCaptionText"></span>
+    </div>
+</div>
+
+
+<!-- Fork me on GitHub sash at top-right -->
+
+<a href="https://github.com/rprichard/sourceweb">
+    <img style="position: absolute; top: 0; right: 0; border: 0;"
+         src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png"
+         alt="Fork me on GitHub">
+</a>
+
+
+<!-- Script for animated demo -->
+
+    <script src="x11-canvas-screencast/player.js"></script>
+    <script src="demo_gotomain_packed.js"></script>
+    <script src="demo_navigate_packed.js"></script>
+    <script src="demo_xref_packed.js"></script>
+
+    <script>
+        var g_playerInputList = [
+            [demo_gotomain_packed, ".",
+                "Navigate to one of the <code>main</code> functions in LLVM."],
+            [demo_navigate_packed, ".",
+                "Click identifiers to jump to their sole definition or sole " +
+                "declaration."],
+            [demo_xref_packed, ".",
+                "By browsing cross-references on <code>DIE::Offset</code>, " +
+                "we can determine that a non-zero value is written only via " +
+                "<code>DIE::setOffset</code>, which is called only from " +
+                "<code>DwarfDebug::computeSizeAndOffset</code>."],
+        ];
+        var g_playerInputIndex = 0;
+        var g_player = null;
+        var g_newPlayer = null;
+
+        function playerShowIndex(index) {
+            g_playerInputIndex = index
+            var input = g_playerInputList[index];
+            document.getElementById("playerCaptionText").innerHTML = input[2];
+            document.getElementById("playerNavText").innerHTML =
+                (g_playerInputIndex + 1) + " / " + g_playerInputList.length;
+            if (g_player !== null)
+                g_player.pause();
+
+            var newPlayer = new Player(input[0], input[1]);
+            g_newPlayer = newPlayer;
+            newPlayer.onload = function() {
+                if (g_newPlayer !== newPlayer)
+                    return;
+                var parent = document.getElementById("playerContainer");
+                if (g_player !== null)
+                    parent.removeChild(g_player.element);
+                g_player = g_newPlayer;
+                g_newPlayer = null;
+                parent.appendChild(g_player.element);
+                g_player.start();
+            };
+
+            var loopCount = 0;
+            newPlayer.onloop = function() {
+                loopCount++;
+                if (loopCount == 2)
+                    playerAdvance(1);
+            }
+        }
+
+        function playerAdvance(amount) {
+            var len = g_playerInputList.length;
+            playerShowIndex((g_playerInputIndex + amount + len) % len);
+        }
+
+        playerShowIndex(0);
+    </script>
+
+</body>
+</html>
