@@ -8,6 +8,7 @@
 #include <QScrollBar>
 #include <QStandardItemModel>
 #include <QtConcurrentMap>
+#include <algorithm>
 #include <cassert>
 #include <memory>
 #include <vector>
