@@ -266,8 +266,6 @@ private:
     std::unique_ptr<QFutureWatcher<DummyReduceType> > m_filterFutureWatcher;
     TableReportView_ProxyReport &m_report;
     Regex m_pattern;
-    int m_sortColumn;
-    Qt::SortOrder m_sortOrder;
     TextWidthCalculator &m_twc;
 
     struct MapFunc {
