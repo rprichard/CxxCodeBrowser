@@ -2,7 +2,6 @@
 #define NAV_SOURCEWIDGET_H
 
 #include <QList>
-#include <QPlainTextEdit>
 #include <QPoint>
 #include <QScrollArea>
 #include <QTime>
