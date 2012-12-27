@@ -1,8 +1,11 @@
 #include "Misc.h"
 
+#include <QFontMetrics>
 #include <QIcon>
 #include <QMouseEvent>
 #include <QPlainTextEdit>
+#include <QString>
+#include <algorithm>
 
 namespace Nav {
 

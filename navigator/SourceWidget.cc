@@ -1,12 +1,27 @@
 #include "SourceWidget.h"
 
 #include <QApplication>
+#include <QBrush>
 #include <QClipboard>
+#include <QColor>
+#include <QEvent>
+#include <QFontMetrics>
+#include <QMargins>
 #include <QMenu>
+#include <QMoveEvent>
+#include <QPaintEvent>
 #include <QPainter>
+#include <QPalette>
+#include <QPoint>
 #include <QLabel>
 #include <QTextBlock>
+#include <QRect>
+#include <QResizeEvent>
+#include <QScrollArea>
 #include <QScrollBar>
+#include <QSize>
+#include <QString>
+#include <QWidget>
 #include <cassert>
 #include <memory>
 #include <unordered_map>
@@ -23,6 +38,7 @@
 #include "Regex.h"
 #include "RegexMatchList.h"
 #include "ReportRefList.h"
+#include "StringRef.h"
 #include "TableReportWindow.h"
 #include "MainWindow.h"
 

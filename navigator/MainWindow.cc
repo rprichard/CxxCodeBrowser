@@ -2,15 +2,21 @@
 
 #include <QApplication>
 #include <QClipboard>
+#include <QEvent>
 #include <QFile>
 #include <QFont>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QKeySequence>
+#include <QList>
+#include <QMainWindow>
+#include <QObject>
 #include <QShortcut>
 #include <QSplitter>
 #include <QString>
 #include <QTreeView>
 #include <QVBoxLayout>
+#include <QWidget>
 
 #include "File.h"
 #include "FindBar.h"
