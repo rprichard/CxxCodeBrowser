@@ -80,3 +80,4 @@ INSTALLS += target
 
 include(../enable-cxx11.pri)
 QMAKE_CXXFLAGS_WARN_ON += -Wall -Wno-unused-parameter
+QMAKE_CXXFLAGS += -Wno-reserved-user-defined-literal
