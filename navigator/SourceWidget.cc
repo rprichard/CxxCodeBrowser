@@ -981,12 +981,10 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     m_lineArea = new SourceWidgetLineArea(QMargins(4, 4, 4, 4), m_lineAreaViewport);
     connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(layoutSourceWidget()));
 
-    // Configure the widgets to use a small monospace font.  Force characters
-    // to have an integral width for simplicity.
+    // Configure the widgets to use a small monospace font.
     QFont font;
     font.setFamily("Monospace");
     font.setPointSize(8);
-    font.setStyleStrategy(QFont::ForceIntegerMetrics);
     font.setKerning(false);
     widget()->setFont(font);
     m_lineArea->setFont(font);
