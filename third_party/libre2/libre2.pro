@@ -1,4 +1,4 @@
-# Mercurial commit 401ab4168e8e of https://re2.googlecode.com/hg
+# Mercurial commit dd841cbcdafa of https://re2.googlecode.com/hg
 
 QT -= core gui
 CONFIG += static
