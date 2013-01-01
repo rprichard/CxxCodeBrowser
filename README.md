@@ -19,8 +19,8 @@ prerequisites:
  * *G++ 4.6 or later (build compiler).*  The project is written in C++11, so a
    recent compiler and libstdc++ are needed.
 
- * *Clang 3.1 (index compiler).*  The project needs a complete Clang
-   installation.  It must be version 3.1 exactly, because Clang's C++ ABIs are
+ * *Clang 3.2 (index compiler).*  The project needs a complete Clang
+   installation.  It must be version 3.2 exactly, because Clang's C++ ABIs are
    not stable between releases.
 
 On sufficiently recent distributions, the Qt and build compiler dependencies can
@@ -28,15 +28,15 @@ be satisfied using the package repository.  On Ubuntu 12.04 and later, run:
 
     sudo apt-get install g++ libqt4-dev
 
-The index compiler requirement can be satisfied using the [official Clang 3.1
-binaries][1], which are available for Gentoo, Ubuntu 11.10 and Ubuntu 12.04.
-Alternatively, [Clang can be built from source](#building-clang-from-source).
+The index compiler requirement can be satisfied using the [official Clang 3.2
+binaries][1], which are available for Gentoo and Ubuntu 12.04.  Alternatively,
+[Clang can be built from source](#building-clang-from-source).
 
 Clang can be installed anywhere, but it must not be moved after building the
 SourceWeb project -- the indexer path is embedded in the `sw-clang-indexer`
 binary.
 
-[1]: http://llvm.org/releases/download.html#3.1
+[1]: http://llvm.org/releases/download.html#3.2
 
 
 ### Building Clang from source<a id="building-clang-from-source"></a>
@@ -44,19 +44,19 @@ binary.
 If the official Clang binaries are not suitable, Clang can be built from source.
 Run these commands (feel free to alter the build and install directories):
 
-    BUILD_ROOT=$PWD/clang-3.1
+    BUILD_ROOT=$PWD/clang-3.2
     mkdir -p $BUILD_ROOT && cd $BUILD_ROOT
-    wget http://llvm.org/releases/3.1/llvm-3.1.src.tar.gz
-    wget http://llvm.org/releases/3.1/clang-3.1.src.tar.gz
-    wget http://llvm.org/releases/3.1/compiler-rt-3.1.src.tar.gz
-    tar xfz llvm-3.1.src.tar.gz
-    mv llvm-3.1.src llvm-src
+    wget http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
+    wget http://llvm.org/releases/3.2/clang-3.2.src.tar.gz
+    wget http://llvm.org/releases/3.2/compiler-rt-3.2.src.tar.gz
+    tar xfz llvm-3.2.src.tar.gz
+    mv llvm-3.2.src llvm-src
     cd $BUILD_ROOT/llvm-src/tools
-    tar xfz ../../clang-3.1.src.tar.gz
-    mv clang-3.1.src clang
+    tar xfz ../../clang-3.2.src.tar.gz
+    mv clang-3.2.src clang
     cd $BUILD_ROOT/llvm-src/projects
-    tar xfz ../../compiler-rt-3.1.src.tar.gz
-    mv compiler-rt-3.1.src compiler-rt
+    tar xfz ../../compiler-rt-3.2.src.tar.gz
+    mv compiler-rt-3.2.src compiler-rt
     mkdir $BUILD_ROOT/llvm-build
     cd $BUILD_ROOT/llvm-build
     ../llvm-src/configure --disable-assertions --enable-optimized \
@@ -71,7 +71,7 @@ The build takes about six minutes on the author's system (quad-core Core i7 w/SS
 
 To build SourceWeb, use the conventional `configure` / `make` / `make install`
 process.  The `configure` script must be invoked with a `--with-clang-dir`
-option pointing to a 3.1 Clang installation.
+option pointing to a 3.2 Clang installation.
 
 
 Usage
