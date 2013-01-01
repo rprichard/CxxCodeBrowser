@@ -129,6 +129,13 @@ void IndexBuilder::recordRef(
     int endColumn = start.column;
     if (end.fileID == start.fileID && end.line == start.line)
         endColumn = std::max(endColumn, end.column);
+    if (startColumn == endColumn) {
+        // Attempt to avoid empty references.  If startColumn points to the
+        // beginning of a character, then use that character as the range.
+        // Otherwise, endColumn will be invalid.  Index readers will need to
+        // tolerate invalid column numbers.
+        endColumn++;
+    }
 
     {
         indexdb::Row row(6);

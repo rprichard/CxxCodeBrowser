@@ -28,14 +28,15 @@ private:
                                     const clang::Token &includeTok,
                                     llvm::StringRef fileName,
                                     bool isAngled,
+                                    clang::CharSourceRange filenameRange,
                                     const clang::FileEntry *file,
-                                    clang::SourceLocation endLoc,
                                     llvm::StringRef searchPath,
-                                    llvm::StringRef relativePath);
+                                    llvm::StringRef relativePath,
+                                    const clang::Module *imported);
+
     std::tuple<IndexerFileContext*, Location, Location>
-    getIncludeFilenameLoc(
-            bool isAngled,
-            clang::SourceLocation endLoc);
+    getIncludeFilenameLoc(clang::CharSourceRange filenameRange);
+
     virtual void MacroExpands(const clang::Token &macroNameToken,
                               const clang::MacroInfo *mi,
                               clang::SourceRange range);
