@@ -121,6 +121,10 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
 
     ui->toolBar->addAction(QIcon::fromTheme("go-previous"), "Back", this, SLOT(actionBack()));
     ui->toolBar->addAction(QIcon::fromTheme("go-next"), "Forward", this, SLOT(actionForward()));
+
+    ui->actionFileExit->setIcon(QIcon::fromTheme("application-exit"));
+    ui->actionEditCopy->setIcon(QIcon::fromTheme("edit-copy"));
+    ui->actionEditFind->setIcon(QIcon::fromTheme("edit-find"));
 }
 
 MainWindow::~MainWindow()
