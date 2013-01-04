@@ -43,7 +43,7 @@ QMAKE_LFLAGS += -Wl,--version-script,$$_PRO_FILE_PWD_/version_script
 # Another idea is to alter LD_PRELOAD inside libbtrace's exec wrappers
 # depending upon the bit-ness of the program being exec'ed.  (It's possible to
 # exec non-ELF images, though, like shebang, Win32, or Mono executables.)
-target.path = $$BINDIR
+target.path = $$LIBEXEC_DIR
 INSTALLS += target
 
 QMAKE_CFLAGS_WARN_ON += -Wno-unused-result

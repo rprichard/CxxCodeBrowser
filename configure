@@ -11,7 +11,6 @@ Configures SourceWeb and runs qmake to generate makefiles.
 
 Installation directories:
   --prefix=PREFIX         Base path for build/install.  Default: /usr/local
-  --bindir=BINDIR         Directory for binaries.  Default: PREFIX/bin
 
 Dependency options:
   --with-clang-dir=CLANG_DIR
@@ -25,24 +24,30 @@ EOF
 while [ $# -gt 0 ]; do
     ARG=$1
     case $ARG in
-        --prefix|--bindir|--with-clang-dir)
+        --prefix|--with-clang-dir)
             shift
             ARG=$ARG=$1
     esac
     case $ARG in
         --prefix=*) PREFIX=${ARG#*=}; shift;;
-        --bindir=*) BINDIR=${ARG#*=}; shift;;
         --with-clang-dir=*) CLANG_DIR=${ARG#*=}; shift;;
         -h|--help) usage; exit 0;;
-        *) echo "error: Unrecognized argument $ARG"; exit 1;;
+        *) echo "$0: error: Unrecognized argument $ARG"; exit 1;;
     esac
 done
 
 PREFIX=${PREFIX:-/usr/local}
-BINDIR=${BINDIR:-$PREFIX/bin}
 
 if [ "$CLANG_DIR" = "" ]; then
-    echo "error: A Clang $CLANG_VER directory must be specified using --with-clang-dir."
+    echo "$0: error: A Clang $CLANG_VER directory must be specified using --with-clang-dir."
+    exit 1
+fi
+if [ "${CLANG_DIR#/}" = "$CLANG_DIR" ]; then
+    echo "$0: error: --with-clang-dir path must be absolute."
+    exit 1
+fi
+if [ "${PREFIX#/}" = "$PREFIX" ]; then
+    echo "$0: error: --prefix path must be absolute."
     exit 1
 fi
 
@@ -70,19 +75,31 @@ else
     fi
 fi
 
+QMAKE_FLAGS=""
+
+
+################################################################################
+# On Linux, build the project using the same Clang compiler used to index code.
+# Many current Linux distributions lack a C++11 toolchain, so reusing the
+# indexing compiler is convenient.
+
+if [ "$(uname)" = "Linux" ]; then
+    # Ideally, we would also change the spec file to unsupported/linux-clang
+    # on Linux, but that spec file does not exist in Qt 4.6, which many current
+    # distributions still use.
+    QMAKE_FLAGS="$QMAKE_FLAGS QMAKE_CC=$CLANG_DIR/bin/clang"
+    QMAKE_FLAGS="$QMAKE_FLAGS QMAKE_CXX=$CLANG_DIR/bin/clang++"
+    QMAKE_FLAGS="$QMAKE_FLAGS QMAKE_LINK=$CLANG_DIR/bin/clang++"
+fi
+
 
 ################################################################################
 # By default, qmake on OS X generates an Xcode project file.  We need it to
 # generate a Makefile instead, so provide a spec file unless QMAKESPEC is set.
 
-OSX_SPEC_ARG=""
-if [ "$QMAKESPEC" = "" ]; then
-    case $(uname) in
-        Darwin)
-            echo "The default qmake spec is not suitable.  Overriding it."
-            OSX_SPEC_ARG="-spec unsupported/macx-clang"
-            ;;
-    esac
+if [ "$(uname)" = "Darwin" -a "$QMAKESPEC" = "" ]; then
+    echo "The default qmake spec is not suitable.  Overriding it."
+    QMAKE_FLAGS="$QMAKE_FLAGS -spec unsupported/macx-clang"
 fi
 
 
@@ -97,7 +114,7 @@ run_test()
 
 # Test that the qmake configuration is working and has sufficient C++11 support.
 echo "Testing C++11 support using $QMAKE..."
-run_test "$SRCDIR/cxx11-compat-test/run-test.sh" "$QMAKE" $OSX_SPEC_ARG
+run_test "$SRCDIR/cxx11-compat-test/run-test.sh" "$QMAKE" $QMAKE_FLAGS
 if [ $? -ne 0 ]; then
     echo "- Command failed.  Output of $PWD/cxx11-compat-test.log:"
     while read LINE; do
@@ -117,8 +134,8 @@ run_qmake()
     "$@"
 }
 
-run_qmake "$QMAKE" -r "$SRCDIR/sourceweb.pro" $OSX_SPEC_ARG \
-    PREFIX="$PREFIX" BINDIR="$BINDIR" CLANG_DIR="$CLANG_DIR"
+run_qmake "$QMAKE" -r "$SRCDIR/sourceweb.pro" $QMAKE_FLAGS \
+    PREFIX="$PREFIX" CLANG_DIR="$CLANG_DIR"
 if [ $? -ne 0 ]; then
     echo qmake failed
     exit 1

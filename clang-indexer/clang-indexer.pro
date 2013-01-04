@@ -43,7 +43,11 @@ DEFINES += JSON_IS_AMALGAMATION
 ROOT_DIR = ..
 include(../add_dependencies.pri)
 
-target.path = $$BINDIR
+linux-* {
+    target.path = $$LIBEXEC_DIR
+} else {
+    target.path = $$BIN_DIR
+}
 INSTALLS += target
 
 include(../enable-cxx11.pri)

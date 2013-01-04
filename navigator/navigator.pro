@@ -71,10 +71,13 @@ ROOT_DIR = ..
 include(../add_dependencies.pri)
 
 macx {
-    # OS X: Install the sourceweb.app bundle in $$PREFIX rather than $$BINDIR.
+    # OS X: This target is an app bundle rather than an executable, so install
+    # it in the prefix rather than inside the libexec dir.
     target.path = $$PREFIX
+} else: linux-* {
+    target.path = $$LIBEXEC_DIR
 } else {
-    target.path = $$BINDIR
+    target.path = $$BIN_DIR
 }
 INSTALLS += target
 
