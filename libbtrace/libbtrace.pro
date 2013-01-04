@@ -16,6 +16,12 @@ DEFINES += _GNU_SOURCE
 
 LIBS += -ldl
 
+# It is never reasonable for the libbtrace preload library to have an RPATH,
+# but it is reasonable for other programs in this project.  QtSDK's default
+# configuration sets the RPATH to the SDK's lib directory.  Override the
+# default by clearing the RPATH setting.
+QMAKE_RPATHDIR =
+
 QMAKE_LFLAGS += -nostartfiles
 QMAKE_LFLAGS += -Wl,--version-script,$$_PRO_FILE_PWD_/version_script
 
