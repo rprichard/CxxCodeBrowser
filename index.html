@@ -4,9 +4,13 @@
     <meta charset="UTF-8">
     <title>SourceWeb</title>
     <style>
-        body { margin: 0; }
-        h1,h2,h3 { font-family: Arial; }
-        .demodiv { background-color: #336ea5; width: 958px; margin: auto; }
+        body { margin: 0; font-family: Arial; }
+        .demodiv {
+            background-color: #336ea5;
+            width: 958px;
+            margin: 40px auto;
+        }
+        .narrowdiv { width: 958px; margin: auto; }
         #playerContainer {
             width: 950px;
             height: 500px;
@@ -39,6 +43,9 @@
 </head>
 <body>
 
+
+<!-- Title / subtitle  -->
+
 <h1 style="text-align: center;">SourceWeb</h1>
 <h3 style="text-align: center;">A C/C++ source code indexer and navigator</h3>
 
@@ -65,16 +72,6 @@
     </div>
 </div>
 
-
-<!-- Fork me on GitHub sash at top-right -->
-
-<a href="https://github.com/rprichard/sourceweb">
-    <img style="position: absolute; top: 0; right: 0; border: 0;"
-         src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png"
-         alt="Fork me on GitHub">
-</a>
-
-
 <!-- Script for animated demo -->
 
     <script src="x11-canvas-screencast/player.js"></script>
@@ -87,7 +84,7 @@
             [demo_gotomain_packed, ".",
                 "Navigate to one of the <code>main</code> functions in LLVM."],
             [demo_navigate_packed, ".",
-                "Click identifiers to jump to their sole definition or sole " +
+                "Click an identifier to jump to its sole definition or sole " +
                 "declaration."],
             [demo_xref_packed, ".",
                 "By browsing cross-references on <code>DIE::Offset</code>, " +
@@ -137,6 +134,49 @@
 
         playerShowIndex(0);
     </script>
+
+
+<!-- Description -->
+
+<div class=narrowdiv>
+    <h1>About</h1>
+
+    <p>SourceWeb is a C/C++ code indexer and a code navigator GUI.</p>
+
+    <p>The indexer uses Clang's libraries to parse translation units.  The
+    output is a binary index file, optimized for fast creation, fast lookup,
+    and small size.
+    It generally indexes a project in about the same amount of time needed to
+    build it.
+    The input to the indexer is a
+    <code><a href="http://clang.llvm.org/docs/JSONCompilationDatabase.html">
+    compile_commands.json</a></code> file listing
+    all of the command lines that compile a source file to an object file.</p>
+
+    <p>The SourceWeb project includes an <code>LD_PRELOAD</code> library that
+    collects a trace of <code>exec</code> system calls and a tool that converts
+    this trace into a <code>compile_commands.json file</code>.
+    Using this tool allows for indexing projects without needing to integrate
+    with their build systems, as long as the C/C++ code is mostly buildable
+    with Clang.  (Build errors do not stop the indexer.)
+    This tool has been used successfully with GCC, LLVM, and Firefox.</p>
+
+    <p>The navigator GUI is demonstrated in the animations above.</p>
+
+    <h1>Download</h1>
+
+    <p>There has not yet been a release, so there are no official downloads yet.
+    The source code is available on the
+    <a href="https://www.github.com/rprichard/sourceweb">GitHub project page</a>.
+    Follow that link for build instructions.
+    Currently, SourceWeb only works on Linux, but the code is mostly ported to
+    FreeBSD, OS X, and Windows.
+
+    <h1>Contact</h1>
+
+    <p>Email the <a href="mailto:ryan.prichard@gmail.com">author</a> with comments or
+    questions.</p>
+</div>
 
 </body>
 </html>
