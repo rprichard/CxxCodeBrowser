@@ -6,72 +6,60 @@ SourceWeb is a source code indexer and code navigation tool for C/C++ code.
 Installation
 ------------
 
-### Prerequisites
-
-SourceWeb currently runs only on Linux.  Satisfying the prerequisites is easier
-on Ubuntu 12.04 or a similarly recent Linux distribution.  The project has these
-prerequisites:
-
- * *Linux.*  The project has been tested with both x86 and x86-64 Linux.
-
- * *Qt 4.8.*  The project has not been tested with Qt5.
-
- * *G++ 4.6 or later (build compiler).*  The project is written in C++11, so a
-   recent compiler and libstdc++ are needed.
-
- * *Clang 3.2 (index compiler).*  The project needs a complete Clang
-   installation.  It must be version 3.2 exactly, because Clang's C++ ABIs are
-   not stable between releases.
-
-On sufficiently recent distributions, the Qt and build compiler dependencies can
-be satisfied using the package repository.  On Ubuntu 12.04 and later, run:
-
-    sudo apt-get install g++ libqt4-dev
-
-The index compiler requirement can be satisfied using the [official Clang 3.2
-binaries][1], which are available for Gentoo and Ubuntu 12.04.  Alternatively,
-[Clang can be built from source](#building-clang-from-source).
-
-Clang can be installed anywhere, but it must not be moved after building the
-SourceWeb project -- the indexer path is embedded in the `sw-clang-indexer`
-binary.
-
-[1]: http://llvm.org/releases/download.html#3.2
+SourceWeb currently runs only on Linux.
 
 
-### Building Clang from source<a id="building-clang-from-source"></a>
+### Dependencies
 
-If the official Clang binaries are not suitable, Clang can be built from source.
-Run these commands (feel free to alter the build and install directories):
-
-    BUILD_ROOT=$PWD/clang-3.2
-    mkdir -p $BUILD_ROOT && cd $BUILD_ROOT
-    wget http://llvm.org/releases/3.2/llvm-3.2.src.tar.gz
-    wget http://llvm.org/releases/3.2/clang-3.2.src.tar.gz
-    wget http://llvm.org/releases/3.2/compiler-rt-3.2.src.tar.gz
-    tar xfz llvm-3.2.src.tar.gz
-    mv llvm-3.2.src llvm-src
-    cd $BUILD_ROOT/llvm-src/tools
-    tar xfz ../../clang-3.2.src.tar.gz
-    mv clang-3.2.src clang
-    cd $BUILD_ROOT/llvm-src/projects
-    tar xfz ../../compiler-rt-3.2.src.tar.gz
-    mv compiler-rt-3.2.src compiler-rt
-    mkdir $BUILD_ROOT/llvm-build
-    cd $BUILD_ROOT/llvm-build
-    ../llvm-src/configure --disable-assertions --enable-optimized \
-        --enable-shared --prefix=$BUILD_ROOT/llvm-install
-    make -j$(nproc) && make install
-    echo "Pass --with-clang-dir=$BUILD_ROOT/llvm-install to configure."
-
-The build takes about six minutes on the author's system (quad-core Core i7 w/SSD).
+SourceWeb is written in C++11.  The indexer links against Clang 3.2's C++ API.
+Clang's C++ APIs are not compatible between releases, so this version of
+SourceWeb requires exactly Clang 3.2.  The GUI uses Qt 4.6 or later.  Follow
+the build instructions to satisfy these dependencies.
 
 
-### Building SourceWeb
+### Building on Linux
 
-To build SourceWeb, use the conventional `configure` / `make` / `make install`
-process.  The `configure` script must be invoked with a `--with-clang-dir`
-option pointing to a 3.2 Clang installation.
+Install prerequisite packages:
+
+| Distribution         | Packages
+| -------------------- | -------------------------
+| Debian 6.0           | make g++ libqt4-dev
+| Ubuntu 10.04 and up  | make g++ libqt4-dev
+| Fedora               | make gcc-c++ qt-devel
+| CentOS 6.0           | make gcc-c++ qt-devel
+| OpenSUSE 11.4 and up | make gcc-c++ libqt4-devel
+
+Download the [clang-redist-linux packages][1] containing Clang 3.2 and gcc-libs
+4.6 and extract them into a single directory of your choosing using the
+`--strip-components=1` tar option.  The gcc-libs package contains
+`libstdc++.so.6`, so you probably do not want to install it into any directory
+in the default library search path (e.g. `/usr/local`).  It can be omitted if
+you already have libstdc++ from gcc 4.6 or newer.
+
+[1]: http://rprichard.github.com/clang-redist-linux
+
+    ARCH=x86     (or ARCH=x86_64)
+    SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist-linux/release-20121230
+    mkdir $HOME/sourceweb-clang-3.2
+    cd $HOME/sourceweb-clang-3.2
+    wget $SRC/clang-3.2-$ARCH-linux.tar.bz2
+    wget $SRC/gcc-libs-4.6.3-$ARCH-linux.tar.bz2
+    tar --strip-components=1 -xf clang-3.2-$ARCH-linux.tar.bz2
+    tar --strip-components=1 -xf gcc-libs-4.6.3-$ARCH-linux.tar.bz2
+
+Build the software:
+
+    $ ./configure --with-clang-dir $HOME/sourceweb-clang-3.2
+    $ make -j8
+    $ make install
+
+The Clang directory (`$HOME/sourceweb-clang-3.2`) is embedded into the
+SourceWeb build output, so it must not be moved later.
+
+The `configure` script is a wrapper around qmake, which is SourceWeb's build
+tool.  The `configure` script supports out-of-tree builds (like qmake) and
+allows configuring the install path at configure-time via --prefix (unlike
+qmake).
 
 
 Usage
