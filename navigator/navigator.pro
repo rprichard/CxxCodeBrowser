@@ -4,6 +4,7 @@ TARGET = sourceweb
 TEMPLATE = app
 
 SOURCES += \
+    Application.cpp \
     CXXSyntaxHighlighter.cc \
     File.cc \
     FileManager.cc \
@@ -31,6 +32,7 @@ SOURCES += \
     main.cc
 
 HEADERS += \
+    Application.h \
     CXXSyntaxHighlighter.h \
     CXXSyntaxHighlighterDirectives.h \
     CXXSyntaxHighlighterKeywords.h \

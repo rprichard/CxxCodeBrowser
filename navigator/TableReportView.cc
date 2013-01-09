@@ -13,6 +13,7 @@
 #include <memory>
 #include <vector>
 
+#include "Application.h"
 #include "Misc.h"
 #include "Regex.h"
 #include "TableReport.h"
@@ -356,11 +357,7 @@ TableReportView::TableReportView(QWidget *parent) :
     m_contentWidth(0),
     m_selectedIndex(-1)
 {
-    // TODO: This probably belongs somewhere else, along with all the other
-    // setFont calls.
-    QFont newFont = font();
-    newFont.setPointSize(9);
-    setFont(newFont);
+    setFont(Application::instance()->defaultFont());
 
     m_headerViewModel = new QStandardItemModel(this);
     m_headerViewParent = new QWidget(this);

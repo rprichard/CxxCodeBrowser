@@ -4,6 +4,7 @@
 #include <QKeyEvent>
 #include <QVBoxLayout>
 
+#include "Application.h"
 #include "Misc.h"
 #include "PlaceholderLineEdit.h"
 #include "Regex.h"
@@ -21,11 +22,7 @@ TableReportWindow::TableReportWindow(QWidget *parent) :
     m_view = new TableReportView;
     m_filterBox = new PlaceholderLineEdit;
     m_filterBox->setPlaceholderText(placeholderText);
-
-    // TODO: centralize font settings.
-    QFont font = m_filterBox->font();
-    font.setPointSize(9);
-    m_filterBox->setFont(font);
+    m_filterBox->setFont(Application::instance()->defaultFont());
 
     setFilterBoxVisible(false);
     layout()->setMargin(2);

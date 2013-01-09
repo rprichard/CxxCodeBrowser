@@ -29,6 +29,7 @@
 #include <re2/re2.h>
 #include <re2/regexp.h>
 
+#include "Application.h"
 #include "CXXSyntaxHighlighter.h"
 #include "File.h"
 #include "Misc.h"
@@ -998,9 +999,7 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(layoutSourceWidget()));
 
     // Configure the widgets to use a small monospace font.
-    QFont font;
-    font.setFamily("Monospace");
-    font.setPointSize(8);
+    QFont font = Application::instance()->sourceFont();
     font.setKerning(false);
     widget()->setFont(font);
     m_lineArea->setFont(font);

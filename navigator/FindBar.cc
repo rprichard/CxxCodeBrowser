@@ -9,6 +9,7 @@
 #include <QStyleOptionFrameV2>
 #include <QToolButton>
 
+#include "Application.h"
 #include "Misc.h"
 
 namespace Nav {
@@ -105,11 +106,7 @@ void FindBarEdit::paintEvent(QPaintEvent *event)
 FindBar::FindBar(QWidget *parent) :
     QFrame(parent)
 {
-    // TODO: Move this...
-    QFont f = font();
-    f.setPointSize(9);
-    setFont(f);
-
+    setFont(Application::instance()->defaultFont());
     setFrameShape(QFrame::StyledPanel);
 
     QHBoxLayout *layout = new QHBoxLayout(this);

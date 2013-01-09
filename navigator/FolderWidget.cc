@@ -7,6 +7,7 @@
 #include <QPainter>
 #include <QScrollBar>
 
+#include "Application.h"
 #include "File.h"
 #include "FileManager.h"
 #include "Folder.h"
@@ -31,9 +32,7 @@ FolderWidgetView::FolderWidgetView(FileManager &fileManager, QWidget *parent) :
     m_fileManager(fileManager),
     m_selectedFile(NULL)
 {
-    QFont f = font();
-    f.setPointSize(9);
-    setFont(f);
+    setFont(Application::instance()->defaultFont());
 
     // For better usability, traverse the folder tree and, for every folder
     // that has only one child folder, expand the child folder.
