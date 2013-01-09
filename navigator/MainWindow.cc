@@ -119,8 +119,16 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     // towards the SourceWidget instead.
     m_findBar->installEventFilter(this);
 
-    ui->toolBar->addAction(QIcon::fromTheme("go-previous"), "Back", this, SLOT(actionBack()));
-    ui->toolBar->addAction(QIcon::fromTheme("go-next"), "Forward", this, SLOT(actionForward()));
+    QIcon backIcon = QIcon::fromTheme("go-previous");
+    QIcon forwardIcon = QIcon::fromTheme("go-next");
+    if (backIcon.isNull() || forwardIcon.isNull()) {
+        backIcon = QIcon(":/icons/resultset_previous.png");
+        forwardIcon = QIcon(":/icons/resultset_next.png");
+    }
+    QAction *backAction = ui->toolBar->addAction(
+                backIcon, "Back", this, SLOT(actionBack()));
+    QAction *forwardAction = ui->toolBar->addAction(
+                forwardIcon, "Forward", this, SLOT(actionForward()));
 
     ui->actionFileExit->setIcon(QIcon::fromTheme("application-exit"));
     ui->actionEditCopy->setIcon(QIcon::fromTheme("edit-copy"));

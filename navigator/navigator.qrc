@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/resultset_previous.png</file>
+        <file>icons/resultset_next.png</file>
+        <file>icons/cross.png</file>
+    </qresource>
+</RCC>

@@ -127,13 +127,16 @@ FindBar::FindBar(QWidget *parent) :
     setFocusProxy(m_edit);
 
     QToolButton *b;
-    b = makeButton("go-previous", "Previous (Shift-Enter)", "",
+    b = makeButton("go-previous", ":/icons/resultset_previous.png",
+                   "Previous (Shift-Enter)", "",
                    SIGNAL(previous()));
     layout->addWidget(b);
-    b = makeButton("go-next", "Next (Enter)", "",
+    b = makeButton("go-next", ":/icons/resultset_next.png",
+                   "Next (Enter)", "",
                    SIGNAL(next()));
     layout->addWidget(b);
-    b = makeButton("window-close", "Close", "Close find bar (Esc)",
+    b = makeButton("window-close", ":/icons/cross.png",
+                   "Close", "Close find bar (Esc)",
                    SIGNAL(closeBar()));
     layout->addWidget(b);
 }
@@ -144,14 +147,15 @@ const Regex &FindBar::regex()
 }
 
 QToolButton *FindBar::makeButton(
-        const QString &icon,
+        const QString &iconThemeName,
+        const QString &iconResource,
         const QString &name,
         const QString &tooltip,
         const char *signal)
 {
     QToolButton *button = new QToolButton;
     button->setMinimumSize(QSize(28, 28));
-    button->setIcon(QIcon::fromTheme(icon));
+    button->setIcon(QIcon::fromTheme(iconThemeName, QIcon(iconResource)));
     button->setIconSize(QSize(16, 16));
     button->setToolTip(tooltip.isEmpty() ? name : tooltip);
     button->setAutoRaise(true);

@@ -56,7 +56,8 @@ public:
 
 private:
     QToolButton *makeButton(
-            const QString &icon,
+            const QString &iconThemeName,
+            const QString &iconResource,
             const QString &name,
             const QString &tooltip,
             const char *signal);
