@@ -265,24 +265,45 @@ void SourceWidgetLineArea::paintEvent(QPaintEvent *event)
     const int ch = effectiveLineSpacing(fm);
     const int cw = fm.width('9');
     const int ca = fm.ascent();
-    const int line1 = std::max(0, event->rect().top() / ch - 2);
-    const int line2 = std::min(m_lineCount - 1, event->rect().bottom() / ch + 2);
+    const int kLineBleedPx = ch / 2 + 1; // a guess
+    const QRect virtualRect = event->rect().translated(m_viewportOrigin);
+    const int line1 = std::max(
+                (virtualRect.top() - m_margins.top() - kLineBleedPx) / ch,
+                0);
+    const int line2 = std::min(
+                (virtualRect.bottom() - m_margins.top() + kLineBleedPx) / ch,
+                m_lineCount - 1);
     const int thisWidth = width();
 
     p.setPen(QColor(Qt::darkGray));
     for (int line = line1; line <= line2; ++line) {
         QString text = QString::number(line + 1);
-        p.drawText(thisWidth - (text.size() * cw) - m_margins.right(),
-                   ch * line + ca + m_margins.top(),
+        p.drawText(thisWidth - (text.size() * cw) - m_margins.right() -
+                        m_viewportOrigin.x(),
+                   ch * line + ca + m_margins.top() -
+                        m_viewportOrigin.y(),
                    text);
     }
+}
+
+void SourceWidgetLineArea::setViewportOrigin(QPoint pt)
+{
+    if (pt == m_viewportOrigin)
+        return;
+    QPoint oldPt = m_viewportOrigin;
+    scroll(oldPt.x() - pt.x(), oldPt.y() - pt.y());
+    m_viewportOrigin = pt;
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // SourceWidgetView
 
-SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
+SourceWidgetView::SourceWidgetView(
+        const QMargins &margins,
+        Project &project,
+        QWidget *parent) :
+    QWidget(parent),
     m_margins(margins),
     m_project(project),
     m_file(NULL),
@@ -290,7 +311,7 @@ SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
     m_selectingMode(SM_Inactive),
     m_selectedMatchIndex(-1)
 {
-    setBackgroundRole(QPalette::NoRole);
+    setAutoFillBackground(true);
     setMouseTracking(true);
     setAttribute(Qt::WA_Hover);
     updateFindMatches();
@@ -300,6 +321,15 @@ SourceWidgetView::SourceWidgetView(const QMargins &margins, Project &project) :
 // defined.
 SourceWidgetView::~SourceWidgetView()
 {
+}
+
+void SourceWidgetView::setViewportOrigin(QPoint pt)
+{
+    if (pt == m_viewportOrigin)
+        return;
+    QPoint oldPt = m_viewportOrigin;
+    scroll(oldPt.x() - pt.x(), oldPt.y() - pt.y());
+    m_viewportOrigin = pt;
 }
 
 void SourceWidgetView::setFile(File *file)
@@ -365,9 +395,16 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
     QPainter painter(this);
 
     // Paint lines in the clip region.
-    const int line1 = std::max(event->rect().y() / lineSpacing - 2, 0);
-    const int line2 = std::min(event->rect().bottom() / lineSpacing + 2,
-                               m_file->lineCount() - 1);
+    const int kLineBleedPx = lineSpacing / 2 + 1; // a guess
+    const QRect virtualRect = event->rect().translated(m_viewportOrigin);
+    const int line1 = std::max(
+                (virtualRect.y() - m_margins.top() - kLineBleedPx) /
+                        lineSpacing,
+                0);
+    const int line2 = std::min(
+                (virtualRect.bottom() - m_margins.top() + kLineBleedPx) /
+                        lineSpacing,
+                m_file->lineCount() - 1);
     if (line1 > line2)
         return;
 
@@ -384,7 +421,7 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
         --findMatch;
 
     for (int line = line1; line <= line2; ++line)
-        paintLine(painter, line, event->rect(), findMatch);
+        paintLine(painter, line, virtualRect, findMatch);
 }
 
 int SourceWidgetView::lineTop(int line)
@@ -441,8 +478,8 @@ void SourceWidgetView::paintLine(
                 fillBrush = &palette().highlight();
 
             if (fillBrush != NULL) {
-                painter.fillRect(lay.charLeft(),
-                                 lay.lineTop(),
+                painter.fillRect(lay.charLeft() - m_viewportOrigin.x(),
+                                 lay.lineTop() - m_viewportOrigin.y(),
                                  lay.charWidth(),
                                  lay.lineHeight(),
                                  *fillBrush);
@@ -483,8 +520,8 @@ void SourceWidgetView::paintLine(
                 }
 
                 painter.drawText(
-                            lay.charLeft(),
-                            lay.lineBaselineY(),
+                            lay.charLeft() - m_viewportOrigin.x(),
+                            lay.lineBaselineY() - m_viewportOrigin.y(),
                             lay.charText().c_str());
             }
         }
@@ -597,12 +634,12 @@ void SourceWidgetView::updateRange(const FileRange &range)
     const int lineHeight = effectiveLineSpacing(fontMetrics());
     assert(!range.start.isNull() && !range.end.isNull());
     if (range.start.line == range.end.line) {
-        QPoint pt1 = locationToPoint(range.start);
-        QPoint pt2 = locationToPoint(range.end);
+        QPoint pt1 = locationToPoint(range.start) - m_viewportOrigin;
+        QPoint pt2 = locationToPoint(range.end) - m_viewportOrigin;
         update(pt1.x(), pt1.y(), pt2.x() - pt1.x(), lineHeight);
     } else {
-        int y1 = lineTop(range.start.line);
-        int y2 = lineTop(range.end.line) + lineHeight;
+        int y1 = lineTop(range.start.line) - m_viewportOrigin.y();
+        int y2 = lineTop(range.end.line) + lineHeight - m_viewportOrigin.y();
         update(0, y1, width(), y2 - y1);
     }
 }
@@ -706,27 +743,31 @@ FileRange SourceWidgetView::findWordAtLocation(FileLocation loc)
 
 void SourceWidgetView::mousePressEvent(QMouseEvent *event)
 {
+    const QPoint virtualPos = event->pos() + m_viewportOrigin;
     if (m_tripleClickTime.elapsed() < QApplication::doubleClickInterval() &&
-            (event->pos() - m_tripleClickPoint).manhattanLength() <
+            (virtualPos - m_tripleClickPoint).manhattanLength() <
                 QApplication::startDragDistance()) {
         m_tripleClickTime = QTime();
         m_tripleClickPoint = QPoint();
-        navMouseTripleDownEvent(event);
+        navMouseTripleDownEvent(event, virtualPos);
     } else {
-        navMouseSingleDownEvent(event);
+        navMouseSingleDownEvent(event, virtualPos);
     }
 }
 
 void SourceWidgetView::mouseDoubleClickEvent(QMouseEvent *event)
 {
+    const QPoint virtualPos = event->pos() + m_viewportOrigin;
     m_tripleClickTime.start();
-    m_tripleClickPoint = event->pos();
-    navMouseDoubleDownEvent(event);
+    m_tripleClickPoint = virtualPos;
+    navMouseDoubleDownEvent(event, virtualPos);
 }
 
-void SourceWidgetView::navMouseSingleDownEvent(QMouseEvent *event)
+void SourceWidgetView::navMouseSingleDownEvent(
+        QMouseEvent *event,
+        QPoint virtualPos)
 {
-    FileLocation loc = hitTest(event->pos());
+    FileLocation loc = hitTest(virtualPos);
     FileRange refRange = findRefAtLocation(loc);
     if (!refRange.isEmpty()) {
         m_selectingMode = SM_Ref;
@@ -734,39 +775,44 @@ void SourceWidgetView::navMouseSingleDownEvent(QMouseEvent *event)
     } else {
         if (event->button() == Qt::LeftButton) {
             m_selectingMode = SM_Char;
-            m_selectingAnchor = event->pos();
+            m_selectingAnchor = virtualPos;
         } else if (event->button() == Qt::RightButton &&
                 !m_selectedRange.isEmpty() &&
                 (loc < m_selectedRange.start || loc >= m_selectedRange.end)) {
             setSelection(FileRange());
         }
     }
-    updateSelectionAndHover(event->pos());
+    updateSelectionAndHover(virtualPos);
 }
 
-void SourceWidgetView::navMouseDoubleDownEvent(QMouseEvent *event)
+void SourceWidgetView::navMouseDoubleDownEvent(
+        QMouseEvent *event,
+        QPoint virtualPos)
 {
     if (event->button() == Qt::LeftButton) {
         m_selectingMode = SM_Word;
-        m_selectingAnchor = event->pos();
-        updateSelectionAndHover(event->pos());
+        m_selectingAnchor = virtualPos;
+        updateSelectionAndHover(virtualPos);
     }
 }
 
-void SourceWidgetView::navMouseTripleDownEvent(QMouseEvent *event)
+void SourceWidgetView::navMouseTripleDownEvent(
+        QMouseEvent *event,
+        QPoint virtualPos)
 {
     if (event->button() == Qt::LeftButton) {
         m_selectingMode = SM_Line;
-        m_selectingAnchor = event->pos();
-        updateSelectionAndHover(event->pos());
+        m_selectingAnchor = virtualPos;
+        updateSelectionAndHover(virtualPos);
     }
 }
 
 void SourceWidgetView::mouseMoveEvent(QMouseEvent *event)
 {
-    updateSelectionAndHover(event->pos());
+    const QPoint virtualPos = event->pos() + m_viewportOrigin;
+    updateSelectionAndHover(virtualPos);
     if (m_selectingMode != SM_Inactive && m_selectingMode != SM_Ref)
-        emit pointSelected(event->pos());
+        emit pointSelected(virtualPos);
 }
 
 void SourceWidgetView::moveEvent(QMoveEvent *event)
@@ -790,26 +836,27 @@ bool SourceWidgetView::event(QEvent *event)
 
 void SourceWidgetView::updateSelectionAndHover()
 {
-    updateSelectionAndHover(mapFromGlobal(QCursor::pos()));
+    updateSelectionAndHover(mapFromGlobal(QCursor::pos()) + m_viewportOrigin);
 }
 
 // Update the selected range, hover highlight range, and mouse cursor to
 // account for a mouse move to the given position.
-void SourceWidgetView::updateSelectionAndHover(QPoint mousePos)
+void SourceWidgetView::updateSelectionAndHover(QPoint virtualPos)
 {
     if (m_file == NULL)
         return;
     if (m_selectingMode == SM_Inactive) {
         FileRange word;
-        if (rect().contains(mousePos) && m_mouseHoveringInWidget)
-            word = findRefAtPoint(mousePos);
+        const QRect virtualRect = rect().translated(m_viewportOrigin);
+        if (virtualRect.contains(virtualPos) && m_mouseHoveringInWidget)
+            word = findRefAtPoint(virtualPos);
         setHoverHighlight(word);
         setCursor(word.isEmpty() ? Qt::ArrowCursor : Qt::PointingHandCursor);
         m_selectingAnchor = QPoint();
     } else if (m_selectingMode == SM_Ref) {
         setHoverHighlight(FileRange());
         if (!m_selectedRange.isEmpty()) {
-            FileRange word = findRefAtPoint(mousePos);
+            FileRange word = findRefAtPoint(virtualPos);
             if (word == m_selectedRange) {
                 setCursor(Qt::PointingHandCursor);
             } else {
@@ -826,20 +873,20 @@ void SourceWidgetView::updateSelectionAndHover(QPoint mousePos)
             setCursor(Qt::ArrowCursor);
             FileLocation loc1 = hitTest(m_selectingAnchor,
                                         /*roundToNearest=*/true);
-            FileLocation loc2 = hitTest(mousePos,
+            FileLocation loc2 = hitTest(virtualPos,
                                         /*roundToNearest=*/true);
             setSelection(FileRange(std::min(loc1, loc2),
                                    std::max(loc1, loc2)));
         } else if (m_selectingMode == SM_Word) {
             setCursor(Qt::ArrowCursor);
             FileRange loc1 = findWordAtLocation(hitTest(m_selectingAnchor));
-            FileRange loc2 = findWordAtLocation(hitTest(mousePos));
+            FileRange loc2 = findWordAtLocation(hitTest(virtualPos));
             setSelection(FileRange(std::min(loc1.start, loc2.start),
                                    std::max(loc1.end, loc2.end)));
         } else if (m_selectingMode == SM_Line) {
             setCursor(Qt::ArrowCursor);
             FileLocation loc1 = hitTest(m_selectingAnchor);
-            FileLocation loc2 = hitTest(mousePos);
+            FileLocation loc2 = hitTest(virtualPos);
             int line1 = std::min(loc1.line, loc2.line);
             int line2 = std::max(loc1.line, loc2.line);
             FileLocation lineLoc1 = FileLocation(line1, 0);
@@ -863,13 +910,14 @@ void SourceWidgetView::updateSelectionAndHover(QPoint mousePos)
 
 void SourceWidgetView::mouseReleaseEvent(QMouseEvent *event)
 {
+    const QPoint virtualPos = event->pos() + m_viewportOrigin;
     SelectingMode oldMode = m_selectingMode;
     m_selectingMode = SM_Inactive;
-    updateSelectionAndHover(event->pos());
+    updateSelectionAndHover(virtualPos);
 
     if (oldMode == SM_Ref && !m_selectedRange.isEmpty()) {
         FileRange identifierClicked;
-        if (m_selectedRange == findRefAtPoint(event->pos()))
+        if (m_selectedRange == findRefAtPoint(virtualPos))
             identifierClicked = m_selectedRange;
         setSelection(FileRange());
 
@@ -986,22 +1034,19 @@ void SourceWidgetView::actionCrossReferences()
 // SourceWidget
 
 SourceWidget::SourceWidget(Project &project, QWidget *parent) :
-    QScrollArea(parent),
+    QAbstractScrollArea(parent),
     m_project(project),
     m_findStartOffset(0)
 {
-    setWidgetResizable(false);
-    setWidget(new SourceWidgetView(QMargins(4, 4, 4, 4), project));
+    m_view = new SourceWidgetView(QMargins(4, 4, 4, 4), project, viewport());
     setBackgroundRole(QPalette::Base);
-    setViewportMargins(30, 0, 0, 0);
-    m_lineAreaViewport = new QWidget(this);
-    m_lineArea = new SourceWidgetLineArea(QMargins(4, 4, 4, 4), m_lineAreaViewport);
-    connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(layoutSourceWidget()));
+    m_lineArea = new SourceWidgetLineArea(QMargins(4, 4, 4, 4), this);
 
     // Configure the widgets to use a small monospace font.
     QFont font = Application::instance()->sourceFont();
     font.setKerning(false);
-    widget()->setFont(font);
+    setFont(font);
+    m_view->setFont(font);
     m_lineArea->setFont(font);
 
     connect(&sourceWidgetView(), SIGNAL(goBack()), SIGNAL(goBack()));
@@ -1039,50 +1084,87 @@ void SourceWidget::setFile(File *file)
 
 SourceWidgetView &SourceWidget::sourceWidgetView()
 {
-    return *qobject_cast<SourceWidgetView*>(widget());
+    return *m_view;
+}
+
+void SourceWidget::scrollContentsBy(int dx, int dy)
+{
+    m_lineArea->setViewportOrigin(QPoint(0, viewportOrigin().y()));
+    m_view->setViewportOrigin(viewportOrigin());
+}
+
+// TODO: Replace this with QStyle hint calls.
+const int kViewportScrollbarMargin = 3;
+
+// It's better if this size is an underestimate rather than an overestimate.
+// It takes the current scrollbar status into account, unlike
+// viewport()->size(), which uses layout information cached somewhere and
+// only incorporates scrollbar status after some layout process completes.
+QSize SourceWidget::estimatedViewportSize()
+{
+    bool vbar = false;
+    bool hbar = false;
+    int viewportHeightEstimate = height() - frameWidth() * 2;
+    int viewportWidthEstimate = width() - frameWidth() * 2 -
+            m_lineArea->width();
+    const int barW = verticalScrollBar()->sizeHint().width() +
+            kViewportScrollbarMargin;
+    const int barH = horizontalScrollBar()->sizeHint().height() +
+            kViewportScrollbarMargin;
+
+    const QSize contentSize = m_view->sizeHint();
+    for (int round = 0; round < 2; ++round) {
+        if (!vbar && viewportHeightEstimate < contentSize.height()) {
+            vbar = true;
+            viewportWidthEstimate -= barW;
+        }
+        if (!hbar && viewportWidthEstimate < contentSize.width()) {
+            hbar = true;
+            viewportHeightEstimate -= barH;
+        }
+    }
+
+    return QSize(viewportWidthEstimate, viewportHeightEstimate);
+}
+
+void SourceWidget::updateScrollBars()
+{
+    const QSize contentSize = m_view->sizeHint();
+    const QSize viewportSize = estimatedViewportSize();
+    verticalScrollBar()->setRange(
+                0, contentSize.height() - viewportSize.height());
+    verticalScrollBar()->setPageStep(viewportSize.height());
+    verticalScrollBar()->setSingleStep(effectiveLineSpacing(fontMetrics()));
+
+    horizontalScrollBar()->setRange(
+                0, contentSize.width() - viewportSize.width());
+    horizontalScrollBar()->setPageStep(viewportSize.width());
+    horizontalScrollBar()->setSingleStep(
+                fontMetrics().averageCharWidth() * 20);
 }
 
 void SourceWidget::layoutSourceWidget(void)
 {
     QSize lineAreaSizeHint = m_lineArea->sizeHint();
-    m_lineAreaViewport->setGeometry(
-                0,
+    setViewportMargins(lineAreaSizeHint.width(), 0, 0, 0);
+    m_lineArea->setGeometry(
+                viewport()->pos().x() - lineAreaSizeHint.width(),
                 viewport()->pos().y(),
                 lineAreaSizeHint.width(),
                 viewport()->height());
-    m_lineArea->setGeometry(
-                0,
-                -verticalScrollBar()->value(),
-                lineAreaSizeHint.width(),
-                lineAreaSizeHint.height());
-    setViewportMargins(lineAreaSizeHint.width(), 0, 0, 0);
-
-    // Hack around a Qt problem.  QScrollArea can be configured to resize
-    // the widget automatically (i.e. setWidgetResizable(true)), but this
-    // isn't working because the window isn't resized soon enough.  (Maybe
-    // Qt is waiting until it returns to the event loop?)  Sometimes we
-    // want to scroll to the end of the file, but we can't because that's
-    // beyond the end of the the stale widget size Qt is keeping.
-    //
-    // Basically, Qt has a cached widget size that it computed from the
-    // sizeHint.  My code notifies Qt that the sizeHint has changed, then
-    // it asks Qt to do something involving the widget size, and Qt *still*
-    // uses the cached, invalid size.
-
-    QSize sizeHint = sourceWidgetView().sizeHint();
-    sizeHint = sizeHint.expandedTo(viewport()->size());
-    sourceWidgetView().resize(sizeHint);
+    m_view->setGeometry(0, 0, viewport()->width(), viewport()->height());
+    updateScrollBars();
 }
 
 void SourceWidget::viewPointSelected(QPoint point)
 {
-    ensureVisible(point.x(), point.y(), 0, 0);
+    ensureVisible(point, 0, 0);
 }
 
 void SourceWidget::resizeEvent(QResizeEvent *event)
 {
     layoutSourceWidget();
-    QScrollArea::resizeEvent(event);
+    QAbstractScrollArea::resizeEvent(event);
 }
 
 void SourceWidget::keyPressEvent(QKeyEvent *event)
@@ -1092,7 +1174,7 @@ void SourceWidget::keyPressEvent(QKeyEvent *event)
     else if (event->key() == Qt::Key_End)
         verticalScrollBar()->setValue(verticalScrollBar()->maximum());
     else
-        QScrollArea::keyPressEvent(event);
+        QAbstractScrollArea::keyPressEvent(event);
 }
 
 // Line and column indices are 1-based.
@@ -1273,6 +1355,27 @@ int SourceWidget::bestMatchIndex(int previousMatchOffset)
     return 0;
 }
 
+// Adjust the scrollbars if necessary to ensure that the virtual coordinate is
+// visible in the viewport.  This function is analogous to
+// QScrollArea::ensureVisible.
+void SourceWidget::ensureVisible(QPoint pt, int xMargin, int yMargin)
+{
+    const QSize sz = viewport()->size();
+    QPoint origin = viewportOrigin();
+
+    if (origin.y() + sz.height() - pt.y() < yMargin)
+        origin.setY(pt.y() - sz.height() + yMargin);
+    if (pt.y() - origin.y() < yMargin)
+        origin.setY(pt.y() - yMargin);
+
+    if (origin.x() + sz.width() - pt.x() < xMargin)
+        origin.setX(pt.x() - sz.width() + xMargin);
+    if (pt.x() - origin.x() < xMargin)
+        origin.setX(pt.x() - xMargin);
+
+    setViewportOrigin(origin);
+}
+
 void SourceWidget::ensureSelectedMatchVisible()
 {
     int index = sourceWidgetView().selectedMatchIndex();
@@ -1294,8 +1397,8 @@ void SourceWidget::ensureSelectedMatchVisible()
     bool needScroll = !visibleViewRect.contains(matchStartPt) ||
                       !visibleViewRect.contains(matchEndPt);
     if (needScroll) {
-        ensureVisible(matchEndPt.x(), matchEndPt.y());
-        ensureVisible(matchStartPt.x(), matchStartPt.y());
+        ensureVisible(matchEndPt);
+        ensureVisible(matchStartPt);
     }
 }
 

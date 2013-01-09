@@ -3,7 +3,7 @@
 
 #include <QList>
 #include <QPoint>
-#include <QScrollArea>
+#include <QAbstractScrollArea>
 #include <QTime>
 #include <memory>
 #include <set>
@@ -135,13 +135,17 @@ public:
     SourceWidgetLineArea(const QMargins &margins, QWidget *parent = 0) :
         QWidget(parent), m_margins(margins), m_lineCount(0)
     {
+        setAutoFillBackground(true);
+        setBackgroundRole(QPalette::Window);
     }
 
     QSize sizeHint() const;
     void paintEvent(QPaintEvent *event);
     int lineCount() const                   { return m_lineCount; }
     void setLineCount(int lineCount)        { m_lineCount = lineCount; updateGeometry(); update(); }
+    void setViewportOrigin(QPoint pt);
 private:
+    QPoint m_viewportOrigin;
     QMargins m_margins;
     int m_lineCount;
 };
@@ -155,8 +159,12 @@ class SourceWidgetView : public QWidget
 {
     Q_OBJECT
 public:
-    SourceWidgetView(const QMargins &margins, Project &project);
+    SourceWidgetView(
+            const QMargins &margins,
+            Project &project,
+            QWidget *parent = 0);
     virtual ~SourceWidgetView();
+    void setViewportOrigin(QPoint pt);
     void setFile(File *file);
     File *file() { return m_file; }
     FileLocation hitTest(QPoint pt, bool roundToNearest=false);
@@ -204,9 +212,9 @@ private:
 
     void mousePressEvent(QMouseEvent *event);
     void mouseDoubleClickEvent(QMouseEvent *event);
-    void navMouseSingleDownEvent(QMouseEvent *event);
-    void navMouseDoubleDownEvent(QMouseEvent *event);
-    void navMouseTripleDownEvent(QMouseEvent *event);
+    void navMouseSingleDownEvent(QMouseEvent *event, QPoint virtualPos);
+    void navMouseDoubleDownEvent(QMouseEvent *event, QPoint virtualPos);
+    void navMouseTripleDownEvent(QMouseEvent *event, QPoint virtualPos);
     void mouseMoveEvent(QMouseEvent *event);
     void moveEvent(QMoveEvent *event);
     bool event(QEvent *event);
@@ -221,6 +229,7 @@ private slots:
     void actionCrossReferences();
 
 private:
+    QPoint m_viewportOrigin;
     QMargins m_margins;
     Project &m_project;
     File *m_file;
@@ -243,7 +252,7 @@ private:
 ///////////////////////////////////////////////////////////////////////////////
 // SourceWidget
 
-class SourceWidget : public QScrollArea
+class SourceWidget : public QAbstractScrollArea
 {
     Q_OBJECT
 public:
@@ -275,7 +284,11 @@ private:
     SourceWidgetView &sourceWidgetView();
     void resizeEvent(QResizeEvent *event);
     void keyPressEvent(QKeyEvent *event);
+    void scrollContentsBy(int dx, int dy);
 
+private:
+    QSize estimatedViewportSize();
+    void updateScrollBars();
 private slots:
     void layoutSourceWidget(void);
     void viewPointSelected(QPoint point);
@@ -293,11 +306,12 @@ public slots:
     void setSelectedMatchIndex(int index);
 private:
     int bestMatchIndex(int previousMatchOffset);
+    void ensureVisible(QPoint pt, int xMargin = 50, int yMargin = 50);
     void ensureSelectedMatchVisible();
 
 private:
-    QWidget *m_lineAreaViewport;
     SourceWidgetLineArea *m_lineArea;
+    SourceWidgetView *m_view;
     Project &m_project;
 
     // The view origin and top-left file offset when the user began searching.
