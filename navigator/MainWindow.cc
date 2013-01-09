@@ -108,13 +108,6 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     connect(m_findBar, SIGNAL(previous()), m_sourceWidget, SLOT(selectPreviousMatch()));
     connect(m_findBar, SIGNAL(next()), m_sourceWidget, SLOT(selectNextMatch()));
 
-    // Keyboard shortcuts.
-    QShortcut *shortcut;
-    shortcut = new QShortcut(QKeySequence("Alt+Left"), this);
-    connect(shortcut, SIGNAL(activated()), this, SLOT(actionBack()));
-    shortcut = new QShortcut(QKeySequence("Alt+Right"), this);
-    connect(shortcut, SIGNAL(activated()), this, SLOT(actionForward()));
-
     // Intercept some keyboard events directed at the FindBar and direct them
     // towards the SourceWidget instead.
     m_findBar->installEventFilter(this);
@@ -129,6 +122,17 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
                 backIcon, "Back", this, SLOT(actionBack()));
     QAction *forwardAction = ui->toolBar->addAction(
                 forwardIcon, "Forward", this, SLOT(actionForward()));
+#ifdef __APPLE__
+    backAction->setShortcut(QKeySequence("Ctrl+["));
+    forwardAction->setShortcut(QKeySequence("Ctrl+]"));
+    backAction->setToolTip("Back (⌘[)");
+    forwardAction->setToolTip("Forward (⌘])");
+#else
+    backAction->setShortcut(QKeySequence("Alt+Left"));
+    forwardAction->setShortcut(QKeySequence("Alt+Right"));
+    backAction->setToolTip("Back (Alt+Left)");
+    forwardAction->setToolTip("Forward (Alt+Right)");
+#endif
 
     ui->actionFileExit->setIcon(QIcon::fromTheme("application-exit"));
     ui->actionEditCopy->setIcon(QIcon::fromTheme("edit-copy"));
