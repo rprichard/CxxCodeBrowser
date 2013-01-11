@@ -368,10 +368,16 @@ TableReportView::TableReportView(QWidget *parent) :
     m_headerView = new QHeaderView(Qt::Horizontal, m_headerViewParent);
     m_headerView->setModel(m_headerViewModel);
     m_headerView->setStretchLastSection(true);
-    m_headerView->setClickable(true);
     m_headerView->setSortIndicatorShown(true);
-    m_headerView->setResizeMode(QHeaderView::Fixed);
     m_headerView->setDefaultAlignment(Qt::AlignLeft);
+
+#if QT_VERSION >= QT_VERSION_CHECK(5, 0, 0)
+    m_headerView->setSectionsClickable(true);
+    m_headerView->setSectionResizeMode(QHeaderView::Fixed);
+#else
+    m_headerView->setClickable(true);
+    m_headerView->setResizeMode(QHeaderView::Fixed);
+#endif
 
     connect(m_headerView, SIGNAL(sortIndicatorChanged(int,Qt::SortOrder)),
             this, SLOT(sortIndicatorChanged()));

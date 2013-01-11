@@ -604,7 +604,7 @@ void SourceWidgetView::copy()
 {
     StringRef text = rangeText(m_selectedRange);
     if (text.size() > 0) {
-        QString qtext = QString::fromAscii(text.data(), text.size());
+        QString qtext = QString::fromUtf8(text.data(), text.size());
         QApplication::clipboard()->setText(qtext);
     }
 }
@@ -902,7 +902,7 @@ void SourceWidgetView::updateSelectionAndHover(QPoint virtualPos)
         // Update the selection clipboard.
         StringRef text = rangeText(m_selectedRange);
         if (text.size() > 0) {
-            QString qtext = QString::fromAscii(text.data(), text.size());
+            QString qtext = QString::fromUtf8(text.data(), text.size());
             QApplication::clipboard()->setText(qtext, QClipboard::Selection);
         }
     }
@@ -1226,7 +1226,7 @@ void SourceWidget::setViewportOrigin(const QPoint &pt)
 void SourceWidget::recordFindStart()
 {
     QPoint topLeft = viewportOrigin();
-    topLeft.setY(topLeft.y() + effectiveLineSpacing(font()) - 1);
+    topLeft.setY(topLeft.y() + effectiveLineSpacing(fontMetrics()) - 1);
     m_findStartOffset =
             sourceWidgetView().hitTest(topLeft).toOffset(*file());
     m_findStartOrigin = viewportOrigin();
@@ -1388,7 +1388,7 @@ void SourceWidget::ensureSelectedMatchVisible()
     FileLocation matchEndLoc(*file(), matches[index].second);
     QPoint matchStartPt = sourceWidgetView().locationToPoint(matchStartLoc);
     QPoint matchEndPt = sourceWidgetView().locationToPoint(matchEndLoc);
-    matchEndPt.setY(matchEndPt.y() + effectiveLineSpacing(font()));
+    matchEndPt.setY(matchEndPt.y() + effectiveLineSpacing(fontMetrics()));
 
     QRect visibleViewRect(
                 QPoint(horizontalScrollBar()->value(),
