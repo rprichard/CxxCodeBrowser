@@ -8,6 +8,8 @@
 #elif defined(_WIN32)
 // MinGW32 also does not provide C++11 threading.  (MinGW-w64 might, though.)
 #define INDEXER_MUTEX_USE_WIN32 1
+#else
+#define INDEXER_MUTEX_USE_CXX11 1
 #endif
 
 // Use pthreads on Unix instead of C++11's mutex header.  There is a bug in the
@@ -20,9 +22,16 @@
 //
 #if INDEXER_MUTEX_USE_PTHREADS
 #include <pthread.h>
-#elif INDEXER_MUTEX_USE_WIN32
+#endif
+
+#if INDEXER_MUTEX_USE_WIN32
+#ifndef NOMINMAX
+#define NOMINMAX 1
+#endif
 #include <windows.h>
-#else
+#endif
+
+#if INDEXER_MUTEX_USE_CXX11
 #include <mutex>
 #endif
 
@@ -40,7 +49,7 @@ private:
     pthread_mutex_t mutex;
 #elif INDEXER_MUTEX_USE_WIN32
     CRITICAL_SECTION mutex;
-#else
+#elif INDEXER_MUTEX_USE_CXX11
     std::mutex mutex;
 #endif
 };

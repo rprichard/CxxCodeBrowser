@@ -31,8 +31,10 @@ void Mutex::lock()
     assert(ret == 0 && "pthread_mutex_lock failed");
 #elif INDEXER_MUTEX_USE_WIN32
     EnterCriticalSection(&mutex);
-#else
+#elif INDEXER_MUTEX_USE_CXX11
     mutex.lock();
+#else
+#error "Not implemented"
 #endif
 }
 
@@ -43,8 +45,10 @@ void Mutex::unlock()
     assert(ret == 0 && "pthread_mutex_lock failed");
 #elif INDEXER_MUTEX_USE_WIN32
     LeaveCriticalSection(&mutex);
-#else
+#elif INDEXER_MUTEX_USE_CXX11
     mutex.unlock();
+#else
+#error "Not implemented"
 #endif
 }
 

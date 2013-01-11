@@ -11,11 +11,16 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#elif defined(_WIN32)
+#endif
+
+#if defined(_WIN32)
 #include <fcntl.h>
 #include <io.h>
-#include <windows.h>
+#ifndef NOMINMAX
+#define NOMINMAX 1
 #endif
+#include <windows.h>
+#endif // _WIN32
 
 #include "Mutex.h"
 #include "Util.h"

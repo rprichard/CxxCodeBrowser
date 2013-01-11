@@ -11,7 +11,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#elif defined(_WIN32)
+#endif
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX 1
+#endif
 #include <windows.h>
 #endif
 
