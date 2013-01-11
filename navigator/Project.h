@@ -44,7 +44,7 @@ public:
             File &file,
             Func callback,
             uint32_t firstLine = 0,
-            uint32_t lastLine = UINT32_MAX);
+            uint32_t lastLine = static_cast<uint32_t>(-1));
     indexdb::ID querySymbolType(indexdb::ID symbolID);
     indexdb::ID getSymbolTypeID(const char *symbolType);
     const char *getSymbolType(indexdb::ID symbolTypeID);
