@@ -19,4 +19,4 @@ for(CLANG_LIB, CLANG_LIBS) {
 }
 
 linux-*: LIBS += -ldl
-win32: LIBS += -lpsapi -limagehlp
+win32: LIBS += -lpsapi -limagehlp -lpthread
