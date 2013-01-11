@@ -37,6 +37,12 @@ defineTest(addDependency) {
     LIBS -= $$lib
     LIBS += $$lib
     export (LIBS)
+
+    # Setting PRE_TARGETDEPS is needed so that a change to a dependency
+    # static library causes the dependents to relink.
+    PRE_TARGETDEPS -= $$lib
+    PRE_TARGETDEPS += $$lib
+    export (PRE_TARGETDEPS)
 }
 
 # defineTest(depCfgPath).  depCfgPath is an absolute path to a dependencies.cfg
