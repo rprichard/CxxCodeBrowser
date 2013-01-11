@@ -1,8 +1,13 @@
 #include "TableReportWindow.h"
 
 #include <QApplication>
+#include <QColor>
+#include <QEvent>
 #include <QKeyEvent>
+#include <QObject>
+#include <QString>
 #include <QVBoxLayout>
+#include <QWidget>
 
 #include "Application.h"
 #include "Misc.h"

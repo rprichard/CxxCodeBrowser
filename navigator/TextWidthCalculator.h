@@ -2,7 +2,8 @@
 #define NAV_TEXTWIDTHCALCULATOR_H
 
 #include <QFont>
-#include <QFontMetrics>
+#include <QFontMetricsF>
+#include <QString>
 #include <map>
 #include <memory>
 

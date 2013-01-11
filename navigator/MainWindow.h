@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QSplitter>
 #include <QTreeView>
+#include <QWidget>
 
 #include "History.h"
 #include "TextWidthCalculator.h"

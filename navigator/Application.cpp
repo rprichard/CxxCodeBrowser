@@ -1,6 +1,9 @@
 #include "Application.h"
 
+#include <QApplication>
+#include <QFont>
 #include <QSettings>
+#include <QString>
 
 namespace Nav {
 

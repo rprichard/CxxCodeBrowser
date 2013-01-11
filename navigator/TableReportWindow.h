@@ -1,6 +1,9 @@
 #ifndef NAV_TABLEREPORTWINDOW_H
 #define NAV_TABLEREPORTWINDOW_H
 
+#include <QEvent>
+#include <QKeyEvent>
+#include <QObject>
 #include <QWidget>
 
 namespace Nav {

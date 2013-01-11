@@ -1,7 +1,13 @@
 #include "PlaceholderLineEdit.h"
 #include "Misc.h"
 
+#include <QColor>
+#include <QFont>
+#include <QLineEdit>
+#include <QPaintEvent>
 #include <QPainter>
+#include <QString>
+#include <QWidget>
 
 namespace Nav {
 

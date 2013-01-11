@@ -1,14 +1,22 @@
 #ifndef NAV_SOURCEWIDGET_H
 #define NAV_SOURCEWIDGET_H
 
-#include <QList>
-#include <QPoint>
 #include <QAbstractScrollArea>
+#include <QContextMenuEvent>
+#include <QEvent>
+#include <QKeyEvent>
+#include <QList>
+#include <QMargins>
+#include <QMouseEvent>
+#include <QMoveEvent>
+#include <QPainter>
+#include <QPoint>
+#include <QResizeEvent>
 #include <QTime>
-#include <memory>
+#include <QWidget>
 #include <set>
 #include <string>
-#include <utility>
+#include <vector>
 
 #include "CXXSyntaxHighlighter.h"
 #include "File.h"

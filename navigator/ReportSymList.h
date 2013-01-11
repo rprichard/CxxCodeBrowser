@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QSize>
 #include <QString>
+#include <QStringList>
 #include <string>
 
 #include "TableReport.h"

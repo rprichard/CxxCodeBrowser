@@ -1,7 +1,10 @@
 #include "FileManager.h"
 
-#include <QFile>
 #include <QDirModel>
+#include <QFile>
+#include <QList>
+#include <QString>
+#include <QStringList>
 #include <cassert>
 
 #include "File.h"

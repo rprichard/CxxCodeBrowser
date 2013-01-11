@@ -2,6 +2,7 @@
 #define NAV_CXXSYNTAXHIGHLIGHTER_H
 
 #include <QString>
+#include <string>
 #include <vector>
 
 namespace Nav {

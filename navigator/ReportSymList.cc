@@ -1,7 +1,14 @@
 #include "ReportSymList.h"
 
+#include <QObject>
+#include <QString>
+#include <QStringList>
+#include <cassert>
+#include <string>
+
 #include "Project.h"
 #include "ReportRefList.h"
+#include "TableReport.h"
 #include "TableReportWindow.h"
 
 namespace Nav {

@@ -1,7 +1,10 @@
 #ifndef NAV_REPORTDEFLIST_H
 #define NAV_REPORTDEFLIST_H
 
+#include <QObject>
 #include <QSize>
+#include <QString>
+#include <QStringList>
 #include <string>
 #include <vector>
 

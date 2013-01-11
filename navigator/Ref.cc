@@ -1,5 +1,7 @@
 #include "Ref.h"
 
+#include <stdint.h>
+
 #include "File.h"
 
 namespace Nav {

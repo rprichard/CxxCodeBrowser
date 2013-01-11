@@ -1,6 +1,7 @@
 #include "Regex.h"
 
 #include <cassert>
+#include <string>
 #include <re2/re2.h>
 
 using re2::RE2;

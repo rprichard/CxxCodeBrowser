@@ -2,7 +2,16 @@
 #define NAV_TABLEREPORTVIEW_H
 
 #include <QAbstractScrollArea>
+#include <QEvent>
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QObject>
+#include <QPaintEvent>
+#include <QResizeEvent>
+#include <QSize>
+#include <QWidget>
 #include <memory>
+#include <vector>
 
 #include "Regex.h"
 

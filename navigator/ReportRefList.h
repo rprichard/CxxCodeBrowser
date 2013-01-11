@@ -2,8 +2,10 @@
 #define NAV_REPORTREFLIST_H
 
 #include <QList>
+#include <QObject>
 #include <QString>
-#include <QVariant>
+#include <QStringList>
+#include <string>
 
 #include "Ref.h"
 #include "TableReport.h"

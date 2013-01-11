@@ -1,12 +1,19 @@
 #include "ReportRefList.h"
 
-#include <stdint.h>
+#include <QObject>
+#include <QString>
+#include <QStringList>
+#include <QtAlgorithms>
+#include <cassert>
 #include <cstring>
+#include <string>
+#include <stdint.h>
 
 #include "File.h"
 #include "MainWindow.h"
 #include "Project.h"
 #include "Ref.h"
+#include "TableReport.h"
 
 namespace Nav {
 

@@ -1,5 +1,5 @@
+#include <QApplication>
 #include <QTextCodec>
-#include <QtGui/QApplication>
 
 #include "Application.h"
 #include "MainWindow.h"

@@ -1,9 +1,15 @@
 #include "ReportFileList.h"
 
+#include <QObject>
+#include <QString>
+#include <QStringList>
+#include <string>
+
 #include "File.h"
 #include "FileManager.h"
-#include "Project.h"
 #include "MainWindow.h"
+#include "Project.h"
+#include "TableReport.h"
 
 namespace Nav {
 

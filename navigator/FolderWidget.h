@@ -1,8 +1,19 @@
 #ifndef NAV_FOLDERWIDGET_H
 #define NAV_FOLDERWIDGET_H
 
+#include <QEvent>
+#include <QFont>
+#include <QFontMetrics>
+#include <QMouseEvent>
+#include <QPaintEvent>
+#include <QPainter>
+#include <QPoint>
+#include <QRect>
+#include <QResizeEvent>
 #include <QScrollArea>
 #include <QSet>
+#include <QSize>
+#include <QWidget>
 
 namespace Nav {
 

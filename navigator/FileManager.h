@@ -2,8 +2,10 @@
 #define NAV_FILEMANAGER_H
 
 #include <QDir>
+#include <QList>
 #include <QMap>
 #include <QString>
+#include <QStringList>
 
 namespace Nav {
 

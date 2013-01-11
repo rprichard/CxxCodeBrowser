@@ -1,5 +1,8 @@
 #include "Folder.h"
 
+#include <QString>
+#include <QtAlgorithms>
+
 #include "File.h"
 
 namespace Nav {

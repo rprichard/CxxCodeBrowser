@@ -1,7 +1,12 @@
 #include "Project.h"
 
 #include <QFileInfo>
+#include <QFuture>
+#include <QList>
+#include <QString>
 #include <QtConcurrentRun>
+#include <cassert>
+#include <vector>
 
 #include "FileManager.h"
 #include "File.h"

@@ -1,9 +1,13 @@
 #ifndef NAV_FINDBAR_H
 #define NAV_FINDBAR_H
 
+#include <QColor>
 #include <QFrame>
+#include <QKeyEvent>
+#include <QPaintEvent>
 #include <QString>
-#include <QStyleOptionFrameV2>
+#include <QToolButton>
+#include <QWidget>
 
 #include "PlaceholderLineEdit.h"
 #include "Regex.h"

@@ -2,10 +2,10 @@
 #define NAV_REPORTFILELIST_H
 
 #include "TableReport.h"
+#include <QObject>
 #include <QString>
 #include <QStringList>
-#include <QList>
-#include <QVariant>
+#include <string>
 
 namespace Nav {
 

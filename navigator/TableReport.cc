@@ -1,6 +1,7 @@
 #include "TableReport.h"
 
 #include <cstring>
+#include <string>
 
 #include "Regex.h"
 

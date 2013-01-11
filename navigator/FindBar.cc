@@ -1,10 +1,16 @@
 #include "FindBar.h"
 
 #include <QApplication>
+#include <QColor>
+#include <QFrame>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLabel>
 #include <QPainter>
+#include <QPalette>
+#include <QRect>
+#include <QSizePolicy>
+#include <QString>
 #include <QStyle>
 #include <QStyleOptionFrameV2>
 #include <QToolButton>

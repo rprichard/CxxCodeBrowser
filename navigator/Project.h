@@ -3,8 +3,10 @@
 
 #include <QFuture>
 #include <QList>
+#include <QString>
 #include <QStringList>
 #include <vector>
+#include <stdint.h>
 
 #include "../libindexdb/IndexDb.h"
 #include "File.h"

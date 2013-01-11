@@ -2,6 +2,9 @@
 #define NAV_PLACEHOLDERLINEEDIT_H
 
 #include <QLineEdit>
+#include <QPaintEvent>
+#include <QString>
+#include <QWidget>
 
 namespace Nav {
 

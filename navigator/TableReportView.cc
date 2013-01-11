@@ -1,5 +1,7 @@
 #include "TableReportView.h"
 
+#include <QAbstractScrollArea>
+#include <QEvent>
 #include <QFuture>
 #include <QFutureWatcher>
 #include <QHeaderView>
@@ -7,10 +9,12 @@
 #include <QPainter>
 #include <QScrollBar>
 #include <QStandardItemModel>
+#include <QStringList>
 #include <QtConcurrentMap>
 #include <algorithm>
 #include <cassert>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "Application.h"

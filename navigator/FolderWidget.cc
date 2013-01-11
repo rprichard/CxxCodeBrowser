@@ -1,11 +1,24 @@
 #include "FolderWidget.h"
 
-#include <QDebug>
 #include <QEvent>
+#include <QFlags>
+#include <QList>
+#include <QMargins>
 #include <QMouseEvent>
 #include <QPaintEvent>
 #include <QPainter>
+#include <QPalette>
+#include <QPoint>
+#include <QRect>
+#include <QResizeEvent>
+#include <QScrollArea>
 #include <QScrollBar>
+#include <QSize>
+#include <QStyle>
+#include <QStyleOptionViewItemV2>
+#include <QStyleOptionViewItemV4>
+#include <QWidget>
+#include <algorithm>
 
 #include "Application.h"
 #include "File.h"

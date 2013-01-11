@@ -1,6 +1,7 @@
 #include "CXXSyntaxHighlighter.h"
 
 #include <cassert>
+#include <vector>
 
 namespace Nav {
 namespace CXXSyntaxHighlighter {

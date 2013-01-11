@@ -1,6 +1,11 @@
 #include "../shared_headers/host.h"
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
+#include <QFuture>
+#include <QtConcurrentRun>
 #include <QtCore>
 #include <QtDebug>
 #include <cassert>
@@ -10,6 +15,7 @@
 #include <iostream>
 #include <memory>
 #include <sstream>
+#include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>

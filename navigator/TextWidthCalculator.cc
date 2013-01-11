@@ -1,9 +1,8 @@
 #include "TextWidthCalculator.h"
 
-#include <QTime>
-#include <QDebug>
-#include <QtConcurrentRun>
-#include <cassert>
+#include <QChar>
+#include <QFontMetricsF>
+#include <QString>
 
 namespace Nav {
 
