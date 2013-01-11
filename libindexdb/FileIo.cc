@@ -1,3 +1,13 @@
+#ifdef _WIN32
+#ifndef WINVER
+#define WINVER 0x0500
+#endif
+#ifdef _WIN32_WINNT
+#undef _WIN32_WINNT
+#endif
+#define _WIN32_WINNT WINVER
+#endif // _WIN32
+
 #include "FileIo.h"
 #include "../shared_headers/host.h"
 
@@ -7,12 +17,20 @@
 #include <cstring>
 #include <memory>
 
-// UNIX headers
+#if defined(SOURCEWEB_UNIX)
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <unistd.h>
+#endif
+
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX 1
+#endif
+#include <windows.h>
+#endif
 
 #include <sha2.h>
 #include <snappy.h>
@@ -23,6 +41,20 @@
 #include "WriterSha256Context.h"
 
 namespace indexdb {
+
+static size_t mapGranularity()
+{
+#if defined(SOURCEWEB_UNIX)
+    return sysconf(_SC_PAGESIZE);
+#elif defined(_WIN32)
+    SYSTEM_INFO systemInfo;
+    memset(&systemInfo, 0, sizeof(systemInfo));
+    GetSystemInfo(&systemInfo);
+    return systemInfo.dwAllocationGranularity;
+#else
+#error "Not implemented"
+#endif
+}
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -253,27 +285,62 @@ MappedReader::MappedReader(const std::string &path, size_t offset, size_t size)
 
     // XXX: What about a size of 0?
     // XXX: What about an offset equal to the file size?
-    const int kPageSize = sysconf(_SC_PAGESIZE);
+    const size_t alignOffset = offset & (mapGranularity() - 1);
+    const uint64_t mapOffset = offset - alignOffset;
+
+#if defined(SOURCEWEB_UNIX)
     int fd = EINTR_LOOP(open(path.c_str(), O_RDONLY | O_CLOEXEC));
     assert(fd != -1);
-    uint64_t fileSize = LSeek64(fd, 0, SEEK_END);
+    const uint64_t fileSize = LSeek64(fd, 0, SEEK_END);
+#elif defined(_WIN32)
+    HANDLE hfile = CreateFileA(path.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                               NULL, OPEN_EXISTING, 0, NULL);
+    assert(hfile != (HANDLE)INVALID_HANDLE_VALUE);
+    LARGE_INTEGER fileSizeLI;
+    BOOL flag = GetFileSizeEx(hfile, &fileSizeLI);
+    assert(flag);
+    const uint64_t fileSize = fileSizeLI.QuadPart;
+#else
+#error "Not implemented"
+#endif
     assert(offset <= fileSize);
+
     m_viewSize = std::min<size_t>(size, fileSize - offset);
-    size_t alignOffset = offset & (kPageSize - 1);
     m_mapBufferSize = m_viewSize + alignOffset;
-    uint64_t mapOffset = offset - alignOffset;
+
+#if defined(SOURCEWEB_UNIX)
     m_mapBuffer = static_cast<char*>(
                 mmap(NULL, m_mapBufferSize, PROT_READ,
                      MAP_PRIVATE, fd, mapOffset));
     assert(m_mapBuffer != reinterpret_cast<void*>(-1));
     close(fd);
+#elif defined(_WIN32)
+    HANDLE hmap = CreateFileMapping(hfile, NULL, PAGE_READONLY, 0, 0, NULL);
+    assert(hmap != NULL);
+    m_mapBuffer = static_cast<char*>(
+                MapViewOfFile(hmap, FILE_MAP_READ,
+                    mapOffset >> 32, static_cast<uint32_t>(mapOffset),
+                    m_mapBufferSize));
+    assert(m_mapBuffer != NULL);
+    CloseHandle(hmap);
+    CloseHandle(hfile);
+#else
+#error "Not implemented"
+#endif
+
     m_viewBuffer = m_mapBuffer + alignOffset;
     m_offset = 0;
 }
 
 MappedReader::~MappedReader()
 {
+#if defined(SOURCEWEB_UNIX)
     munmap(m_mapBuffer, m_mapBufferSize);
+#elif defined(_WIN32)
+    UnmapViewOfFile(m_mapBuffer);
+#else
+#error "Not implemented"
+#endif
 }
 
 void MappedReader::seek(uint64_t offset)
