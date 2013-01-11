@@ -25,10 +25,10 @@ int Seek64(FILE *fp, uint64_t offset, int whence)
 {
 #if defined(SOURCEWEB_UNIX)
     return fseeko(fp, offset, whence);
-#elif defined(_WIN32)
+#elif defined(_WIN32) && _MSC_VER >= 1400
     return _fseeki64(fp, offset, whence);
 #else
-#warning "Operating system not detected -- Files larger than 2GB might break."
+#warning "No 64-bit fseek -- files larger than 2GB might break."
     return fseek(fp, offset, whence);
 #endif
 }
@@ -37,10 +37,10 @@ uint64_t Tell64(FILE *fp)
 {
 #if defined(SOURCEWEB_UNIX)
     return ftello(fp);
-#elif defined(_WIN32)
+#elif defined(_WIN32) && _MSC_VER >= 1400
     return _ftelli64(fp);
 #else
-#warning "Operating system not detected -- Files larger than 2GB might break."
+#warning "No 64-bit ftell -- files larger than 2GB might break."
     return ftell(fp);
 #endif
 }
