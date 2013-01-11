@@ -215,7 +215,7 @@ private:
     void paintLine(
             QPainter &painter,
             int line,
-            const QRect &paintRect,
+            const QRegion &paintRegion,
             RegexMatchList::iterator &findMatch);
 
     void mousePressEvent(QMouseEvent *event);

@@ -266,12 +266,14 @@ void SourceWidgetLineArea::paintEvent(QPaintEvent *event)
     const int cw = fm.width('9');
     const int ca = fm.ascent();
     const int kLineBleedPx = ch / 2 + 1; // a guess
-    const QRect virtualRect = event->rect().translated(m_viewportOrigin);
+    const QRegion virtualRegion = event->region().translated(m_viewportOrigin);
     const int line1 = std::max(
-                (virtualRect.top() - m_margins.top() - kLineBleedPx) / ch,
+                (virtualRegion.boundingRect().top() -
+                        m_margins.top() - kLineBleedPx) / ch,
                 0);
     const int line2 = std::min(
-                (virtualRect.bottom() - m_margins.top() + kLineBleedPx) / ch,
+                (virtualRegion.boundingRect().bottom() -
+                        m_margins.top() + kLineBleedPx) / ch,
                 m_lineCount - 1);
     const int thisWidth = width();
 
@@ -396,13 +398,15 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
 
     // Paint lines in the clip region.
     const int kLineBleedPx = lineSpacing / 2 + 1; // a guess
-    const QRect virtualRect = event->rect().translated(m_viewportOrigin);
+    const QRegion virtualRegion = event->region().translated(m_viewportOrigin);
     const int line1 = std::max(
-                (virtualRect.y() - m_margins.top() - kLineBleedPx) /
+                (virtualRegion.boundingRect().top() -
+                        m_margins.top() - kLineBleedPx) /
                         lineSpacing,
                 0);
     const int line2 = std::min(
-                (virtualRect.bottom() - m_margins.top() + kLineBleedPx) /
+                (virtualRegion.boundingRect().bottom() -
+                        m_margins.top() + kLineBleedPx) /
                         lineSpacing,
                 m_file->lineCount() - 1);
     if (line1 > line2)
@@ -421,7 +425,7 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
         --findMatch;
 
     for (int line = line1; line <= line2; ++line)
-        paintLine(painter, line, virtualRect, findMatch);
+        paintLine(painter, line, virtualRegion, findMatch);
 }
 
 int SourceWidgetView::lineTop(int line)
@@ -433,7 +437,7 @@ int SourceWidgetView::lineTop(int line)
 void SourceWidgetView::paintLine(
         QPainter &painter,
         int line,
-        const QRect &paintRect,
+        const QRegion &paintRegion,
         RegexMatchList::iterator &findMatch)
 {
     const int selStartOff = m_selectedRange.start.toOffset(*m_file);
@@ -443,15 +447,19 @@ void SourceWidgetView::paintLine(
     const QBrush matchBrush(Qt::yellow);
     const QBrush selectedMatchBrush(QColor(255, 140, 0));
     const QBrush hoverBrush(QColor(200, 200, 200));
+    const int rightEdge = paintRegion.boundingRect().right() + 1;
 
     // Fill the line's background.
     {
         LineLayout lay(font(), m_margins, *m_file, line);
+        QRect charBox(0, lay.lineTop(), 0, lay.lineHeight());
         while (lay.hasMoreChars()) {
             lay.advanceChar();
-            if (lay.charLeft() > paintRect.right())
+            if (lay.charLeft() >= rightEdge)
                 break;
-            if (lay.charLeft() + lay.charWidth() <= paintRect.left())
+            charBox.setLeft(lay.charLeft());
+            charBox.setWidth(lay.charWidth());
+            if (!paintRegion.intersects(charBox))
                 continue;
 
             const int charFileIndex = lay.charFileIndex();
@@ -478,10 +486,7 @@ void SourceWidgetView::paintLine(
                 fillBrush = &palette().highlight();
 
             if (fillBrush != NULL) {
-                painter.fillRect(lay.charLeft() - m_viewportOrigin.x(),
-                                 lay.lineTop() - m_viewportOrigin.y(),
-                                 lay.charWidth(),
-                                 lay.lineHeight(),
+                painter.fillRect(charBox.translated(-m_viewportOrigin),
                                  *fillBrush);
             }
         }
@@ -490,6 +495,9 @@ void SourceWidgetView::paintLine(
     // Draw characters.
     {
         LineLayout lay(font(), m_margins, *m_file, line);
+        const int kLineBleedPx = lay.lineHeight() / 2 + 1; // a guess
+        QRect charBox(0, lay.lineTop() - kLineBleedPx,
+                      0, lay.lineHeight() + kLineBleedPx * 2);
         QPalette pal(palette());
         QColor defaultTextColor(pal.color(foregroundRole()));
         QColor currentColor(defaultTextColor);
@@ -497,9 +505,11 @@ void SourceWidgetView::paintLine(
         painter.setPen(currentColor);
         while (lay.hasMoreChars()) {
             lay.advanceChar();
-            if (lay.charLeft() > paintRect.right())
+            if (lay.charLeft() >= rightEdge)
                 break;
-            if (lay.charLeft() + lay.charWidth() <= paintRect.left())
+            charBox.setLeft(lay.charLeft());
+            charBox.setWidth(lay.charWidth());
+            if (!paintRegion.intersects(charBox))
                 continue;
             if (!lay.charText().empty()) {
                 FileLocation loc(line, lay.charColumn());
