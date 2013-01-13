@@ -332,6 +332,7 @@ void SourceWidgetView::setViewportOrigin(QPoint pt)
     QPoint oldPt = m_viewportOrigin;
     scroll(oldPt.x() - pt.x(), oldPt.y() - pt.y());
     m_viewportOrigin = pt;
+    updateSelectionAndHover();
 }
 
 void SourceWidgetView::setFile(File *file)
