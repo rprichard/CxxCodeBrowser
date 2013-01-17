@@ -131,7 +131,7 @@ public:
         m_lineBaselineY = m_lineTop + m_fm.ascent();
         m_lineLeftMargin = margins.left();
         m_lineStartIndex = file.lineStart(line);
-        m_tabStopPx = m_fm.width(QChar(' ')) * kTabStopSize;
+        m_tabStopPx = m_twc.calculate(" ") * kTabStopSize;
         m_charIndex = -1;
         m_charLeft = 0;
         m_charWidth = 0;
@@ -159,14 +159,14 @@ public:
             m_charText.resize(len);
             for (int i = 0; i < len; ++i)
                 m_charText[i] = pch[i];
-            m_charWidth = qRound(m_twc.calculate(m_charText.c_str()));
+            m_charWidth = m_twc.calculate(m_charText.c_str());
         }
     }
 
     int charColumn()                { return m_charIndex; }
     int charFileIndex()             { return m_lineStartIndex + m_charIndex; }
-    int charLeft()                  { return m_lineLeftMargin + m_charLeft; }
-    int charWidth()                 { return m_charWidth; }
+    qreal charLeft()                { return m_lineLeftMargin + m_charLeft; }
+    qreal charWidth()               { return m_charWidth; }
     int lineTop()                   { return m_lineTop; }
     int lineHeight()                { return m_lineHeight; }
     int lineBaselineY()             { return m_lineBaselineY; }
@@ -190,10 +190,10 @@ private:
     int m_lineBaselineY;
     int m_lineLeftMargin;
     int m_lineStartIndex;
-    int m_tabStopPx;
     int m_charIndex;
-    int m_charLeft;
-    int m_charWidth;
+    qreal m_tabStopPx;
+    qreal m_charLeft;
+    qreal m_charWidth;
     std::string m_charText;
 };
 
@@ -503,8 +503,8 @@ void SourceWidgetView::paintLine(
             lay.advanceChar();
             if (lay.charLeft() >= rightEdge)
                 break;
-            charBox.setLeft(lay.charLeft());
-            charBox.setWidth(lay.charWidth());
+            charBox.setLeft(qRound(lay.charLeft()));
+            charBox.setRight(qRound(lay.charLeft() + lay.charWidth()) - 1);
             if (!paintRegion.intersects(charBox))
                 continue;
 
@@ -551,10 +551,14 @@ void SourceWidgetView::paintLine(
             lay.advanceChar();
             if (lay.charLeft() >= rightEdge)
                 break;
+
+            // Truncate qreal to int coordinates in charBox.  The width is a
+            // conservative overestimate.
             charBox.setLeft(lay.charLeft());
-            charBox.setWidth(lay.charWidth());
+            charBox.setWidth(lay.charWidth() + 2);
             if (!paintRegion.intersects(charBox))
                 continue;
+
             if (!lay.charText().empty()) {
                 FileLocation loc(line, lay.charColumn());
                 SourceWidgetTextPalette::Color color =
@@ -571,8 +575,8 @@ void SourceWidgetView::paintLine(
                 }
 
                 painter.drawText(
-                            lay.charLeft() - m_viewportOrigin.x(),
-                            lay.lineBaselineY() - m_viewportOrigin.y(),
+                            QPointF(lay.charLeft(), lay.lineBaselineY()) -
+                                    m_viewportOrigin,
                             lay.charText().c_str());
             }
         }
@@ -593,10 +597,10 @@ FileLocation SourceWidgetView::hitTest(QPoint pixel, bool roundToNearest)
         LineLayout lay(font(), m_margins, *m_file, line);
         while (lay.hasMoreChars()) {
             lay.advanceChar();
-            int charWidth = lay.charWidth();
+            qreal charWidth = lay.charWidth();
             if (roundToNearest)
-                charWidth = (charWidth >> 1) + 1;
-            if (pixel.x() < lay.charLeft() + charWidth)
+                charWidth = charWidth / 2;
+            if (pixel.x() < qRound(lay.charLeft() + charWidth))
                 return FileLocation(line, lay.charColumn());
         }
         return FileLocation(line, m_file->lineLength(line));
@@ -613,9 +617,9 @@ QPoint SourceWidgetView::locationToPoint(FileLocation loc)
     while (lay.hasMoreChars()) {
         lay.advanceChar();
         if (lay.charColumn() == loc.column)
-            return QPoint(lay.charLeft(), lineTop(loc.line));
+            return QPoint(qRound(lay.charLeft()), lineTop(loc.line));
     }
-    return QPoint(lay.charLeft() + lay.charWidth(), lineTop(loc.line));
+    return QPoint(qRound(lay.charLeft() + lay.charWidth()), lineTop(loc.line));
 }
 
 QSize SourceWidgetView::sizeHint() const
