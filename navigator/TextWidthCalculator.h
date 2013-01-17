@@ -13,12 +13,16 @@ namespace Nav {
 // QFontMetricsF::width for strings containing non-ASCII characters.  Should
 // work with both kerning (e.g. for "Wv", place v one more pixel left than
 // otherwise) and subpixel widths.
+//
+// The qreal values are typically (always?) multiples of a
+// negative-power-of-two no smaller than 1/64.  Therefore, it is feasible to
+// track character positions without rounding errors.
 class TextWidthCalculator
 {
 public:
     explicit TextWidthCalculator(QFontMetricsF fontMetricsF);
-    int calculate(const QString &text);
-    int calculate(const char *text);
+    qreal calculate(const QString &text);
+    qreal calculate(const char *text);
     static TextWidthCalculator &getCachedTextWidthCalculator(const QFont &font);
 
 private:

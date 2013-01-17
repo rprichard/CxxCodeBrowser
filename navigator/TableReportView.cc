@@ -221,7 +221,8 @@ public:
         QStringList columns = m_report.tableReport().columns();
         m_result.columnWidths.resize(columns.size());
         for (int col = 0; col < columns.size(); ++col) {
-            m_result.columnWidths[col] = m_twc.calculate(columns[col]) +
+            m_result.columnWidths[col] =
+                    qRound(m_twc.calculate(columns[col])) +
                     kColumnHeaderExtraWidth;
         }
     }
@@ -309,7 +310,7 @@ private:
                                 report.text(mappedRow, col, tempBuf);
                         result.columnWidths[col] = std::max(
                                     result.columnWidths[col],
-                                    twc.calculate(itemText) +
+                                    qRound(twc.calculate(itemText)) +
                                     kTableItemMargins.left() +
                                     kTableItemMargins.right());
                     }

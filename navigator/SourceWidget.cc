@@ -159,7 +159,7 @@ public:
             m_charText.resize(len);
             for (int i = 0; i < len; ++i)
                 m_charText[i] = pch[i];
-            m_charWidth = m_twc.calculate(m_charText.c_str());
+            m_charWidth = qRound(m_twc.calculate(m_charText.c_str()));
         }
     }
 

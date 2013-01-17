@@ -279,9 +279,10 @@ void FolderWidgetView::traverseLayoutItem(
     const int top = state.origin.y();
     const int height = state.itemLS;
     if (state.wantSizeHint) {
-        int width = kIndentationPx * state.levelHasMoreSiblings.size() +
-                    state.itemWidthCalculator->calculate(item->title()) +
-                    kItemRightMarginPx;
+        int width =
+                kIndentationPx * state.levelHasMoreSiblings.size() +
+                qRound(state.itemWidthCalculator->calculate(item->title())) +
+                kItemRightMarginPx;
         state.maxWidth = std::max(state.maxWidth, state.origin.x() + width);
     }
     if (state.painter != NULL &&

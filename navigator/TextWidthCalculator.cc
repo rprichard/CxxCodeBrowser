@@ -35,7 +35,7 @@ TextWidthCalculator::TextWidthCalculator(QFontMetricsF fontMetricsF) :
     }
 }
 
-int TextWidthCalculator::calculate(const QString &text)
+qreal TextWidthCalculator::calculate(const QString &text)
 {
     qreal width = 0;
     unsigned short prevChar = 0;
@@ -48,10 +48,10 @@ int TextWidthCalculator::calculate(const QString &text)
         width += m_asciiCharWidths[prevChar][us];
         prevChar = us;
     }
-    return qRound(width);
+    return width;
 }
 
-int TextWidthCalculator::calculate(const char *text)
+qreal TextWidthCalculator::calculate(const char *text)
 {
     qreal width = 0;
     unsigned char prevChar = 0;
@@ -65,7 +65,7 @@ int TextWidthCalculator::calculate(const char *text)
         width += m_asciiCharWidths[prevChar][*p];
         prevChar = *p;
     }
-    return qRound(width);
+    return width;
 }
 
 TextWidthCalculator &TextWidthCalculator::getCachedTextWidthCalculator(
