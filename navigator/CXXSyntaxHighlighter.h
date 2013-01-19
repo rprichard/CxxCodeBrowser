@@ -18,7 +18,8 @@ enum Kind : unsigned char {
     KindQuoted,
     KindNumber,
     KindKeyword,
-    KindDirective // preprocessor directive
+    KindDirective, // preprocessor directive
+    KindMax // one larger than the largest valid kind
 };
 
 std::vector<Kind> highlight(const std::string &content);

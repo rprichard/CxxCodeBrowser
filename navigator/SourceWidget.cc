@@ -70,54 +70,7 @@ static int measureLineLength(StringRef line, int tabStopSize)
     return pos;
 }
 
-static Qt::GlobalColor colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind)
-{
-    switch (kind) {
-    case CXXSyntaxHighlighter::KindComment:
-    case CXXSyntaxHighlighter::KindQuoted:
-        return Qt::darkGreen;
-    case CXXSyntaxHighlighter::KindNumber:
-    case CXXSyntaxHighlighter::KindDirective:
-        return Qt::darkBlue;
-    case CXXSyntaxHighlighter::KindKeyword:
-        return Qt::darkYellow;
-    default:
-        // Qt::black is later converted to the foregroundRole() color.
-        return Qt::black;
-    }
-}
-
 namespace {
-
-class ColorForRef {
-public:
-    ColorForRef(Project &project) : m_project(project) {
-        addMapping("GlobalVariable", Qt::darkCyan);
-        addMapping("Field", Qt::darkRed);
-        addMapping("Namespace", Qt::darkMagenta);
-        addMapping("Struct", Qt::darkMagenta);
-        addMapping("Class", Qt::darkMagenta);
-        addMapping("Union", Qt::darkMagenta);
-        addMapping("Enum", Qt::darkMagenta);
-        addMapping("Typedef", Qt::darkMagenta);
-        addMapping("Macro", Qt::darkBlue);
-    }
-
-    Qt::GlobalColor color(const Ref &ref) const {
-        auto it = m_map.find(m_project.querySymbolType(ref.symbolID()));
-        return it == m_map.end() ? Qt::transparent : it->second;
-    }
-
-private:
-    void addMapping(const char *symbolType, Qt::GlobalColor color) {
-        indexdb::ID symbolTypeID = m_project.getSymbolTypeID(symbolType);
-        if (symbolTypeID != indexdb::kInvalidID)
-            m_map[symbolTypeID] = color;
-    }
-
-    Project &m_project;
-    std::unordered_map<indexdb::ID, Qt::GlobalColor> m_map;
-};
 
 static inline int utf8CharLen(const char *pch)
 {
@@ -299,6 +252,95 @@ void SourceWidgetLineArea::setViewportOrigin(QPoint pt)
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// SourceWidgetTextPalette
+
+SourceWidgetTextPalette::SourceWidgetTextPalette(
+        Project &project,
+        const QColor &textDefaultColor,
+        const QColor &textHighlightedColor) :
+    m_project(project)
+{
+    QColor transparentColor(Qt::transparent);
+    m_pens.push_back(transparentColor);
+    assert(pen(Color::transparent).color() == transparentColor);
+    m_textDefaultColor = registerColor(textDefaultColor);
+    m_textHighlightedColor = registerColor(textHighlightedColor);
+
+    m_syntaxColor.resize(CXXSyntaxHighlighter::KindMax, m_textDefaultColor);
+    setSyntaxColor(CXXSyntaxHighlighter::KindComment, Qt::darkGreen);
+    setSyntaxColor(CXXSyntaxHighlighter::KindQuoted, Qt::darkGreen);
+    setSyntaxColor(CXXSyntaxHighlighter::KindNumber, Qt::darkBlue);
+    setSyntaxColor(CXXSyntaxHighlighter::KindDirective, Qt::darkBlue);
+    setSyntaxColor(CXXSyntaxHighlighter::KindKeyword, Qt::darkYellow);
+
+    setSymbolTypeColor("GlobalVariable", Qt::darkCyan);
+    setSymbolTypeColor("Field", Qt::darkRed);
+    setSymbolTypeColor("Namespace", Qt::darkMagenta);
+    setSymbolTypeColor("Struct", Qt::darkMagenta);
+    setSymbolTypeColor("Class", Qt::darkMagenta);
+    setSymbolTypeColor("Union", Qt::darkMagenta);
+    setSymbolTypeColor("Enum", Qt::darkMagenta);
+    setSymbolTypeColor("Typedef", Qt::darkMagenta);
+    setSymbolTypeColor("Macro", Qt::darkBlue);
+}
+
+SourceWidgetTextPalette::Color SourceWidgetTextPalette::colorForSyntaxKind(
+        CXXSyntaxHighlighter::Kind kind) const
+{
+    assert(kind < m_syntaxColor.size());
+    return m_syntaxColor[kind];
+}
+
+SourceWidgetTextPalette::Color SourceWidgetTextPalette::colorForRef(
+        const Ref &ref) const
+{
+    auto it = m_symbolTypeColor.find(
+                m_project.querySymbolType(ref.symbolID()));
+    return it == m_symbolTypeColor.end() ? Color::transparent : it->second;
+}
+
+const QPen &SourceWidgetTextPalette::pen(Color color) const
+{
+    size_t colorIndex = static_cast<size_t>(color);
+    assert(colorIndex < m_pens.size());
+    return m_pens[colorIndex];
+}
+
+void SourceWidgetTextPalette::setSyntaxColor(
+        CXXSyntaxHighlighter::Kind kind,
+        const QColor &color)
+{
+    assert(kind < m_syntaxColor.size());
+    m_syntaxColor[kind] = registerColor(color);
+}
+
+void SourceWidgetTextPalette::setSymbolTypeColor(
+        const char *symbolType,
+        const QColor &color)
+{
+    Color c = registerColor(color);
+    indexdb::ID symbolTypeID = m_project.getSymbolTypeID(symbolType);
+    if (symbolTypeID != indexdb::kInvalidID)
+        m_symbolTypeColor[symbolTypeID] = c;
+}
+
+SourceWidgetTextPalette::Color SourceWidgetTextPalette::registerColor(
+        const QColor &color)
+{
+    for (size_t i = 0; i < m_pens.size(); ++i) {
+        if (m_pens[i].color() == color)
+            return static_cast<Color>(i);
+    }
+    QPen newPen(color);
+    m_pens.push_back(newPen);
+    Color newColor = static_cast<Color>(m_pens.size() - 1);
+    assert(static_cast<size_t>(newColor) == m_pens.size() - 1 &&
+           "Too many colors in the source widget's text palette");
+    return newColor;
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
 // SourceWidgetView
 
 SourceWidgetView::SourceWidgetView(
@@ -306,6 +348,9 @@ SourceWidgetView::SourceWidgetView(
         Project &project,
         QWidget *parent) :
     QWidget(parent),
+    m_textPalette(project,
+                  palette().color(foregroundRole()),
+                  palette().color(QPalette::HighlightedText)),
     m_margins(margins),
     m_project(project),
     m_file(NULL),
@@ -353,17 +398,17 @@ void SourceWidgetView::setFile(File *file)
         // Color characters according to the lexed character kind.
         m_syntaxColoring.resize(content.size());
         for (size_t i = 0; i < syntaxColoringKind.size(); ++i) {
-            m_syntaxColoring[i] = colorForSyntaxKind(syntaxColoringKind[i]);
+            m_syntaxColoring[i] =
+                    m_textPalette.colorForSyntaxKind(syntaxColoringKind[i]);
         }
 
         // Color characters according to the index's refs.
-        ColorForRef colorForRef(m_project);
         m_project.queryFileRefs(*m_file, [=](const Ref &ref) {
             if (ref.line() > m_file->lineCount())
                 return;
             int offset = m_file->lineStart(ref.line() - 1);
-            Qt::GlobalColor color = colorForRef.color(ref);
-            if (color != Qt::transparent) {
+            auto color = m_textPalette.colorForRef(ref);
+            if (color != SourceWidgetTextPalette::Color::transparent) {
                 for (int i = ref.column() - 1,
                         iEnd = std::min(ref.endColumn() - 1,
                                         m_file->lineLength(ref.line() - 1));
@@ -499,11 +544,9 @@ void SourceWidgetView::paintLine(
         const int kLineBleedPx = lay.lineHeight() / 2 + 1; // a guess
         QRect charBox(0, lay.lineTop() - kLineBleedPx,
                       0, lay.lineHeight() + kLineBleedPx * 2);
-        QPalette pal(palette());
-        QColor defaultTextColor(pal.color(foregroundRole()));
-        QColor currentColor(defaultTextColor);
-        QColor charColor;
-        painter.setPen(currentColor);
+        SourceWidgetTextPalette::Color currentColor =
+                m_textPalette.textDefaultColor();
+        painter.setPen(m_textPalette.pen(currentColor));
         while (lay.hasMoreChars()) {
             lay.advanceChar();
             if (lay.charLeft() >= rightEdge)
@@ -514,20 +557,17 @@ void SourceWidgetView::paintLine(
                 continue;
             if (!lay.charText().empty()) {
                 FileLocation loc(line, lay.charColumn());
-                Qt::GlobalColor gc = m_syntaxColoring[lay.charFileIndex()];
-                if (gc == Qt::black)
-                    charColor = defaultTextColor;
-                else
-                    charColor = gc;
+                SourceWidgetTextPalette::Color color =
+                        m_syntaxColoring[lay.charFileIndex()];
 
                 // Override the color for selected text.
                 if (loc >= m_selectedRange.start && loc < m_selectedRange.end)
-                    charColor = pal.highlightedText().color();
+                    color = m_textPalette.textHighlightedColor();
 
                 // Set the painter pen when the color changes.
-                if (charColor != currentColor) {
-                    painter.setPen(charColor);
-                    currentColor = charColor;
+                if (color != currentColor) {
+                    painter.setPen(m_textPalette.pen(color));
+                    currentColor = color;
                 }
 
                 painter.drawText(

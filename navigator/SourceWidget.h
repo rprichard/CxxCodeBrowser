@@ -2,6 +2,7 @@
 #define NAV_SOURCEWIDGET_H
 
 #include <QAbstractScrollArea>
+#include <QColor>
 #include <QContextMenuEvent>
 #include <QEvent>
 #include <QKeyEvent>
@@ -10,14 +11,17 @@
 #include <QMouseEvent>
 #include <QMoveEvent>
 #include <QPainter>
+#include <QPen>
 #include <QPoint>
 #include <QResizeEvent>
 #include <QTime>
 #include <QWidget>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#include "../libindexdb/IndexDb.h"
 #include "CXXSyntaxHighlighter.h"
 #include "File.h"
 #include "Regex.h"
@@ -28,6 +32,7 @@ namespace Nav {
 
 class File;
 class Project;
+class Ref;
 class SourceWidget;
 class SourceWidgetLineArea;
 
@@ -160,6 +165,39 @@ private:
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// SourceWidgetTextPalette
+
+class SourceWidgetTextPalette {
+public:
+    enum class Color : uint8_t {
+        transparent = 0
+    };
+
+    SourceWidgetTextPalette(
+            Project &project,
+            const QColor &textDefaultColor,
+            const QColor &textHighlightedColor);
+    Color textDefaultColor() const { return m_textDefaultColor; }
+    Color textHighlightedColor() const { return m_textHighlightedColor; }
+    inline Color colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind) const;
+    inline Color colorForRef(const Ref &ref) const;
+    inline const QPen &pen(Color color) const;
+
+private:
+    void setSyntaxColor(CXXSyntaxHighlighter::Kind kind, const QColor &color);
+    void setSymbolTypeColor(const char *symbolType, const QColor &color);
+    Color registerColor(const QColor &color);
+
+    Project &m_project;
+    std::unordered_map<indexdb::ID, Color> m_symbolTypeColor;
+    std::vector<Color> m_syntaxColor;
+    std::vector<QPen> m_pens;
+    Color m_textDefaultColor;
+    Color m_textHighlightedColor;
+};
+
+
+///////////////////////////////////////////////////////////////////////////////
 // SourceWidgetView
 
 // The widget showing the actual text, inside the source widget's viewport.
@@ -237,11 +275,12 @@ private slots:
     void actionCrossReferences();
 
 private:
+    SourceWidgetTextPalette m_textPalette;
     QPoint m_viewportOrigin;
     QMargins m_margins;
     Project &m_project;
     File *m_file;
-    std::vector<Qt::GlobalColor> m_syntaxColoring;
+    std::vector<SourceWidgetTextPalette::Color> m_syntaxColoring;
     int m_maxLineLength;
     QPoint m_tripleClickPoint;
     QTime m_tripleClickTime;
