@@ -5,6 +5,7 @@
 #include <QClipboard>
 #include <QColor>
 #include <QEvent>
+#include <QFont>
 #include <QFontMetrics>
 #include <QMargins>
 #include <QMenu>
@@ -23,8 +24,11 @@
 #include <QString>
 #include <QWidget>
 #include <cassert>
+#include <map>
 #include <memory>
+#include <string>
 #include <unordered_map>
+#include <vector>
 #include <re2/prog.h>
 #include <re2/re2.h>
 #include <re2/regexp.h>
@@ -196,6 +200,126 @@ private:
     qreal m_charWidth;
     std::string m_charText;
 };
+
+
+///////////////////////////////////////////////////////////////////////////////
+// <anon>::LineTextPainter
+
+class LineTextPainter {
+public:
+    LineTextPainter(
+            QPainter &painter,
+            SourceWidgetTextPalette &textPalette,
+            const QFont &font,
+            int y);
+    void drawChar(
+            qreal x,
+            const std::string &ch,
+            SourceWidgetTextPalette::Color color);
+    void flushLine();
+
+private:
+    struct ColoredPart {
+        QString text;
+        qreal x1;
+        qreal x2;
+    };
+
+    struct ColoredLine {
+        SourceWidgetTextPalette::Color color;
+        std::vector<ColoredPart> parts;
+    };
+
+    inline ColoredLine &coloredLine(SourceWidgetTextPalette::Color color);
+
+    QPainter &m_painter;
+    SourceWidgetTextPalette &m_textPalette;
+    int m_y;
+    TextWidthCalculator m_twc;
+    qreal m_spaceCharWidth;
+    std::map<SourceWidgetTextPalette::Color, std::unique_ptr<ColoredLine> >
+            m_coloredLines;
+    ColoredLine *m_recentColoredLine;
+};
+
+LineTextPainter::LineTextPainter(
+        QPainter &painter,
+        SourceWidgetTextPalette &textPalette,
+        const QFont &font,
+        int y) :
+    m_painter(painter),
+    m_textPalette(textPalette),
+    m_y(y),
+    m_twc(TextWidthCalculator::getCachedTextWidthCalculator(font)),
+    m_spaceCharWidth(m_twc.calculate(" ")),
+    m_recentColoredLine(NULL)
+{
+    assert(!font.kerning());
+}
+
+void LineTextPainter::drawChar(
+        qreal x,
+        const std::string &ch,
+        SourceWidgetTextPalette::Color color)
+{
+    ColoredLine &cline = coloredLine(color);
+    if (ch.size() != 1 || ch[0] < 32 || ch[0] > 126) {
+        m_painter.setPen(m_textPalette.pen(color));
+        m_painter.drawText(QPointF(x, m_y), QString::fromStdString(ch));
+        return;
+    }
+    if (!cline.parts.empty()) {
+        ColoredPart &part = cline.parts.back();
+        if (part.x2 <= x) {
+            if (x > part.x2) {
+                qreal spaceCountF = (x - part.x2) / m_spaceCharWidth;
+                int spaceCount = static_cast<int>(spaceCountF);
+                if (spaceCount == spaceCountF) {
+                    part.text.append(QString(spaceCount, ' '));
+                    part.x2 += m_spaceCharWidth * spaceCount;
+                }
+            }
+            if (x == part.x2) {
+                part.text.append(ch[0]);
+                part.x2 += m_twc.calculate(ch.c_str());
+                return;
+            }
+        }
+    }
+    ColoredPart newPart;
+    newPart.text = QString::fromStdString(ch);
+    newPart.x1 = x;
+    newPart.x2 = x + m_twc.calculate(ch.c_str());
+    cline.parts.push_back(newPart);
+}
+
+void LineTextPainter::flushLine()
+{
+    for (const auto &it : m_coloredLines) {
+        ColoredLine &cline = *it.second;
+        m_painter.setPen(m_textPalette.pen(cline.color));
+        for (const ColoredPart &part : cline.parts)
+            m_painter.drawText(QPointF(part.x1, m_y), part.text);
+    }
+}
+
+inline LineTextPainter::ColoredLine &LineTextPainter::coloredLine(
+        SourceWidgetTextPalette::Color color)
+{
+    if (m_recentColoredLine != NULL && m_recentColoredLine->color == color)
+        return *m_recentColoredLine;
+    auto it = m_coloredLines.find(color);
+    ColoredLine *ret;
+    if (it != m_coloredLines.end()) {
+        ret = it->second.get();
+    } else {
+        m_coloredLines[color] =
+                std::unique_ptr<ColoredLine>(ret = new ColoredLine);
+        ret->color = color;
+    }
+    m_recentColoredLine = ret;
+    return *ret;
+}
 
 } // anonymous namespace
 
@@ -541,12 +665,14 @@ void SourceWidgetView::paintLine(
     // Draw characters.
     {
         LineLayout lay(font(), m_margins, *m_file, line);
+        LineTextPainter lineTextPainter(
+                    painter,
+                    m_textPalette,
+                    font(),
+                    lay.lineBaselineY() - m_viewportOrigin.y());
         const int kLineBleedPx = lay.lineHeight() / 2 + 1; // a guess
         QRect charBox(0, lay.lineTop() - kLineBleedPx,
                       0, lay.lineHeight() + kLineBleedPx * 2);
-        SourceWidgetTextPalette::Color currentColor =
-                m_textPalette.textDefaultColor();
-        painter.setPen(m_textPalette.pen(currentColor));
         while (lay.hasMoreChars()) {
             lay.advanceChar();
             if (lay.charLeft() >= rightEdge)
@@ -568,18 +694,13 @@ void SourceWidgetView::paintLine(
                 if (loc >= m_selectedRange.start && loc < m_selectedRange.end)
                     color = m_textPalette.textHighlightedColor();
 
-                // Set the painter pen when the color changes.
-                if (color != currentColor) {
-                    painter.setPen(m_textPalette.pen(color));
-                    currentColor = color;
-                }
-
-                painter.drawText(
-                            QPointF(lay.charLeft(), lay.lineBaselineY()) -
-                                    m_viewportOrigin,
-                            lay.charText().c_str());
+                lineTextPainter.drawChar(
+                            lay.charLeft() - m_viewportOrigin.x(),
+                            lay.charText(),
+                            color);
             }
         }
+        lineTextPainter.flushLine();
     }
 }
 
