@@ -46,10 +46,12 @@ QFont Application::defaultFont()
 {
     return configurableFont(
                 "default",
-            #ifdef __APPLE__
+            #if defined(__APPLE__)
                 "", 11,
-            #else
+            #elif defined(__linux__)
                 "", 9,
+            #else
+                "", 0,
             #endif
                 false);
 }
@@ -58,10 +60,14 @@ QFont Application::sourceFont()
 {
     return configurableFont(
                 "source",
-            #ifdef __APPLE__
+            #if defined(__APPLE__)
                 "Menlo", 10,
-            #else
+            #elif defined(__linux__)
                 "Monospace", 8,
+            #elif defined(_WIN32)
+                "Lucida Console", 8,
+            #else
+                "", 0,
             #endif
                 true);
 }
