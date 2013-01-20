@@ -24,6 +24,7 @@
 #include <QString>
 #include <QWidget>
 #include <cassert>
+#include <cstdlib>
 #include <map>
 #include <memory>
 #include <string>
@@ -380,19 +381,13 @@ void SourceWidgetLineArea::setViewportOrigin(QPoint pt)
 ///////////////////////////////////////////////////////////////////////////////
 // SourceWidgetTextPalette
 
-SourceWidgetTextPalette::SourceWidgetTextPalette(
-        Project &project,
-        const QColor &textDefaultColor,
-        const QColor &textHighlightedColor) :
+SourceWidgetTextPalette::SourceWidgetTextPalette(Project &project) :
     m_project(project)
 {
-    QColor transparentColor(Qt::transparent);
-    m_pens.push_back(transparentColor);
-    assert(pen(Color::transparent).color() == transparentColor);
-    m_textDefaultColor = registerColor(textDefaultColor);
-    m_textHighlightedColor = registerColor(textHighlightedColor);
+    m_pens.resize(static_cast<size_t>(Color::specialColorCount));
+    m_pens[static_cast<size_t>(Color::transparent)].setColor(Qt::transparent);
 
-    m_syntaxColor.resize(CXXSyntaxHighlighter::KindMax, m_textDefaultColor);
+    m_syntaxColor.resize(CXXSyntaxHighlighter::KindMax, Color::defaultText);
     setSyntaxColor(CXXSyntaxHighlighter::KindComment, Qt::darkGreen);
     setSyntaxColor(CXXSyntaxHighlighter::KindQuoted, Qt::darkGreen);
     setSyntaxColor(CXXSyntaxHighlighter::KindNumber, Qt::darkBlue);
@@ -408,6 +403,16 @@ SourceWidgetTextPalette::SourceWidgetTextPalette(
     setSymbolTypeColor("Enum", Qt::darkMagenta);
     setSymbolTypeColor("Typedef", Qt::darkMagenta);
     setSymbolTypeColor("Macro", Qt::darkBlue);
+}
+
+void SourceWidgetTextPalette::setDefaultTextColor(const QColor &color)
+{
+    m_pens[static_cast<size_t>(Color::defaultText)].setColor(color);
+}
+
+void SourceWidgetTextPalette::setHighlightedTextColor(const QColor &color)
+{
+    m_pens[static_cast<size_t>(Color::highlightedText)].setColor(color);
 }
 
 SourceWidgetTextPalette::Color SourceWidgetTextPalette::colorForSyntaxKind(
@@ -453,7 +458,8 @@ void SourceWidgetTextPalette::setSymbolTypeColor(
 SourceWidgetTextPalette::Color SourceWidgetTextPalette::registerColor(
         const QColor &color)
 {
-    for (size_t i = 0; i < m_pens.size(); ++i) {
+    for (size_t i = static_cast<size_t>(Color::specialColorCount);
+            i < m_pens.size(); ++i) {
         if (m_pens[i].color() == color)
             return static_cast<Color>(i);
     }
@@ -474,9 +480,7 @@ SourceWidgetView::SourceWidgetView(
         Project &project,
         QWidget *parent) :
     QWidget(parent),
-    m_textPalette(project,
-                  palette().color(foregroundRole()),
-                  palette().color(QPalette::HighlightedText)),
+    m_textPalette(project),
     m_margins(margins),
     m_project(project),
     m_file(NULL),
@@ -564,6 +568,11 @@ void SourceWidgetView::paintEvent(QPaintEvent *event)
 {
     if (m_file == NULL)
         return;
+
+    m_textPalette.setDefaultTextColor(
+                palette().color(foregroundRole()));
+    m_textPalette.setHighlightedTextColor(
+                palette().color(QPalette::HighlightedText));
 
     const int lineSpacing = effectiveLineSpacing(fontMetrics());
     QPainter painter(this);
@@ -702,7 +711,7 @@ void SourceWidgetView::paintLine(
 
                 // Override the color for selected text.
                 if (loc >= m_selectedRange.start && loc < m_selectedRange.end)
-                    color = m_textPalette.textHighlightedColor();
+                    color = SourceWidgetTextPalette::Color::highlightedText;
 
                 lineTextPainter.drawChar(
                             lay.charLeft() - m_viewportOrigin.x(),

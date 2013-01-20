@@ -170,15 +170,15 @@ private:
 class SourceWidgetTextPalette {
 public:
     enum class Color : uint8_t {
-        transparent = 0
+        transparent = 0,
+        defaultText = 1,
+        highlightedText = 2,
+        specialColorCount = 3
     };
 
-    SourceWidgetTextPalette(
-            Project &project,
-            const QColor &textDefaultColor,
-            const QColor &textHighlightedColor);
-    Color textDefaultColor() const { return m_textDefaultColor; }
-    Color textHighlightedColor() const { return m_textHighlightedColor; }
+    SourceWidgetTextPalette(Project &project);
+    void setDefaultTextColor(const QColor &color);
+    void setHighlightedTextColor(const QColor &color);
     inline Color colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind) const;
     inline Color colorForRef(const Ref &ref) const;
     inline const QPen &pen(Color color) const;
@@ -192,8 +192,6 @@ private:
     std::unordered_map<indexdb::ID, Color> m_symbolTypeColor;
     std::vector<Color> m_syntaxColor;
     std::vector<QPen> m_pens;
-    Color m_textDefaultColor;
-    Color m_textHighlightedColor;
 };
 
 
