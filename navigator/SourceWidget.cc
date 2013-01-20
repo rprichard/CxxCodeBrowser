@@ -1355,9 +1355,19 @@ void SourceWidget::resizeEvent(QResizeEvent *event)
 
 void SourceWidget::keyPressEvent(QKeyEvent *event)
 {
-    if (event->key() == Qt::Key_Home)
+    bool isHome = event->key() == Qt::Key_Home;
+    bool isEnd = event->key() == Qt::Key_End;
+
+#if defined(__APPLE__)
+    if (event->modifiers() & Qt::ControlModifier) {
+        isHome = isHome || event->key() == Qt::Key_Up;
+        isEnd = isEnd || event->key() == Qt::Key_Down;
+    }
+#endif
+
+    if (isHome)
         verticalScrollBar()->setValue(0);
-    else if (event->key() == Qt::Key_End)
+    else if (isEnd)
         verticalScrollBar()->setValue(verticalScrollBar()->maximum());
     else
         QAbstractScrollArea::keyPressEvent(event);
