@@ -137,21 +137,25 @@ public:
         m_lineStartIndex = file.lineStart(line);
         m_tabStopPx = m_twc.calculate(" ") * kTabStopSize;
         m_charIndex = -1;
+        m_charNextIndex = 0;
         m_charLeft = 0;
         m_charWidth = 0;
     }
 
     bool hasMoreChars()
     {
-        return nextCharIndex() < static_cast<int>(m_lineContent.size());
+        return m_charNextIndex < static_cast<int>(m_lineContent.size());
     }
 
     void advanceChar()
     {
-        // Skip over the previous character.
-        m_charIndex = nextCharIndex();
+        assert(hasMoreChars());
+        // Skip to the next character.
+        m_charIndex = m_charNextIndex;
+        const int len = charByteLen();
+        m_charNextIndex = m_charIndex + len;
         m_charLeft += m_charWidth;
-        // Analyze the next character.
+        // Update the current character's text and width properties.
         const char *const pch = &m_lineContent[m_charIndex];
         if (*pch == '\t') {
             m_charText.clear();
@@ -159,7 +163,6 @@ public:
                     (m_charLeft + m_tabStopPx) /
                     m_tabStopPx * m_tabStopPx - m_charLeft;
         } else {
-            int len = charByteLen();
             m_charText.resize(len);
             for (int i = 0; i < len; ++i)
                 m_charText[i] = pch[i];
@@ -183,19 +186,18 @@ private:
                              m_lineContent.size() - m_charIndex);
     }
 
-    int nextCharIndex()             { return m_charIndex + charByteLen(); }
-
 private:
     TextWidthCalculator m_twc;
     QFontMetrics m_fm;
     StringRef m_lineContent;
-    int m_lineTop;
     int m_lineHeight;
+    int m_lineTop;
     int m_lineBaselineY;
     int m_lineLeftMargin;
     int m_lineStartIndex;
-    int m_charIndex;
     qreal m_tabStopPx;
+    int m_charIndex;
+    int m_charNextIndex;
     qreal m_charLeft;
     qreal m_charWidth;
     std::string m_charText;
