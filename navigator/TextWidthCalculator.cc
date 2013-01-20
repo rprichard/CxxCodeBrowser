@@ -33,6 +33,9 @@ TextWidthCalculator::TextWidthCalculator(QFontMetricsF fontMetricsF) :
                     m_asciiCharWidths[0][i];
         }
     }
+
+    m_minLeftBearing = fontMetricsF.minLeftBearing();
+    m_minRightBearing = fontMetricsF.minRightBearing();
 }
 
 qreal TextWidthCalculator::calculate(const QString &text)

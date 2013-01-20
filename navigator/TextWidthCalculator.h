@@ -23,11 +23,15 @@ public:
     explicit TextWidthCalculator(QFontMetricsF fontMetricsF);
     qreal calculate(const QString &text);
     qreal calculate(const char *text);
+    qreal minLeftBearing() { return m_minLeftBearing; }
+    qreal minRightBearing() { return m_minRightBearing; }
     static TextWidthCalculator &getCachedTextWidthCalculator(const QFont &font);
 
 private:
     QFontMetricsF m_fontMetricsF;
     qreal m_asciiCharWidths[128][128];
+    qreal m_minLeftBearing;
+    qreal m_minRightBearing;
     static std::map<QFont, std::unique_ptr<TextWidthCalculator> > m_cache;
 };
 

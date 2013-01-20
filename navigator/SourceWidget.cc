@@ -672,20 +672,28 @@ void SourceWidgetView::paintLine(
                     m_textPalette,
                     font(),
                     lay.lineBaselineY() - m_viewportOrigin.y());
+        TextWidthCalculator &twc =
+                TextWidthCalculator::getCachedTextWidthCalculator(font());
         const int kLineBleedPx = lay.lineHeight() / 2 + 1; // a guess
+        const qreal horizBleedPx =
+                std::max<qreal>(
+                    twc.calculate(" "),
+                    std::max(
+                        -twc.minLeftBearing(),
+                        -twc.minRightBearing()));
         QRect charBox(0, lay.lineTop() - kLineBleedPx,
                       0, lay.lineHeight() + kLineBleedPx * 2);
         while (lay.hasMoreChars()) {
             lay.advanceChar();
-            if (lay.charLeft() >= rightEdge)
-                break;
 
             // Truncate qreal to int coordinates in charBox.  The width is a
             // conservative overestimate.
-            charBox.setLeft(lay.charLeft());
-            charBox.setWidth(lay.charWidth() + 2);
+            charBox.setLeft(lay.charLeft() - horizBleedPx);
+            charBox.setWidth(lay.charWidth() + horizBleedPx * 2 + 2);
             if (!paintRegion.intersects(charBox))
                 continue;
+            if (charBox.left() >= rightEdge)
+                break;
 
             if (!lay.charText().empty()) {
                 FileLocation loc(line, lay.charColumn());
