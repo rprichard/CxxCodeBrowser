@@ -2,8 +2,37 @@
 
 #include <QApplication>
 #include <QFont>
+#include <QFontInfo>
 #include <QSettings>
 #include <QString>
+
+// Qt seems to have different methods for selecting a monospace font.  No one
+// method works on all combinations of operating systems and Qt versions.  (In
+// particular, Qt4 and Qt5 differ.)  Try each method and use the first font
+// that is fixed-pitch according to QFontInfo.
+static QFont setMonospaceFlagOnFont(QFont baseFont)
+{
+    if (QFontInfo(baseFont).fixedPitch())
+        return baseFont;
+    QFont f;
+#if QT_VERSION >= QT_VERSION_CHECK(4, 7, 0)
+    // The QFont::Monospace style is new in Qt 4.7.0.
+    f = baseFont;
+    f.setStyleHint(QFont::Monospace);
+    if (QFontInfo(f).fixedPitch())
+        return f;
+#endif
+    f = baseFont;
+    f.setStyleHint(QFont::Courier);
+    if (QFontInfo(f).fixedPitch())
+        return f;
+    f = baseFont;
+    f.setFixedPitch(true);
+    if (QFontInfo(f).fixedPitch())
+        return f;
+    // None of the methods worked, so give up.
+    return baseFont;
+}
 
 namespace Nav {
 
@@ -18,11 +47,11 @@ QFont Application::defaultFont()
     return configurableFont(
                 "default",
             #ifdef __APPLE__
-                "", 11
+                "", 11,
             #else
-                "", 9
+                "", 9,
             #endif
-                );
+                false);
 }
 
 QFont Application::sourceFont()
@@ -30,17 +59,18 @@ QFont Application::sourceFont()
     return configurableFont(
                 "source",
             #ifdef __APPLE__
-                "Menlo", 10
+                "Menlo", 10,
             #else
-                "Monospace", 8
+                "Monospace", 8,
             #endif
-                );
+                true);
 }
 
 QFont Application::configurableFont(
         const QString &name,
         const QString &defaultFace,
-        int defaultSize)
+        int defaultSize,
+        bool defaultMonospace)
 {
     bool ok = false;
     QString face = m_settings.value(name + "_font_face").toString();
@@ -55,6 +85,8 @@ QFont Application::configurableFont(
             font.setFamily(defaultFace);
         if (defaultSize != 0)
             font.setPointSize(defaultSize);
+        if (defaultMonospace)
+            font = setMonospaceFlagOnFont(font);
         return font;
     }
 }

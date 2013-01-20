@@ -22,7 +22,8 @@ private:
     QFont configurableFont(
             const QString &name,
             const QString &defaultFace,
-            int defaultSize);
+            int defaultSize,
+            bool defaultMonospace);
     QSettings m_settings;
 };
 
