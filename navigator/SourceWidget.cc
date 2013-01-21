@@ -1343,12 +1343,14 @@ QSize SourceWidget::estimatedViewportSize()
 
 void SourceWidget::updateScrollBars()
 {
+    const int lineHeight = effectiveLineSpacing(fontMetrics());
     const QSize contentSize = m_view->sizeHint();
     const QSize viewportSize = estimatedViewportSize();
     verticalScrollBar()->setRange(
                 0, contentSize.height() - viewportSize.height());
-    verticalScrollBar()->setPageStep(viewportSize.height());
-    verticalScrollBar()->setSingleStep(effectiveLineSpacing(fontMetrics()));
+    verticalScrollBar()->setPageStep(
+                std::max(lineHeight, viewportSize.height() - lineHeight));
+    verticalScrollBar()->setSingleStep(lineHeight);
 
     horizontalScrollBar()->setRange(
                 0, contentSize.width() - viewportSize.width());
