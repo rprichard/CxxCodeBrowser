@@ -16,7 +16,7 @@ class ReportFileList : public TableReport
 {
     Q_OBJECT
 public:
-    ReportFileList(Project &project, QObject *parent = NULL);
+    explicit ReportFileList(Project &project, QObject *parent = NULL);
     QString title();
     QStringList columns();
     int rowCount();

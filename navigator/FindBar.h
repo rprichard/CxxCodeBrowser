@@ -24,7 +24,7 @@ namespace Nav {
 class FindBarEdit : public PlaceholderLineEdit {
     Q_OBJECT
 public:
-    FindBarEdit(QWidget *parent = 0);
+    explicit FindBarEdit(QWidget *parent = 0);
 
 signals:
     void shiftReturnPressed();

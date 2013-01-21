@@ -21,7 +21,7 @@ class ReportDefList : public TableReport
 {
     Q_OBJECT
 public:
-    ReportDefList(Project &project, QObject *parent = NULL);
+    explicit ReportDefList(Project &project, QObject *parent = NULL);
     QString title();
     QStringList columns();
     int rowCount();

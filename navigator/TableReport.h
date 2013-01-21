@@ -14,7 +14,7 @@ class TableReport : public QObject
 {
     Q_OBJECT
 public:
-    TableReport(QObject *parent = NULL) : QObject(parent) {}
+    explicit TableReport(QObject *parent = NULL) : QObject(parent) {}
     virtual ~TableReport()              {}
     virtual QString title()             { return "Table"; }
     virtual QStringList columns()       { return QStringList(""); }

@@ -34,7 +34,7 @@ class TableReportView_FilterProxyReport;
 class TableReportView_FiltererBase : public QObject {
     Q_OBJECT
 public:
-    TableReportView_FiltererBase(QObject *parent = NULL) :
+    explicit TableReportView_FiltererBase(QObject *parent = NULL) :
         QObject(parent)
     {
     }

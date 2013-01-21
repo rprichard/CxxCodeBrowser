@@ -28,7 +28,7 @@ extern Project *theProject;
 class Project
 {
 public:
-    Project(const QString &indexPath);
+    explicit Project(const QString &indexPath);
     ~Project();
     FileManager &fileManager() { return *m_fileManager; }
 

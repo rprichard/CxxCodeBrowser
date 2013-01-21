@@ -163,8 +163,12 @@ class SourceWidgetLineArea : public QWidget
 {
     Q_OBJECT
 public:
-    SourceWidgetLineArea(const QMargins &margins, QWidget *parent = 0) :
-        QWidget(parent), m_margins(margins), m_lineCount(0)
+    explicit SourceWidgetLineArea(
+            const QMargins &margins,
+            QWidget *parent = 0) :
+        QWidget(parent),
+        m_margins(margins),
+        m_lineCount(0)
     {
         setAutoFillBackground(true);
         setBackgroundRole(QPalette::Window);
@@ -194,7 +198,7 @@ public:
         specialColorCount = 3
     };
 
-    SourceWidgetTextPalette(Project &project);
+    explicit SourceWidgetTextPalette(Project &project);
     void setDefaultTextColor(const QColor &color);
     void setHighlightedTextColor(const QColor &color);
     inline Color colorForSyntaxKind(CXXSyntaxHighlighter::Kind kind) const;

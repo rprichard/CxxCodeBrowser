@@ -19,7 +19,7 @@ class ReportSymList : public TableReport
 {
     Q_OBJECT
 public:
-    ReportSymList(Project &project, QObject *parent = NULL);
+    explicit ReportSymList(Project &project, QObject *parent = NULL);
     QString title();
     QStringList columns();
     int rowCount();

@@ -12,7 +12,7 @@ class Application : public QApplication
 {
     Q_OBJECT
 public:
-    explicit Application(int &argc, char **argv);
+    Application(int &argc, char **argv);
     QFont defaultFont();
     QFont sourceFont();
     static Application *instance() {
