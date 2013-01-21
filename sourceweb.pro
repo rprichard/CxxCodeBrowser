@@ -42,7 +42,9 @@ linux-* {
     wrapper = $$_PRO_FILE_PWD_/linux-wrapper.sh
     linux_wrapper_scripts.path = $$PREFIX
     linux_wrapper_scripts.extra += rm -f $$libCfgFile;
-    linux_wrapper_scripts.extra += echo $$libstdcxx > $$libCfgFile;
+    !equals(libstdcxx, "") {
+        linux_wrapper_scripts.extra += echo $$libstdcxx > $$libCfgFile;
+    }
     linux_wrapper_scripts.extra += \
         cp $$wrapper $(INSTALL_ROOT)/$$BIN_DIR/sourceweb; \
         cp $$wrapper $(INSTALL_ROOT)/$$BIN_DIR/sw-clang-indexer; \
