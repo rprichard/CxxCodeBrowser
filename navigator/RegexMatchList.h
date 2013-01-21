@@ -32,7 +32,7 @@ public:
     // Construct a RegexMatchList containing all instances of the regex in the
     // content string.  The RegexMatchList object keeps a pointer to the
     // content string, but makes a copy of the Regex object.
-    RegexMatchList(const std::string &content, const Regex &regex);
+    RegexMatchList(const std::string &contentString, const Regex &regex);
 
     // Return the number of matches.
     int size() const { return m_matchInitFlags.size(); }
@@ -46,7 +46,7 @@ public:
 
 private:
     const std::string m_emptyString;
-    const std::string *m_content;
+    const std::string *m_contentString;
     Regex m_regex;
     mutable std::vector<uint8_t> m_matchInitFlags;
     mutable std::vector<value_type> m_matchRanges;
