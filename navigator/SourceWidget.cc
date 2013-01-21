@@ -1233,6 +1233,12 @@ SourceWidget::SourceWidget(Project &project, QWidget *parent) :
     m_project(project),
     m_findStartOffset(0)
 {
+#if NAV_MACSCROLLOPTIMIZATION_HACK
+    m_macScrollOptimizationHack = new QWidget(this);
+    m_macScrollOptimizationHack->setGeometry(0, 0, 0, 0);
+    assert(m_macScrollOptimizationHack->size() == QSize(0, 0));
+#endif
+
     m_view = new SourceWidgetView(QMargins(4, 4, 4, 4), project, viewport());
     setBackgroundRole(QPalette::Base);
     m_lineArea = new SourceWidgetLineArea(QMargins(4, 4, 4, 4), this);
@@ -1284,6 +1290,19 @@ SourceWidgetView &SourceWidget::sourceWidgetView()
 
 void SourceWidget::scrollContentsBy(int dx, int dy)
 {
+#if NAV_MACSCROLLOPTIMIZATION_HACK
+    // Work around QTBUG-29220, a scrolling bug affecting Qt4 on Cocoa.  This
+    // workaround creates and scrolls a dummy widget of size (0, 0).  It is
+    // important that the widget's isVisible() be true, even though there are
+    // no visible pixels for it.  If isVisible() were false, the scroll call
+    // would do nothing.  The scroll call should indirectly call
+    // QMacScrollOptimization::delayScroll, which will set
+    // QMacScrollOptimization::_target to the dummy widget, unless some other
+    // widget has already been scrolled.  The effect is to disable
+    // QMacScrollOptimization for the source widget.  See the Qt bug report for
+    // details.
+    m_macScrollOptimizationHack->scroll(1, 1);
+#endif
     m_lineArea->setViewportOrigin(QPoint(0, viewportOrigin().y()));
     m_view->setViewportOrigin(viewportOrigin());
 }

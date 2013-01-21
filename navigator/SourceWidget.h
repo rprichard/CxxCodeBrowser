@@ -37,6 +37,16 @@ class SourceWidget;
 class SourceWidgetLineArea;
 
 
+// Work around QTBUG-29220 by defeating QMacScrollOptimization.
+#ifndef NAV_MACSCROLLOPTIMIZATION_HACK
+#if defined(__APPLE__) && QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
+#define NAV_MACSCROLLOPTIMIZATION_HACK 1
+#else
+#define NAV_MACSCROLLOPTIMIZATION_HACK 0
+#endif
+#endif
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // FileLocation / FileRange
 
@@ -373,6 +383,10 @@ private:
     // which match to select.
     QPoint m_findStartOrigin;
     int m_findStartOffset;
+
+#if NAV_MACSCROLLOPTIMIZATION_HACK
+    QWidget *m_macScrollOptimizationHack;
+#endif
 
     friend class SourceWidgetLineArea;
 };
