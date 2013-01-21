@@ -91,6 +91,10 @@ struct FileLocation {
         else
             return ~0;
     }
+
+    QString toString() const {
+        return QString("(%0, %1)").arg(line).arg(column);
+    }
 };
 
 inline bool operator<(const FileLocation &x, const FileLocation &y) {
@@ -128,6 +132,10 @@ struct FileRange {
     FileLocation start;
     FileLocation end;
     bool isEmpty() const { return start == end; }
+
+    QString toString() const {
+        return QString("[%0-%1]").arg(start.toString()).arg(end.toString());
+    }
 };
 
 inline bool operator==(const FileRange &x, const FileRange &y) {
