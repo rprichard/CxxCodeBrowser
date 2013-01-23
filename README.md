@@ -131,5 +131,5 @@ Run `sourceweb` in a directory containing an `index` file to navigate the index.
 License
 -------
 
-The project is licensed under the MIT.  The Git repository embeds third-party
+The project is licensed under the BSD.  The Git repository embeds third-party
 components under various permissive licenses.
