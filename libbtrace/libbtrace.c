@@ -16,15 +16,9 @@
  * heap consistency.)  Therefore, these execXXX wrappers must also be
  * async-signal-safe.
  *
- * Perhaps defining my owns copies of functions like strcpy is going too far,
- * but then again, POSIX has a list of safe functions, and for whatever reason,
- * they left these functions out.  Did no one think of them?  In any case,
- * here's an attempt to find a technical reason to define them.  IIRC, the
- * dynamic loader has to do some kind of patch-up work the first time a
- * function is called.  For performance reasons, glibc provides multiple
- * implementations of some functions, and the dynamic loader chooses at
- * call-time based on CPU features.  Perhaps this loader behavior is not
- * async-signal-safe. */
+ * There are several lists of async-safe functions, and most of them leave out
+ * functions like strcpy and sprintf, so avoid using them in the wrapper
+ * functions.  Define guaranteed-safe versions instead. */
 
 #define BTRACE_LOG_ENV_VAR "BTRACE_LOG"
 
@@ -396,20 +390,13 @@ static void writePid(LogFile *logFile, uint32_t pid)
         }
     }
     {
-        /* Read the process start time from /proc/<pid>/stat.  If you search
-         * the Internet, you'll find out that the start time is recorded as a
-         * number-of-jiffies-since-boot in field 22.  Unfortunately, this is
-         * not enough information to actually parse this file.  You also need
-         * to know how to parse the executable name.
-         *
-         * The second field of the stat line is a truncated, parenthesized,
-         * executable name.  It is not escaped, so an executable containing a
-         * ')' is generally impossible to parse.  The 'ps' utility parses it by
-         * assuming that no other ')' character will ever appear later in the
-         * stat-line, and it uses the position of the last ')' character.  If
-         * the kernel ever adds another parenthesized field, it will break this
-         * code.  On the plus side, it would also break 'ps', and the kernel
-         * maintainers like to talk about compatibility, so maybe we're OK. */
+        /* Read the process start time from /proc/<pid>/stat.  The start time
+         * is recorded as a number-of-jiffies-since-boot in field 22.  Parsing
+         * the field is complicated because the second field of the stat line
+         * is an unescaped executable name.  The name is parenthesized, but it
+         * can contain parentheses.  The 'ps' utility parses it by searching
+         * for the last ')' character in the stat-line, which it assumes is the
+         * end of the executable name field. */
 
         /* The maximum size of the file through field 22 easily fits in 1024
          * bytes, so use a fixed-size buffer of that size.  Incidentally, ps
