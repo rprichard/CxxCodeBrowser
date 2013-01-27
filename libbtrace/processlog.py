@@ -118,10 +118,10 @@ def isChildOfCompilerDriver(command):
 def extractSourceFile(command):
     """Attempt to extract a compile step from a driver command line."""
 
-    # Detect ccache.  With ccache, a parent process will be exec'ed using a
-    # program name like "g++", but the g++ is really a symlink to a ccache
-    # program.  ccache invokes children g++ subprocesses, but first it does
-    # unsavory things to the arguments.  e.g. Instead of:
+    # Accommodate ccache.  With ccache, a parent process will be exec'ed using
+    # a program name like "g++", but the g++ is really a symlink to a ccache
+    # program.  ccache invokes children g++ subprocesses, but with altered
+    # arguments.  e.g. Instead of:
     #    g++ -c file.cc -o file.o
     # we get something like this:
     #    g++ -E file.cc   [output redirected to a tmp file]
@@ -129,13 +129,6 @@ def extractSourceFile(command):
     # The translation unit compilation is now split into two, and the output
     # filename is lost.  The approach taken here is to ignore any subprocesses
     # of a compiler driver invocation.
-    #
-    # (An alternative approach would be to fail on ccache.  This approach is
-    # poor because:
-    #  - ccache is actually really useful at speeding up builds.
-    #  - ccache is turned on by default on Fedora 16.
-    #  - I'm not sure the failure mode would be obvious, and confusing users is
-    #    depressing.)
 
     if not command.isCompilerDriver or isChildOfCompilerDriver(command) or \
             "-c" not in command.argv:
