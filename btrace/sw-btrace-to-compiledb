@@ -82,6 +82,16 @@ def isChildOfCompilerDriver(command):
     return False
 
 
+def compileMode(argv):
+    """Return the last compile-mode argument in a command line."""
+    kModes = ["-c", "-S", "-E"]
+    mode = None
+    for arg in argv:
+        if arg in kModes:
+            mode = arg
+    return mode
+
+
 def extractSourceFile(command):
     """Attempt to extract a compile step from a driver command line."""
 
@@ -98,7 +108,7 @@ def extractSourceFile(command):
     # of a compiler driver invocation.
 
     if not command.isCompilerDriver or isChildOfCompilerDriver(command) or \
-            "-c" not in command.argv:
+            compileMode(command.argv) != "-c":
         return None
 
     args = command.argv[1:]
