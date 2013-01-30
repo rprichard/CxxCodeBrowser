@@ -102,15 +102,16 @@ CMake to output a `compile_commands.json` file.
 
 For projects that do not use CMake, the btrace tool included in this project
 can be used to create a `compile_commands.json` file.  btrace is a tool that
-captures a trace of `exec` calls using an `LD_PRELOAD` library, then processes
-the execution trace into a `compile_commands.json` file.
+captures a trace of all executed commands using an `LD_PRELOAD` library, then
+converts the execution trace into a `compile_commands.json` file.
 
-To use the tool, first collect a trace by prepending `btrace.sh` to the
-command(s) that build the system (e.g. `make`).  `btrace.sh` will load
-`libbtrace.so` into each subprocess, and all `exec` calls will be logged to a
-`btrace.log` file in the working directory.  Next run `processlog.py` to
-convert the `btrace.log` in the working directory file into a
-`compile_commands.json` file.
+To use the tool, first collect a trace by prepending `sw-btrace` to the
+command(s) that build the system (e.g. `make`).  `sw-btrace` will load
+`libsw-btrace.so` into each subprocess, and when this library is loaded, it
+will log that subprocess' command-line (and other details) to a `btrace.log`
+file in the working directory.  Once all commands are logged, run
+`sw-btrace-to-compiledb` to create a `compile_commands.json` file from the
+`btrace.log` file.
 
 btrace is compatible with `ccache`, but it has not been tested with `distcc`.
 
