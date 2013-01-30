@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
 #include <time.h>
@@ -33,14 +34,46 @@ static void advanceField(char **p, int i, int j)
     }
 }
 
+static time_t getBootTime(void)
+{
+    FILE *fp = fopen("/proc/stat", "r");
+    assert(fp != NULL && "Error opening /proc/stat.");
+    char *line = NULL;
+    size_t lineSize = 0;
+    time_t bootTime = 0;
+    while (getline(&line, &lineSize, fp) != -1) {
+        unsigned long long tmp = 0;
+        if (sscanf(line, "btime %llu", &tmp) == 1) {
+            bootTime = tmp;
+            assert(bootTime > 0 && "Invalid btime in /proc/stat.");
+            break;
+        }
+    }
+    assert(!ferror(fp) && "Error reading /proc/stat.");
+    assert(bootTime > 0 && "btime missing from /proc/stat.");
+    free(line);
+    fclose(fp);
+    return bootTime;
+}
+
 bool btrace_procStat(pid_t pid, pid_t *parentPid, time_t *startTime)
 {
+    static time_t bootTime;
+    static long jiffiesPerSecond;
+
+    if (bootTime == 0) {
+        /* One-time initialization. */
+        bootTime = getBootTime();
+        jiffiesPerSecond = sysconf(_SC_CLK_TCK);
+        assert(jiffiesPerSecond >= 1);
+    }
+
     *parentPid = 0;
     *startTime = 0;
     bool success = false;
 
     int parentPidAsInt = 0;
-    unsigned long long startTimeAsJiffies = 0;
+    unsigned long long jiffiesAfterBoot = 0;
     char *statContent = NULL;
 
     {
@@ -61,13 +94,11 @@ bool btrace_procStat(pid_t pid, pid_t *parentPid, time_t *startTime)
     advanceField(&p, 3, 4);
     sscanf(p, "%d", &parentPidAsInt);
     advanceField(&p, 4, 22);
-    sscanf(p, "%llu", &startTimeAsJiffies);
-
-    /* TODO: Fix up the time units... */
+    sscanf(p, "%llu", &jiffiesAfterBoot);
 
     success = true;
     *parentPid = parentPidAsInt;
-    *startTime = startTimeAsJiffies;
+    *startTime = bootTime + (time_t)(jiffiesAfterBoot / jiffiesPerSecond);
 
 done:
     free(statContent);
