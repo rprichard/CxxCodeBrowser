@@ -13,16 +13,6 @@ SUBDIRS += \
 # HACK: Stop qmake from attempting to strip the scripts.
 QMAKE_STRIP = /bin/echo
 
-# Linux btrace.
-linux-* {
-    SUBDIRS += libbtrace
-    libbtrace_script.path = $$BIN_DIR
-    libbtrace_script.files += \
-        libbtrace/btrace.sh \
-        libbtrace/processlog.py
-    INSTALLS += libbtrace_script
-}
-
 # Unix btrace.
 linux-*|freebsd-*|darwin-*|macx-* {
     SUBDIRS += btrace
