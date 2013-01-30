@@ -3,28 +3,28 @@ include(../config.pri)
 QT -= core gui
 CONFIG += dll
 
-TARGET = btrace
+TARGET = sw-btrace
 TEMPLATE = lib
 
-SOURCES += \
-    libbtrace.c
+SOURCES += btrace.c
+linux-*: SOURCES += btrace_linux.c
+freebsd-*: SOURCES += btrace_freebsd.c
+darwin-*|macx-*: SOURCES += btrace_darwin.c
 
 OTHER_FILES += \
     version_script
 
-DEFINES += _GNU_SOURCE
-
-LIBS += -ldl
-
-# It is never reasonable for the libbtrace preload library to have an RPATH,
+# It is never reasonable for the btrace preload library to have an RPATH,
 # but it is reasonable for other programs in this project.  QtSDK's default
 # configuration sets the RPATH to the SDK's lib directory.  Override the
 # default by clearing the RPATH setting.
 QMAKE_RPATHDIR =
 
-QMAKE_LFLAGS += -nostartfiles
-QMAKE_LFLAGS += -Wl,--version-script,$$_PRO_FILE_PWD_/version_script
-QMAKE_CFLAGS_WARN_ON += -Wno-unused-result
+linux-*|freebsd-* {
+    QMAKE_LFLAGS += -Wl,--version-script,$$_PRO_FILE_PWD_/version_script
+}
+
+#QMAKE_CFLAGS_WARN_ON += -Wno-unused-result
 include(../enable-c99.pri)
 
 # XXX: Perhaps libbtrace should be installed into a library directory, but then

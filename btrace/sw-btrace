@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# Find the directory containing this script.  This code is intended to be
+# equivalent to $(dirname "$(readlink -f "$0")"), but it works on platforms
+# that lack readlink -f, such as BSD/OSX.  It still needs readlink if $0 is a
+# symlink.
+scriptDir() {
+    path=$0
+    while test -L "$path"; do
+        cd $(dirname "$path") || exit 1
+        path=$(readlink "$(basename "$path")")
+    done
+    cd "$(dirname "$path")" && pwd
+}
+
+bin_dir=$(scriptDir)
+libexec_dir=$bin_dir/../libexec
+
+BTRACE_LOG=$PWD/btrace.log
+export BTRACE_LOG
+rm -f "$BTRACE_LOG"
+
+# This code copies fakeroot's behavior by adding the library to the front of the
+# space-delimited LD_PRELOAD variable.
+#
+# TODO: It should follow fakeroot more closely by setting LD_LIBRARY_PATH to
+# include both a 32-bit and (on appropriate hosts) a 64-bit library directory.
+# It could then provide just the library basename to LD_PRELOAD, and the
+# dynamic linker would pick an architecture-appropriate library, instead of
+# warning about an incompatible library, as it currently does.
+
+system=$(uname -s)
+if test "$system" = "FreeBSD" -o "$system" = "Linux"; then
+    preload_lib=$libexec_dir/libsw-btrace.so
+    LD_PRELOAD=$preload_lib${LD_PRELOAD:+:$LD_PRELOAD}
+    export LD_PRELOAD
+elif test "$system" = "Darwin"; then
+    preload_lib=$libexec_dir/libsw-btrace.dylib
+    DYLD_INSERT_LIBRARIES=$preload_lib${DYLD_INSERT_LIBRARIES:+:$DYLD_INSERT_LIBRARIES}
+    export DYLD_INSERT_LIBRARIES
+else
+    echo "Unsupported operating system: $system"
+    exit 1
+fi
+
+"$@"

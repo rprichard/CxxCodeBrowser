@@ -12,8 +12,7 @@ SOURCES += \
     elfvinfo.c
 
 QMAKE_LIBS += -ldl
+include(../enable-c99.pri)
 
 target.path = $$LIBEXEC_DIR
 INSTALLS += target
-
-include(../enable-linux-bare-c99.pri)

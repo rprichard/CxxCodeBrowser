@@ -13,4 +13,4 @@ QMAKE_LINK = $$QMAKE_CC
 # but it doesn't work.
 QMAKE_LIBS_THREAD =
 
-QMAKE_CFLAGS += -std=c99
+QMAKE_CFLAGS += -std=gnu99
