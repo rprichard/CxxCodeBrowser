@@ -122,7 +122,7 @@ static void logExecution(FILE *logfp)
     }
 
     {
-        fputs("\"cmdline\":[", logfp);
+        fputs("\"argv\":[", logfp);
         char *argBlock = NULL;
         size_t argBlockSize = 0;
         btrace_getArgBlock(&argBlock, &argBlockSize);
