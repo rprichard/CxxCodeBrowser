@@ -25,11 +25,11 @@ run() {
 }
 
 # SourceWeb may have been linked with a libstdc++ newer than the one on the
-# host system (e.g. from clang-redist-linux's gcc-libs package).  In this case,
-# one or more library paths may have been written to the sw-libstdcxx-path
-# file.  We want to add these paths to LD_LIBRARY_PATH, but only if the host
-# libstdc++ is too old.  Examine the version symbols in the program-to-run and
-# in the default libstdc++.so.6 library and see if any version identifiers are
+# host system (e.g. from clang-redist's gcc-libs package).  In this case, one
+# or more library paths may have been written to the sw-libstdcxx-path file.
+# We want to add these paths to LD_LIBRARY_PATH, but only if the host libstdc++
+# is too old.  Examine the version symbols in the program-to-run and in the
+# default libstdc++.so.6 library and see if any version identifiers are
 # missing.
 if test -f "$lib_cfg_file"; then
     error=0

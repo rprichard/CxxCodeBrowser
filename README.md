@@ -29,14 +29,14 @@ Install prerequisite packages:
 | CentOS 6.0           | make gcc-c++ qt-devel
 | OpenSUSE 11.4 and up | make gcc-c++ libqt4-devel
 
-Download the [clang-redist-linux packages][1] containing Clang 3.2 and gcc-libs
-4.6 and extract them into a single directory of your choosing using the
+Download the [clang-redist packages][1] containing Clang 3.2 and gcc-libs 4.6
+and extract them into a single directory of your choosing using the
 `--strip-components=1` tar option.  The gcc-libs package contains
 `libstdc++.so.6`, so you probably do not want to install it into any directory
 in the default library search path (e.g. `/usr/local`).  It can be omitted if
 you already have libstdc++ from gcc 4.6 or newer.
 
-[1]: http://rprichard.github.com/clang-redist-linux
+[1]: http://rprichard.github.com/clang-redist
 
     ARCH=x86     (or ARCH=x86_64)
     SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist/release-1
