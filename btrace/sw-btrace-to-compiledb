@@ -45,7 +45,7 @@ def readFile(path):
     fp = open(path)
 
     while True:
-        recordString = fp.readline()
+        recordString = unicode(fp.readline())
         if recordString == "":
             break
         record = json.loads(recordString)
