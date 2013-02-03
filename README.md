@@ -39,21 +39,21 @@ you already have libstdc++ from gcc 4.6 or newer.
 [1]: http://rprichard.github.com/clang-redist-linux
 
     ARCH=x86     (or ARCH=x86_64)
-    SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist-linux/release-20121230
-    mkdir $HOME/sourceweb-clang-3.2
-    cd $HOME/sourceweb-clang-3.2
-    wget $SRC/clang-3.2-$ARCH-linux.tar.bz2
-    wget $SRC/gcc-libs-4.6.3-$ARCH-linux.tar.bz2
-    tar --strip-components=1 -xf clang-3.2-$ARCH-linux.tar.bz2
-    tar --strip-components=1 -xf gcc-libs-4.6.3-$ARCH-linux.tar.bz2
+    SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist/release-1
+    mkdir $HOME/sourceweb-clang-3.2-1
+    cd $HOME/sourceweb-clang-3.2-1
+    wget $SRC/clang-3.2-1-$ARCH-linux.tar.bz2
+    wget $SRC/gcc-libs-4.6.3-1-$ARCH-linux.tar.bz2
+    tar --strip-components=1 -xf clang-3.2-1-$ARCH-linux.tar.bz2
+    tar --strip-components=1 -xf gcc-libs-4.6.3-1-$ARCH-linux.tar.bz2
 
 Build the software:
 
-    $ ./configure --with-clang-dir $HOME/sourceweb-clang-3.2
+    $ ./configure --with-clang-dir $HOME/sourceweb-clang-3.2-1
     $ make -j8
     $ make install
 
-The Clang directory (`$HOME/sourceweb-clang-3.2`) is embedded into the
+The Clang directory (`$HOME/sourceweb-clang-3.2-1`) is embedded into the
 SourceWeb build output, so it must not be moved later.
 
 The `configure` script is a wrapper around qmake, which is SourceWeb's build
