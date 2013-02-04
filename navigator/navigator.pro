@@ -4,6 +4,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets concurrent
 
 TARGET = sourceweb
 TEMPLATE = app
+CONFIG -= app_bundle
 
 SOURCES += \
     Application.cpp \
@@ -74,11 +75,7 @@ FORMS += \
 ROOT_DIR = ..
 include(../add_dependencies.pri)
 
-macx {
-    # OS X: This target is an app bundle rather than an executable, so install
-    # it in the prefix rather than inside the libexec dir.
-    target.path = $$PREFIX
-} else: linux-* {
+linux-* {
     target.path = $$LIBEXEC_DIR
 } else {
     target.path = $$BIN_DIR
