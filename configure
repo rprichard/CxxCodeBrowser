@@ -18,19 +18,24 @@ Dependency options:
                           should identify a Clang installation directory
                           containing bin, lib, and include directories.  It
                           should not refer to a Clang build directory.
+  --with-qmake=QMAKE [optional]
+                          Configure the qmake binary to use.  By default,
+                          the configure script searches the PATH for qmake.
 EOF
 }
 
+QMAKE=
 while [ $# -gt 0 ]; do
     ARG=$1
     case $ARG in
-        --prefix|--with-clang-dir)
+        --prefix|--with-clang-dir|--with-qmake)
             shift
             ARG=$ARG=$1
     esac
     case $ARG in
         --prefix=*) PREFIX=${ARG#*=}; shift;;
         --with-clang-dir=*) CLANG_DIR=${ARG#*=}; shift;;
+        --with-qmake=*) QMAKE=${ARG#*=}; shift;;
         -h|--help) usage; exit 0;;
         *) echo "$0: error: Unrecognized argument $ARG"; exit 1;;
     esac
@@ -50,29 +55,37 @@ if [ "${PREFIX#/}" = "$PREFIX" ]; then
     echo "$0: error: --prefix path must be absolute."
     exit 1
 fi
+if [ -n "$QMAKE" -a \( ! -f "$QMAKE" -o ! -x "$QMAKE" \) ]; then
+    echo "$0: error: $QMAKE does not exist or is not an executable file."
+    exit 1
+fi
 
 
 ################################################################################
 # Find qmake.
 
-echo "Looking for qmake..."
-echo "- which qmake-qt4"
-which qmake-qt4 > /dev/null
-if [ $? -eq 0 ]; then
-    QMAKE=$(which qmake-qt4)
-    echo "- found $QMAKE"
-else
-    echo "- found nothing"
-    echo "- which qmake"
-    which qmake > /dev/null
+if [ -z "$QMAKE" ]; then
+    echo "Looking for qmake..."
+    echo "- which qmake-qt4"
+    which qmake-qt4 > /dev/null
     if [ $? -eq 0 ]; then
-        QMAKE=$(which qmake)
+        QMAKE=$(which qmake-qt4)
         echo "- found $QMAKE"
     else
         echo "- found nothing"
-        echo "- error: Could not find qmake"
-        exit 1
+        echo "- which qmake"
+        which qmake > /dev/null
+        if [ $? -eq 0 ]; then
+            QMAKE=$(which qmake)
+            echo "- found $QMAKE"
+        else
+            echo "- found nothing"
+            echo "- error: Could not find qmake"
+            exit 1
+        fi
     fi
+else
+    echo "Using configured qmake... $QMAKE"
 fi
 
 QMAKE_FLAGS=""
@@ -94,12 +107,21 @@ fi
 
 
 ################################################################################
-# By default, qmake on OS X generates an Xcode project file.  We need it to
-# generate a Makefile instead, so provide a spec file unless QMAKESPEC is set.
+# The default mkspec for Qt4 qmake on OS X generates an Xcode project file.
+# The default for Qt5 generates a Makefile, but it uses libstdc++ and sets the
+# deployment target to 10.6.  Select an appropriate spec file unless the user
+# overrides it using QMAKESPEC.
 
 if [ "$(uname)" = "Darwin" -a "$QMAKESPEC" = "" ]; then
     echo "The default qmake spec is not suitable.  Overriding it."
-    QMAKE_FLAGS="$QMAKE_FLAGS -spec unsupported/macx-clang"
+    if "$QMAKE" -v 2>&1 | grep '^Using Qt version 4\.' > /dev/null; then
+        # enable-cxx11.pri will configure libc++ and the deployment target.
+        QMAKE_FLAGS="$QMAKE_FLAGS -spec unsupported/macx-clang"
+    else
+        # Assume qmake is from Qt5, which has a spec selecting Clang and
+        # libc++, which is needed for C++11 support.
+        QMAKE_FLAGS="$QMAKE_FLAGS -spec macx-clang-libc++"
+    fi
 fi
 
 
