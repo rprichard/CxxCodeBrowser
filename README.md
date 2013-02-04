@@ -56,7 +56,8 @@ Build the software:
 
 ### Building on OS X
 
-Satisfy the prerequisites:
+SourceWeb is tested with OS X 10.8, but probably works with OS X 10.7.  It will not
+work with OS X 10.6, because OS X 10.6 lacks libc++.  Satisfy the prerequisites:
 
 1. Install Xcode.
 
