@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
+#include <cassert>
 #include <string>
 
 #include "File.h"
@@ -37,12 +38,14 @@ int ReportFileList::rowCount()
 
 const char *ReportFileList::text(int row, int column, std::string &tempBuf)
 {
+    assert(row >= 0 && row < m_paths.size());
     tempBuf = m_paths[row].toStdString();
     return tempBuf.c_str();
 }
 
 void ReportFileList::select(int row)
 {
+    assert(row >= 0 && row < m_paths.size());
     File &file = m_project.fileManager().file(m_paths[row]);
     theMainWindow->navigateToFile(&file);
 }

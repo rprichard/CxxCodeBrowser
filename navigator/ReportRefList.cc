@@ -61,6 +61,7 @@ int ReportRefList::rowCount()
 
 const char *ReportRefList::text(int row, int col, std::string &tempBuf)
 {
+    assert(row >= 0 && row < m_refList.size());
     const Ref &ref = m_refList[row];
     if (col == 0) {
         return ref.fileNameCStr();
@@ -77,11 +78,14 @@ const char *ReportRefList::text(int row, int col, std::string &tempBuf)
 
 void ReportRefList::select(int row)
 {
+    assert(row >= 0 && row < m_refList.size());
     theMainWindow->navigateToRef(m_refList[row]);
 }
 
 int ReportRefList::compare(int row1, int row2, int col)
 {
+    assert(row1 >= 0 && row1 < m_refList.size());
+    assert(row2 >= 0 && row2 < m_refList.size());
     const Ref &ref1 = m_refList[row1];
     const Ref &ref2 = m_refList[row2];
     if (col == 0) {
