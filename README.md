@@ -6,7 +6,7 @@ SourceWeb is a source code indexer and code navigation tool for C/C++ code.
 Installation
 ------------
 
-SourceWeb currently runs only on Linux.
+SourceWeb currently runs on Linux and OS X.
 
 
 ### Dependencies
@@ -49,11 +49,45 @@ you already have libstdc++ from gcc 4.6 or newer.
 
 Build the software:
 
-    $ ./configure --with-clang-dir $HOME/sourceweb-clang-3.2-1
-    $ make -j8
-    $ make install
+    ./configure --with-clang-dir $HOME/sourceweb-clang-3.2-1
+    make -j4
+    make install
 
-The Clang directory (`$HOME/sourceweb-clang-3.2-1`) is embedded into the
+
+### Building on OS X
+
+Satisfy the prerequisites:
+
+1. Install Xcode.
+
+2. Install the Command Line Tools.  (In Xcode's Preferences window, go to the
+   Downloads tab.  Command Line Tools should be listed as an installable
+   component.)
+
+3. Install Qt 5 from qt-project.org.  Make note of where Qt was installed.
+
+4. Download and extract the [clang-redist package][2] containing Clang 3.2.  The
+   official llvm.org package for Clang 3.2 is built for libstdc++ and is not
+   suitable.
+
+        cd $HOME
+        SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist/release-1
+        curl -O $SRC/clang-3.2-1-x86_64-darwin.tar.bz2
+        tar -xf clang-3.2-1-x86_64-darwin.tar.bz2
+
+Configure and build SourceWeb:
+
+    ./configure --with-clang-dir $HOME/clang-3.2-1-x86_64-darwin \
+                --with-qmake <path-to-qt5>/<qt5ver>/clang_64/bin/qmake
+    make -j4
+    make install
+
+[2]: http://rprichard.github.com/clang-redist
+
+
+### Configuration notes
+
+The Clang directory (e.g. `$HOME/sourceweb-clang-3.2-1`) is embedded into the
 SourceWeb build output, so it must not be moved later.
 
 The `configure` script is a wrapper around qmake, which is SourceWeb's build
@@ -78,9 +112,9 @@ Opening a C/C++ project with SourceWeb is a three-step process:
 
 The JSON compilation database is a file specifying the command-line for every
 compilation of a translation unit into an object file.  It was first introduced
-by the CMake project.  Clang has a [page][2] describing the format.
+by the CMake project.  Clang has a [page][3] describing the format.
 
-[2]: http://clang.llvm.org/docs/JSONCompilationDatabase.html
+[3]: http://clang.llvm.org/docs/JSONCompilationDatabase.html
 
 Example:
 
