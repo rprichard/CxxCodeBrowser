@@ -125,18 +125,18 @@ public:
         std::sort(m_remap.begin(), m_remap.end(),
                   [&report, &tableReport, isDescending, isDirect, sortColumn]
                         (int row1, int row2) -> bool {
-            bool result;
+            if (isDescending)
+                std::swap(row1, row2);
             int row1mapped = isDirect ? row1 : report.mapToTableReport(row1);
             int row2mapped = isDirect ? row2 : report.mapToTableReport(row2);
             int compare = tableReport.compare(
                         row1mapped, row2mapped, sortColumn);
             if (compare < 0)
-                result = true;
+                return true;
             else if (compare > 0)
-                result = false;
+                return false;
             else
-                result = row1 < row2;
-            return isDescending ? !result : result;
+                return row1 < row2;
         });
     }
 
