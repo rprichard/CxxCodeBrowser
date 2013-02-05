@@ -535,12 +535,12 @@ void TableReportView::updateScrollBars()
                 fontMetrics().averageCharWidth() * 20);
 }
 
+// The scrollbars must be updated before positioning the header because the
+// header width is computed from the horizontal scrollbar's maximum range.
 void TableReportView::positionHeaderView()
 {
     const int headerHeight = m_headerView->sizeHint().height();
-    const int headerWidth = std::max(
-                m_contentWidth,
-                viewport()->width());
+    const int headerWidth = horizontalScrollBar()->maximum() + viewport()->width();
     m_headerViewParent->setGeometry(
                 frameWidth(), frameWidth(),
                 viewport()->width(), headerHeight);
@@ -612,13 +612,14 @@ void TableReportView::paintEvent(QPaintEvent *event)
         return;
 
     const int viewRow1 = verticalScrollBar()->value();
-    const int drawRow1 = viewRow1 + event->rect().top() / itemHeight();
+    const int drawRow1 = std::max(
+                0,
+                viewRow1 + event->rect().top() / itemHeight());
     const int drawRow2 = std::min(
                 itemCount() - 1,
-                drawRow1 + visibleItemCount());
-    if (drawRow1 >= itemCount())
+                viewRow1 + event->rect().bottom() / itemHeight());
+    if (drawRow1 > drawRow2)
         return;
-    assert(drawRow2 >= drawRow1);
 
     QPainter painter(viewport());
     const int lineSpacing = itemHeight();
