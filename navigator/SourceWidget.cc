@@ -160,9 +160,8 @@ public:
         const char *const pch = &m_lineContent[m_charIndex];
         if (*pch == '\t') {
             m_charText.clear();
-            m_charWidth =
-                    (m_charLeft + m_tabStopPx) /
-                    m_tabStopPx * m_tabStopPx - m_charLeft;
+            const int tabStopIndex = (m_charLeft + m_tabStopPx) / m_tabStopPx;
+            m_charWidth = tabStopIndex * m_tabStopPx - m_charLeft;
         } else {
             m_charText.resize(len);
             for (int i = 0; i < len; ++i)
