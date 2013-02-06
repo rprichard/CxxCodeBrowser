@@ -1,7 +1,12 @@
 #include "btrace.h"
 
 #include <assert.h>
+#include <fcntl.h>
+#include <kvm.h>
+#include <limits.h>
+#include <paths.h>
 #include <stdbool.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/sysctl.h>
 #include <sys/types.h>
@@ -11,22 +16,23 @@
 
 void btrace_getArgBlock(char **argBlock, size_t *argBlockSize)
 {
-    int ret = 0;
-    const int mib[4] = { CTL_KERN, KERN_PROC, KERN_PROC_ARGS, getpid() };
-    size_t blockSize = 0;
-    ret = sysctl(mib, 4, NULL, &blockSize, NULL, 0);
-    assert(ret == 0 && "sysctl() KERN_PROC_ARGS call 1 failed.");
-    char *block = (char*)malloc(blockSize + 1);
-    assert(block != NULL && "malloc() cmdline call failed.");
-    ret = sysctl(mib, 4, block, &blockSize, NULL, 0);
-    assert(ret == 0 && "sysctl() KERN_PROC_ARGS call 2 failed.");
-    if (blockSize > 0 && block[blockSize - 1] != '\0') {
-        /* Ensure that the last argument is NUL-terminated. */
-        blockSize++;
-        block[blockSize - 1] = '\0';
+    char errbuf[_POSIX2_LINE_MAX];
+    errbuf[0] = '\0';
+    kvm_t *kvm = kvm_openfiles(NULL, _PATH_DEVNULL, NULL, O_RDONLY, errbuf);
+    if (kvm == NULL) {
+        fprintf(stderr, "btrace error: kvm_openfiles failed: %s\n", errbuf);
+        abort();
     }
-    *argBlock = block;
-    *argBlockSize = blockSize;
+    int cnt = 0;
+    struct kinfo_proc *proc = kvm_getprocs(kvm, KERN_PROC_PID, getpid(), &cnt);
+    assert(proc != NULL && cnt == 1);
+    char **argv = kvm_getargv(kvm, proc, 0);
+    assert(argv != NULL);
+    int argc = 0;
+    while (argv[argc] != NULL)
+        ++argc;
+    btrace_makeArgBlockWithArgcArgv(argBlock, argBlockSize, argc, argv);
+    kvm_close(kvm);
 }
 
 bool btrace_procStat(pid_t pid, pid_t *parentPid, time_t *startTime)

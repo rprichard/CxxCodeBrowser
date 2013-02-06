@@ -24,6 +24,10 @@ linux-*|freebsd-* {
     QMAKE_LFLAGS += -Wl,--version-script,$$_PRO_FILE_PWD_/version_script
 }
 
+freebsd-* {
+    QMAKE_LIBS += -lkvm
+}
+
 #QMAKE_CFLAGS_WARN_ON += -Wno-unused-result
 include(../enable-c99.pri)
 
