@@ -1,5 +1,8 @@
 #include <QApplication>
+#include <QFileInfo>
 #include <QTextCodec>
+#include <cstdlib>
+#include <iostream>
 
 #include "Application.h"
 #include "MainWindow.h"
@@ -18,6 +21,12 @@ int main(int argc, char *argv[])
 #endif
 
     Nav::hackSwitchIconThemeToTheOneWithIcons();
+
+    if (!QFileInfo("index").isFile()) {
+        std::cerr << "sourceweb: error: No 'index' file exists in the working "
+                     "directory." << std::endl;
+        exit(1);
+    }
 
     Nav::theProject = new Nav::Project("index");
 
