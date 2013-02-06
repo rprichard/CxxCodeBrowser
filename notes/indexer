@@ -183,12 +183,3 @@ BUG: In LLVM, line 41 of include/llvm/SymbolTableListTraits.h, why are there
 no references on ilist_default_traits?  Similarly, getSymTab on line 32 of
 /home/rprichard/llvm/lib/VMCore/SymbolTableListTraitsImpl.h also has no
 references.
-
-----
-
-BUG: In the strace-4.7 index, the file:
-   /home/rprichard/strace-4.7/linux/x86_64/signalent1.h
-has an include of the file:
-   /home/rprichard/strace-4.7/linux/signalent.h from
-The latter file does not appear in the Path table.  When I click the #include,
-the latter file is added to the files tree on the sidebar.

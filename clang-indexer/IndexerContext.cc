@@ -111,8 +111,7 @@ IndexerFileContext::IndexerFileContext(
               &m_symbolTypeIDs[ST_Max],
               indexdb::kInvalidID);
     m_indexPathID = m_builder.insertSymbol(pathSymbolName.c_str());
-    m_builder.recordSymbol(m_indexPathID,
-                           m_builder.insertSymbolType("Path"));
+    m_builder.recordSymbol(m_indexPathID, getSymbolTypeID(ST_Path));
 }
 
 indexdb::ID IndexerFileContext::createRefTypeID(RefType refType)

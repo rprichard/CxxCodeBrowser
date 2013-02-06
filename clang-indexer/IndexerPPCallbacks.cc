@@ -62,6 +62,9 @@ void IndexerPPCallbacks::InclusionDirective(
                 std::get<1>(range),
                 std::get<2>(range),
                 fileContext.getRefTypeID(RT_Included));
+    fileContext.builder().recordSymbol(
+                symbolID,
+                fileContext.getSymbolTypeID(ST_Path));
 }
 
 std::tuple<IndexerFileContext*, Location, Location>
