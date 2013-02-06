@@ -168,10 +168,10 @@ Demo
 ----
 
 The `demo/demo.sh` script demonstrates use of the `sw-btrace`,
-`sw-clang-indexer`, and `sourceweb` commands on [bigint][3], a small C++
+`sw-clang-indexer`, and `sourceweb` commands on [bigint][4], a small C++
 library.
 
-[3]: https://mattmccutchen.net/bigint/
+[4]: https://mattmccutchen.net/bigint/
 
 
 License
