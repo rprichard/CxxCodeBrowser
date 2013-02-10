@@ -45,6 +45,7 @@ static void processInit(void)
     assert(logfp != NULL && "Error opening trace file for append.");
     lockFile(logfp);
     logExecution(logfp);
+    fflush(logfp);
     unlockFile(logfp);
     fclose(logfp);
 }
