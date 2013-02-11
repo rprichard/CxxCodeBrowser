@@ -97,8 +97,7 @@ static void logExecution(FILE *logfp)
     {
         fputs("\"cwd\":", logfp);
         char *cwd = portableGetCwd();
-        assert(cwd != NULL && "getcwd() call failed");
-        btrace_writeJsonStr(logfp, cwd);
+        btrace_writeJsonStr(logfp, cwd != NULL ? cwd : "");
         free(cwd);
         fputs(",", logfp);
     }
