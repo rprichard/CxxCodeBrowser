@@ -53,6 +53,7 @@ private slots:
     void areBackAndForwardEnabled(bool &backEnabled, bool &forwardEnabled);
     void actionCopyFilePath();
     void actionRevealInSideBar();
+    void actionTabStopSizeChanged();
 
 private:
     void closeEvent(QCloseEvent *event);

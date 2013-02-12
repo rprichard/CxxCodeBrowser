@@ -54,8 +54,6 @@ namespace Nav {
 ///////////////////////////////////////////////////////////////////////////////
 // Miscellaneous
 
-const int kTabStopSize = 8;
-
 static inline QSize marginsToSize(const QMargins &margins)
 {
     return QSize(margins.left() + margins.right(),
@@ -73,6 +71,17 @@ static int measureLineLength(StringRef line, int tabStopSize)
             pos++;
     }
     return pos;
+}
+
+static int measureLongestLine(File &file, int tabStopSize)
+{
+    int ret = 0;
+    for (int i = 0, lineCount = file.lineCount(); i < lineCount; ++i) {
+        ret = std::max(
+                    ret,
+                    measureLineLength(file.lineContent(i), tabStopSize));
+    }
+    return ret;
 }
 
 namespace {
@@ -126,7 +135,8 @@ public:
             const QFont &font,
             const QMargins &margins,
             File &file,
-            int line) :
+            int line,
+            int tabStopSize) :
         m_twc(TextWidthCalculator::getCachedTextWidthCalculator(font)),
         m_fm(font)
     {
@@ -136,7 +146,7 @@ public:
         m_lineBaselineY = m_lineTop + m_fm.ascent();
         m_lineLeftMargin = margins.left();
         m_lineStartIndex = file.lineStart(line);
-        m_tabStopPx = m_twc.calculate(" ") * kTabStopSize;
+        m_tabStopPx = m_twc.calculate(" ") * tabStopSize;
         m_charIndex = -1;
         m_charNextIndex = 0;
         m_charLeft = 0;
@@ -485,7 +495,8 @@ SourceWidgetView::SourceWidgetView(
     m_file(NULL),
     m_mouseHoveringInWidget(false),
     m_selectingMode(SM_Inactive),
-    m_selectedMatchIndex(-1)
+    m_selectedMatchIndex(-1),
+    m_tabStopSize(8)
 {
     setAutoFillBackground(true);
     setMouseTracking(true);
@@ -548,14 +559,7 @@ void SourceWidgetView::setFile(File *file)
         });
 
         // Measure the longest line.
-        int maxLength = 0;
-        for (int i = 0, lineCount = m_file->lineCount(); i < lineCount; ++i) {
-            maxLength = std::max(
-                        maxLength,
-                        measureLineLength(m_file->lineContent(i),
-                                          kTabStopSize));
-        }
-        m_maxLineLength = maxLength;
+        m_maxLineLength = measureLongestLine(*m_file, m_tabStopSize);
     }
 
     updateFindMatches();
@@ -631,7 +635,7 @@ void SourceWidgetView::paintLine(
 
     // Fill the line's background.
     {
-        LineLayout lay(font(), m_margins, *m_file, line);
+        LineLayout lay(font(), m_margins, *m_file, line, m_tabStopSize);
         QRect charBox(0, lay.lineTop(), 0, lay.lineHeight());
         while (lay.hasMoreChars()) {
             lay.advanceChar();
@@ -674,7 +678,7 @@ void SourceWidgetView::paintLine(
 
     // Draw characters.
     {
-        LineLayout lay(font(), m_margins, *m_file, line);
+        LineLayout lay(font(), m_margins, *m_file, line, m_tabStopSize);
         LineTextPainter lineTextPainter(
                     painter,
                     m_textPalette,
@@ -733,7 +737,7 @@ FileLocation SourceWidgetView::hitTest(QPoint pixel, bool roundToNearest)
     } else if (line >= m_file->lineCount()) {
         return FileLocation(m_file->lineCount(), 0);
     } else {
-        LineLayout lay(font(), m_margins, *m_file, line);
+        LineLayout lay(font(), m_margins, *m_file, line, m_tabStopSize);
         while (lay.hasMoreChars()) {
             lay.advanceChar();
             qreal charWidth = lay.charWidth();
@@ -752,7 +756,7 @@ QPoint SourceWidgetView::locationToPoint(FileLocation loc)
         return QPoint(m_margins.left(), m_margins.top());
     if (loc.line >= m_file->lineCount())
         return QPoint(m_margins.left(), lineTop(m_file->lineCount()));
-    LineLayout lay(font(), m_margins, *m_file, loc.line);
+    LineLayout lay(font(), m_margins, *m_file, loc.line, m_tabStopSize);
     while (lay.hasMoreChars()) {
         lay.advanceChar();
         if (lay.charColumn() == loc.column)
@@ -792,6 +796,21 @@ void SourceWidgetView::setSelectedMatchIndex(int index)
     updateRange(matchFileRange(m_selectedMatchIndex));
 
     emit findMatchSelectionChanged(m_selectedMatchIndex);
+}
+
+int SourceWidgetView::tabStopSize()
+{
+    return m_tabStopSize;
+}
+
+void SourceWidgetView::setTabStopSize(int size)
+{
+    if (m_tabStopSize == size)
+        return;
+    m_tabStopSize = size;
+    if (m_file != NULL)
+        m_maxLineLength = measureLongestLine(*m_file, m_tabStopSize);
+    update();
 }
 
 void SourceWidgetView::copy()
@@ -1443,6 +1462,17 @@ void SourceWidget::setViewportOrigin(const QPoint &pt)
 {
     horizontalScrollBar()->setValue(pt.x());
     verticalScrollBar()->setValue(pt.y());
+}
+
+int SourceWidget::tabStopSize()
+{
+    return m_view->tabStopSize();
+}
+
+void SourceWidget::setTabStopSize(int size)
+{
+    m_view->setTabStopSize(size);
+    layoutSourceWidget();
 }
 
 // When the user starts a new search, record the viewport location so we can

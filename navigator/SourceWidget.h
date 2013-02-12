@@ -242,6 +242,8 @@ public:
     const RegexMatchList &findMatches() const { return m_findMatches; }
     int selectedMatchIndex() const { return m_selectedMatchIndex; }
     void setSelectedMatchIndex(int index);
+    int tabStopSize();
+    void setTabStopSize(int size);
 
 public slots:
     void copy();
@@ -313,6 +315,7 @@ private:
     Regex m_findRegex;
     RegexMatchList m_findMatches;
     int m_selectedMatchIndex;
+    int m_tabStopSize;  // measured in columns, not pixels
 };
 
 
@@ -333,6 +336,8 @@ public:
             bool forceCenter);
     QPoint viewportOrigin();
     void setViewportOrigin(const QPoint &pt);
+    int tabStopSize();
+    void setTabStopSize(int size);
 
 public slots:
     void copy();

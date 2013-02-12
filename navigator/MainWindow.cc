@@ -1,5 +1,6 @@
 #include "MainWindow.h"
 
+#include <QAction>
 #include <QApplication>
 #include <QClipboard>
 #include <QEvent>
@@ -15,8 +16,10 @@
 #include <QSplitter>
 #include <QString>
 #include <QTreeView>
+#include <QVariant>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <cassert>
 
 #include "File.h"
 #include "FindBar.h"
@@ -78,6 +81,16 @@ MainWindow::MainWindow(Project &project, QWidget *parent) :
     sizes << kDefaultSideBarSizePx;
     sizes << 1;
     m_splitter->setSizes(sizes);
+
+    // Tab width menu.
+    for (int i = 1; i <= 8; ++i) {
+        QAction *action = ui->menuViewTabWidth->addAction(
+                    QString("Tab Width: &" + QString::number(i)));
+        action->setCheckable(true);
+        action->setChecked(i == m_sourceWidget->tabStopSize());
+        action->setData(QVariant(i));
+        connect(action, SIGNAL(triggered()), SLOT(actionTabStopSizeChanged()));
+    }
 
     connect(m_sourceWidget,
             SIGNAL(fileChanged(File*)),
@@ -296,6 +309,23 @@ void MainWindow::actionRevealInSideBar()
             m_splitter->setSizes(sizes);
         }
         m_folderWidget->ensureItemVisible(file);
+    }
+}
+
+void MainWindow::actionTabStopSizeChanged()
+{
+    {
+        QAction *action = qobject_cast<QAction*>(QObject::sender());
+        assert(action != NULL && "Tab stop action is NULL.");
+        int size = action->data().toInt();
+        assert(size >= 1 && "Tab stop value is not positive.");
+        m_sourceWidget->setTabStopSize(size);
+    }
+
+    for (QAction *action : ui->menuViewTabWidth->actions()) {
+        int size = action->data().toInt();
+        assert(size >= 1 && "Tab stop value is not positive.");
+        action->setChecked(size == m_sourceWidget->tabStopSize());
     }
 }
 

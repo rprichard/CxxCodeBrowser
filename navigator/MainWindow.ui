@@ -44,8 +44,20 @@
     <addaction name="actionEditCopy"/>
     <addaction name="actionEditFind"/>
    </widget>
+   <widget class="QMenu" name="menuView">
+    <property name="title">
+     <string>&amp;View</string>
+    </property>
+    <widget class="QMenu" name="menuViewTabWidth">
+     <property name="title">
+      <string>&amp;Tab Width</string>
+     </property>
+    </widget>
+    <addaction name="menuViewTabWidth"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
+   <addaction name="menuView"/>
    <addaction name="menuBrowse"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
