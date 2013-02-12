@@ -7,6 +7,7 @@
 #include <QEvent>
 #include <QFont>
 #include <QFontMetrics>
+#include <QFontMetricsF>
 #include <QMargins>
 #include <QMenu>
 #include <QMoveEvent>
@@ -770,7 +771,8 @@ QSize SourceWidgetView::sizeHint() const
     if (m_file == NULL)
         return marginsToSize(m_margins);
     QFontMetrics fontMetrics(font());
-    return QSize(m_maxLineLength * fontMetrics.width(' '),
+    QFontMetricsF fontMetricsF(font());
+    return QSize(m_maxLineLength * fontMetricsF.width(' ') + 1,
                  m_file->lineCount() * effectiveLineSpacing(fontMetrics)) +
             marginsToSize(m_margins);
 }
