@@ -468,7 +468,7 @@ static int runDaemon(const char *argv0)
         }
         if (chdir(cwd.c_str()) != 0) {
             std::stringstream err;
-            err << argv0 << " daemon error: chdir failed";
+            err << argv0 << " daemon error: chdir to " << cwd << " failed";
             perror(err.str().c_str());
             exit(1);
         }
