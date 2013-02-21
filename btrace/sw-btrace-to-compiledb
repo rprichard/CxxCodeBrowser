@@ -23,12 +23,13 @@ kAssemblyExtensions = [".s", ".S"]
 
 
 class Command(object):
-    def __init__(self, cwd, parent, argv):
+    def __init__(self, cwd, parent, argv, line):
         assert isinstance(cwd, unicode)
         assert parent is None or isinstance(parent, Command)
         self.cwd = cwd
         self.parent = parent
         self.argv = argv
+        self.line = line
         self.isCompilerDriver = (os.path.basename(self.argv[0]) in kDrivers)
 
 
@@ -49,17 +50,19 @@ def readFile(path):
     commandList = []
     commandIDToCommand = {}
     fp = open(path)
+    line = 0
 
     while True:
         recordString = unicode(fp.readline())
         if recordString == "":
             break
+        line += 1
         record = json.loads(recordString)
         parent = None
         procList = readPidList(record["pidlist"])
         for procID in procList[:-1]:
             parent = commandIDToCommand.get(procID, parent)
-        command = Command(record["cwd"], parent, record["argv"])
+        command = Command(record["cwd"], parent, record["argv"], line)
         commandList.append(command)
         commandIDToCommand[procList[-1]] = command
 
@@ -131,6 +134,15 @@ def extractSourceFile(command):
             return None
 
     if inputFile is None:
+        return None
+    if not os.path.isdir(command.cwd):
+        print('warning: line %d: directory %s does not exist, skipping' %
+            (command.line, command.cwd))
+        return None
+    absoluteInputFile = os.path.join(command.cwd, inputFile)
+    if not os.path.isfile(absoluteInputFile):
+        print('warning: line %d: input file %s does not exist, skipping' %
+            (command.line, absoluteInputFile))
         return None
 
     output =  '{\n'
