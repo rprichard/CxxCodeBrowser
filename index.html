@@ -7,13 +7,13 @@
         body { margin: 0; font-family: Arial; }
         .demodiv {
             background-color: #336ea5;
-            width: 958px;
+            width: 808px;
             margin: 40px auto;
         }
-        .narrowdiv { width: 958px; margin: auto; }
+        .narrowdiv { width: 808px; margin: auto; }
         #playerContainer {
-            width: 950px;
-            height: 500px;
+            width: 800px;
+            height: 450px;
             padding: 4px;
         }
         .playerCaption {
@@ -75,22 +75,29 @@
 <!-- Script for animated demo -->
 
     <script src="x11-canvas-screencast/player.js"></script>
-    <script src="demo_gotomain_packed.js"></script>
-    <script src="demo_navigate_packed.js"></script>
-    <script src="demo_xref_packed.js"></script>
+    <script src="demo_nav_jumpsym_packed.js"></script>
+    <script src="demo_nav_jumpfile_packed.js"></script>
+    <script src="demo_xref_field_packed.js"></script>
+    <script src="demo_xref_function_packed.js"></script>
+    <script src="demo_nav_basicblock_packed.js"></script>
+    <script src="demo_nav_main_packed.js"></script>
 
     <script>
         var g_playerInputList = [
-            [demo_gotomain_packed, ".",
+            [demo_nav_jumpsym_packed, ".",
+                "Click something to jump to its sole definition or declaration."],
+            [demo_nav_jumpfile_packed, ".",
+                "Click an <code>#include</code> directive's path to navigate " +
+                "to it."],
+            [demo_xref_field_packed, ".",
+                "Browse cross-references on a field."],
+            [demo_xref_function_packed, ".",
+                "Browse cross-references on functions."],
+            [demo_nav_basicblock_packed, ".",
+                "Navigate to one of the <code>llvm::BasicBlock</code> " +
+                "methods."],
+            [demo_nav_main_packed, ".",
                 "Navigate to one of the <code>main</code> functions in LLVM."],
-            [demo_navigate_packed, ".",
-                "Click an identifier to jump to its sole definition or sole " +
-                "declaration."],
-            [demo_xref_packed, ".",
-                "By browsing cross-references on <code>DIE::Offset</code>, " +
-                "we can determine that a non-zero value is written only via " +
-                "<code>DIE::setOffset</code>, which is called only from " +
-                "<code>DwarfDebug::computeSizeAndOffset</code>."],
         ];
         var g_playerInputIndex = 0;
         var g_player = null;
@@ -119,11 +126,8 @@
                 g_player.start();
             };
 
-            var loopCount = 0;
             newPlayer.onloop = function() {
-                loopCount++;
-                if (loopCount == 2)
-                    playerAdvance(1);
+                playerAdvance(1);
             }
         }
 
