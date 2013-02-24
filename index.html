@@ -157,13 +157,14 @@
     compile_commands.json</a></code> file listing
     all of the command lines that compile a source file to an object file.</p>
 
-    <p>The SourceWeb project includes an <code>LD_PRELOAD</code> library that
-    collects a trace of <code>exec</code> system calls and a tool that converts
-    this trace into a <code>compile_commands.json file</code>.
+    <p>The SourceWeb project includes an <code>LD_PRELOAD</code>
+    library that collects a trace of executed commands and a tool that converts
+    this trace into a <code>compile_commands.json</code> file.
     Using this tool allows for indexing projects without needing to integrate
     with their build systems, as long as the C/C++ code is mostly buildable
-    with Clang.  (Build errors do not stop the indexer.)
-    This tool has been used successfully with GCC, LLVM, and Firefox.</p>
+    with Clang.  (Build errors do not generally stop the indexer.)
+    This tool has been used to index GCC, LLVM, Firefox, Qt, and the Linux
+    kernel.</p>
 
     <p>The navigator GUI is demonstrated in the animations above.</p>
 
