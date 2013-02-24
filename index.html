@@ -99,41 +99,66 @@
             [demo_nav_main_packed, ".",
                 "Navigate to one of the <code>main</code> functions in LLVM."],
         ];
-        var g_playerInputIndex = 0;
+
+        var g_playerIndex = -1;
         var g_player = null;
-        var g_newPlayer = null;
+        var g_nextPlayer = null;
+        var g_nextPlayerIndex = -1;
+        var g_prevPlayer = null;
+        var g_prevPlayerIndex = -1;
+
+        function createPlayerForIndex(index) {
+            var input = g_playerInputList[index];
+            return new Player(input[0], input[1]);
+        }
 
         function playerShowIndex(index) {
-            g_playerInputIndex = index
-            var input = g_playerInputList[index];
-            document.getElementById("playerCaptionText").innerHTML = input[2];
-            document.getElementById("playerNavText").innerHTML =
-                (g_playerInputIndex + 1) + " / " + g_playerInputList.length;
-            if (g_player !== null)
+            var parentElement = document.getElementById("playerContainer");
+
+            // First pause and remove the existing player if there is one.
+            if (g_player !== null) {
+                g_player.onloop = function() {};
                 g_player.pause();
-
-            var newPlayer = new Player(input[0], input[1]);
-            g_newPlayer = newPlayer;
-            newPlayer.onload = function() {
-                if (g_newPlayer !== newPlayer)
-                    return;
-                var parent = document.getElementById("playerContainer");
-                if (g_player !== null)
-                    parent.removeChild(g_player.element);
-                g_player = g_newPlayer;
-                g_newPlayer = null;
-                parent.appendChild(g_player.element);
-                g_player.start();
-            };
-
-            newPlayer.onloop = function() {
-                playerAdvance(1);
+                parentElement.removeChild(g_player.element);
+                g_player = null;
             }
+
+            // Create the player for the requested index.
+            if (index == g_nextPlayerIndex) {
+                g_player = g_nextPlayer;
+            } else if (index == g_prevPlayerIndex) {
+                g_player = g_prevPlayer;
+            } else {
+                g_player = createPlayerForIndex(index);
+            }
+
+            // Create a new player for the expected next and previous
+            // animations.  Their image data will load as the current animation
+            // is playing.
+            g_nextPlayerIndex = (index + 1) % g_playerInputList.length;
+            g_nextPlayer = createPlayerForIndex(g_nextPlayerIndex);
+            g_prevPlayerIndex = (index + g_playerInputList.length - 1) %
+                g_playerInputList.length;
+            g_prevPlayer = createPlayerForIndex(g_prevPlayerIndex);
+
+            // Show the requested player.
+            g_player.onloop = function() {
+                playerAdvance(1);
+            };
+            g_player.start();
+            parentElement.appendChild(g_player.element);
+            g_playerIndex = index;
+
+            // Update the caption.
+            document.getElementById("playerCaptionText").innerHTML =
+                g_playerInputList[index][2];
+            document.getElementById("playerNavText").innerHTML =
+                (index + 1) + " / " + g_playerInputList.length;
         }
 
         function playerAdvance(amount) {
             var len = g_playerInputList.length;
-            playerShowIndex((g_playerInputIndex + amount + len) % len);
+            playerShowIndex((g_playerIndex + amount + len) % len);
         }
 
         playerShowIndex(0);
