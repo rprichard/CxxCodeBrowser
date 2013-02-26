@@ -78,6 +78,7 @@ private:
     // Expression reference recording
     bool VisitMemberExpr(clang::MemberExpr *e);
     bool VisitDeclRefExpr(clang::DeclRefExpr *e);
+    bool VisitCXXConstructExpr(clang::CXXConstructExpr *e);
     void RecordDeclRefExpr(clang::NamedDecl *d, clang::SourceLocation loc, clang::Expr *e, Context context);
 
     // NestedNameSpecifier handling
