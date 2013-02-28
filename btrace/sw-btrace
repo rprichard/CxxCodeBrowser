@@ -7,7 +7,7 @@
 scriptDir() {
     path=$0
     while test -L "$path"; do
-        cd $(dirname "$path") || exit 1
+        cd "$(dirname "$path")" || exit 1
         path=$(readlink "$(basename "$path")")
     done
     cd "$(dirname "$path")" && pwd
