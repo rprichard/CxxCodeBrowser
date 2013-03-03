@@ -144,11 +144,16 @@ To use the tool, first collect a trace by prepending `sw-btrace` to the
 command that builds the software (e.g. `make`).  `sw-btrace` will load
 `libsw-btrace.so` into each subprocess, and when this library is loaded, it
 will log that subprocess' command-line (and other details) to a `btrace.log`
-file in the working directory.  Once all commands are logged, run
-`sw-btrace-to-compiledb` to create a `compile_commands.json` file from the
-`btrace.log` file.
+file in the working directory of the root `sw-btrace` process.  Once all
+commands are logged, run `sw-btrace-to-compiledb` to create a
+`compile_commands.json` file from the `btrace.log` file.  This script may need
+some customization (e.g. to recognize unusual compiler executable names).
 
 btrace is compatible with `ccache`, but it has not been tested with `distcc`.
+
+btrace works on Linux, OS X, and FreeBSD.  On FreeBSD, however, the default
+`cc` and `gcc` executables might be statically linked, limiting btrace's
+usefulness.
 
 
 ### Indexing step
