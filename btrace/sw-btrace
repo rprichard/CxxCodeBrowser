@@ -21,7 +21,7 @@ export BTRACE_LOG
 rm -f "$BTRACE_LOG"
 
 # This code copies fakeroot's behavior by adding the library to the front of the
-# space-delimited LD_PRELOAD variable.
+# LD_PRELOAD variable.
 #
 # TODO: It should follow fakeroot more closely by setting LD_LIBRARY_PATH to
 # include both a 32-bit and (on appropriate hosts) a 64-bit library directory.
@@ -31,10 +31,14 @@ rm -f "$BTRACE_LOG"
 
 system=$(uname -s)
 if test "$system" = "FreeBSD" -o "$system" = "Linux"; then
+    # FreeBSD's ld.so man page states that LD_PRELOAD is either colon or
+    # whitespace delimited.  Linux's ld.so man page states that LD_PRELOAD is
+    # whitespace delimited, but Linux appears to accept either delimiter.
     preload_lib=$libexec_dir/libsw-btrace.so
-    LD_PRELOAD=$preload_lib${LD_PRELOAD:+:$LD_PRELOAD}
+    LD_PRELOAD=$preload_lib${LD_PRELOAD:+ $LD_PRELOAD}
     export LD_PRELOAD
 elif test "$system" = "Darwin"; then
+    # On OS X, the DYLD_INSERT_LIBRARIES variable functions like LD_PRELOAD.
     preload_lib=$libexec_dir/libsw-btrace.dylib
     DYLD_INSERT_LIBRARIES=$preload_lib${DYLD_INSERT_LIBRARIES:+:$DYLD_INSERT_LIBRARIES}
     export DYLD_INSERT_LIBRARIES
