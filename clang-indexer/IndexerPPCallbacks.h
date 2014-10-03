@@ -32,21 +32,31 @@ private:
                                     const clang::FileEntry *file,
                                     llvm::StringRef searchPath,
                                     llvm::StringRef relativePath,
-                                    const clang::Module *imported);
+                                    const clang::Module *imported) override;
 
     std::tuple<IndexerFileContext*, Location, Location>
     getIncludeFilenameLoc(clang::CharSourceRange filenameRange);
 
     virtual void MacroExpands(const clang::Token &macroNameToken,
-                              const clang::MacroInfo *mi,
-                              clang::SourceRange range);
+                              const clang::MacroDirective *md,
+                              clang::SourceRange range,
+                              const clang::MacroArgs *args) override;
     virtual void MacroDefined(const clang::Token &macroNameToken,
-                              const clang::MacroInfo *mi);
+                              const clang::MacroDirective *md) override;
     virtual void MacroUndefined(const clang::Token &macroNameTok,
-                                const clang::MacroInfo *mi);
-    virtual void Defined(const clang::Token &macroNameToken);
-    virtual void Ifdef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
-    virtual void Ifndef(clang::SourceLocation loc, const clang::Token &macroNameToken) { Defined(macroNameToken); }
+                                const clang::MacroDirective *md) override;
+    virtual void Defined(const clang::Token &macroNameToken,
+                         const clang::MacroDirective *md,
+                         clang::SourceRange range) override;
+    virtual void Ifdef(clang::SourceLocation loc,
+                       const clang::Token &macroNameToken,
+                       const clang::MacroDirective *md) override
+    { Defined(macroNameToken, md, clang::SourceRange(loc, loc)); }
+
+    virtual void Ifndef(clang::SourceLocation loc,
+                        const clang::Token &macroNameToken,
+                        const clang::MacroDirective *md) override
+    { Defined(macroNameToken, md, clang::SourceRange(loc, loc)); }
 
     void recordReference(const clang::Token &macroNameToken, RefType refType);
 
