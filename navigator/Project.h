@@ -5,6 +5,7 @@
 #include <QList>
 #include <QString>
 #include <QStringList>
+#include <memory>
 #include <vector>
 #include <stdint.h>
 
@@ -23,7 +24,7 @@ class Project;
 class FileManager;
 class Ref;
 
-extern Project *theProject;
+extern std::unique_ptr<Project> theProject;
 
 class Project
 {

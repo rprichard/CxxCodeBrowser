@@ -26,4 +26,4 @@ cd bigint-2010.04.30
 sw-btrace make -j4 all testsuite
 sw-btrace-to-compiledb
 sw-clang-indexer --index-project
-sourceweb
+sourceweb index

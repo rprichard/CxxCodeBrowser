@@ -1,10 +1,17 @@
 #include "Application.h"
 
 #include <QApplication>
+#include <QFileInfo>
 #include <QFont>
 #include <QFontInfo>
+#include <QMessageBox>
 #include <QSettings>
 #include <QString>
+#include <QTimer>
+#include <memory>
+
+#include "MainWindow.h"
+#include "Project.h"
 
 // Qt seems to have different methods for selecting a monospace font.  No one
 // method works on all combinations of operating systems and Qt versions.  (In
@@ -40,6 +47,51 @@ Application::Application(int &argc, char **argv) :
     QApplication(argc, argv),
     m_settings(/*organization=*/"SourceWeb")
 {
+    // Work around Qt bugginess.  With Qt 5.4 on OS X 10.10.2, dialog boxes
+    // opened in main() have a frozen UI for several seconds, and the menu bar
+    // doesn't update when the app isn't a bundle.  Work around this by
+    // deferring initialization until the event loop has started.
+    QTimer *single = new QTimer(this);
+    connect(single, SIGNAL(timeout()), SLOT(finishStartup()));
+    single->setSingleShot(true);
+    single->setInterval(0);
+    single->start();
+}
+
+void Application::finishStartup()
+{
+    bool seen_help = false;
+    QString path = "index";
+
+    // The user might open the application from a GUI (e.g. by double-clicking
+    // the app bundle in the OS X Finder).  If that happens, we want to show
+    // the error via a dialog, because stderr is being discarded.  For
+    // simplicity, always use a dialog.
+
+    if (arguments().length() == 2) {
+        path = arguments()[1];
+        if (path == "-h" || path == "--help" || path == "-help") {
+            seen_help = true;
+        }
+    }
+
+    if (arguments().length() > 2 || seen_help) {
+        QString message = QString("Usage: %0 [index_file]").arg(arguments()[0]);
+        QMessageBox::information(nullptr, "SourceWeb", message);
+        exit();
+        return;
+    }
+
+    if (!QFileInfo(path).isFile()) {
+        QString message = QString("Index file `%0` does not exist.").arg(path);
+        QMessageBox::critical(nullptr, "SourceWeb", message);
+        exit(1);
+        return;
+    }
+
+    Nav::theProject = std::unique_ptr<Nav::Project>(new Nav::Project(path));
+    Nav::theMainWindow = new Nav::MainWindow(*Nav::theProject);
+    Nav::theMainWindow->show();
 }
 
 QFont Application::defaultFont()

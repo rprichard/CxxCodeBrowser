@@ -6,6 +6,7 @@
 #include <QString>
 #include <QtConcurrentRun>
 #include <cassert>
+#include <memory>
 #include <vector>
 
 #include "FileManager.h"
@@ -18,7 +19,7 @@ namespace Nav {
 
 const char kPathSymbolPrefix = '@';
 
-Project *theProject;
+std::unique_ptr<Project> theProject;
 
 Project::Project(const QString &path)
 {

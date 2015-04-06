@@ -152,7 +152,9 @@ compiling the code.
 
 ### Starting the GUI
 
-Run `sourceweb` in a directory containing an `index` file to navigate the index.
+Run `sourceweb` passing it the path to an `index` file.  On OS X, run the
+`Contents/MacOS/sourceweb` binary; opening the `sourceweb.app` bundle does not
+work.
 
 
 Demo

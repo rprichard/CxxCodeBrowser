@@ -4,7 +4,6 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets concurrent
 
 TARGET = sourceweb
 TEMPLATE = app
-CONFIG -= app_bundle
 
 SOURCES += \
     Application.cpp \

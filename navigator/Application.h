@@ -18,6 +18,10 @@ public:
     static Application *instance() {
         return qobject_cast<Application*>(QApplication::instance());
     }
+
+private slots:
+    void finishStartup();
+
 private:
     QFont configurableFont(
             const QString &name,
