@@ -18,12 +18,11 @@ defineTest(checkClangRequire) {
     !exists($$1): error("check-clang.pri: Clang file $${1} does not exist.")
 }
 
-# Spot-check to make sure each kind of file exists -- binaries, headers, and
-# libraries.
-unix: checkClangRequire($${CLANG_DIR}/bin/clang)
-unix: checkClangRequire($${CLANG_DIR}/bin/clang++)
-win32: checkClangRequire($${CLANG_DIR}/bin/clang.exe)
-win32: checkClangRequire($${CLANG_DIR}/bin/clang++.exe)
+# Spot-check to make sure we can find Clang headers and libraries.  We do not
+# need the clang/clang++ executables, and sometimes they do not exist.  (e.g.
+# Ubuntu has multiple libllvm-3.X-dev packages, but only a single clang binary
+# can exist at once.)
+
 checkClangRequire($${CLANG_DIR}/include/clang/AST/ASTContext.h)
 
 # Check that all expected libraries are present.
