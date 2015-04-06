@@ -11,9 +11,9 @@ SourceWeb currently runs on Linux and OS X.
 
 ### Dependencies
 
-SourceWeb is written in C++11.  The indexer links against Clang 3.2's C++ API.
+SourceWeb is written in C++11.  The indexer links against Clang 3.5's C++ API.
 Clang's C++ APIs are not compatible between releases, so this version of
-SourceWeb requires exactly Clang 3.2.  The GUI uses Qt 4.6 or later.  Follow
+SourceWeb requires exactly Clang 3.5.  The GUI uses Qt 4.6 or later.  Follow
 the build instructions to satisfy these dependencies.
 
 
@@ -23,67 +23,59 @@ Install prerequisite packages:
 
 Debian-based:
 
-    sudo apt-get install make g++ libqt4-dev
+    sudo apt-get install make g++ libqt4-dev zlib1g-dev libncurses5-dev \
+                         libclang-3.5-dev
 
 Fedora/CentOS:
 
-    sudo yum install make gcc-c++ qt-devel
+    sudo yum install make gcc-c++ qt-devel zlib-devel ncurses-devel
 
-Download the [clang-redist package][1] containing Clang 3.2 and extract it into
-a single directory of your choice.
-
-[1]: http://rprichard.github.com/clang-redist
-
-    ARCH=x86     (or ARCH=x86_64)
-    SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist/release-1
-    wget $SRC/clang-3.2-1-$ARCH-linux.tar.bz2
-    tar -xf clang-3.2-1-$ARCH-linux.tar.bz2
+If your distribution doesn't have a Clang 3.5 package, you can try looking
+for a prebuilt binary package on llvm.org.  If there isn't one, you will have
+to compile from source.  You will also need to pass --with-clang-dir to
+SourceWeb's `configure` script.
 
 Build the software:
 
     mkdir build
     cd build
-    ../configure --with-clang-dir $HOME/clang-3.2-1-$ARCH-linux
+    ../configure [--with-clang-dir <path-to-clang-dir>]
     make -j4
     sudo make install
 
 
 ### Building on OS X
 
-SourceWeb is tested with OS X 10.8, but probably works with OS X 10.7.  It will not
-work with OS X 10.6, because OS X 10.6 lacks libc++.  Satisfy the prerequisites:
+SourceWeb is tested with OS X 10.10, but is likely to work with some older
+versions.  It will not work with OS X 10.6, because OS X 10.6 lacks libc++,
+necessary for C++11.  Satisfy the prerequisites:
 
 1. Install Xcode.
 
-2. Install the Command Line Tools.  (In Xcode's Preferences window, go to the
-   Downloads tab.  Command Line Tools should be listed as an installable
-   component.)
+2. Install the Command Line Tools.  Run `xcode-select --install` at the
+   command-line.
 
-3. Install Qt 5 from qt-project.org.  Make note of where Qt was installed.
+3. Install Qt.  Qt 5 from qt-project.org should work, but Qt 4 or Qt from other
+   sources (e.g. HomeBrew/MacPorts) might also work.
 
-4. Download and extract the [clang-redist package][2] containing Clang 3.2.  The
-   official llvm.org package for Clang 3.2 is built for libstdc++ and is not
-   suitable.
-
-        cd $HOME
-        SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist/release-1
-        curl -O $SRC/clang-3.2-1-x86_64-darwin.tar.bz2
-        tar -xf clang-3.2-1-x86_64-darwin.tar.bz2
+4. Install the Clang library set somewhere on your system.  The easiest way to
+   do this is to download the
+   [official prebuilt binaries](http://llvm.org/releases/download.html).
 
 Configure and build SourceWeb:
 
-    ./configure --with-clang-dir $HOME/clang-3.2-1-x86_64-darwin \
-                --with-qmake <path-to-qt5>/<qt5ver>/clang_64/bin/qmake
+    mkdir build
+    cd build
+    ../configure --with-clang-dir <path-to-clang-dir> \
+                 [--with-qmake <path-to-qt5>/<qt5ver>/clang_64/bin/qmake]
     make -j4
     make install
-
-[2]: http://rprichard.github.com/clang-redist
 
 
 ### Configuration notes
 
-The Clang directory (e.g. `$HOME/sourceweb-clang-3.2-1`) is embedded into the
-SourceWeb build output, so it must not be moved later.
+The Clang directory (e.g. `$HOME/clang+llvm-3.5.2-x86_64-linux-gnu`) is
+embedded into the SourceWeb build output, so it must not be moved later.
 
 The `configure` script is a wrapper around qmake, which is SourceWeb's build
 tool.  The `configure` script supports out-of-tree builds (like qmake) and
