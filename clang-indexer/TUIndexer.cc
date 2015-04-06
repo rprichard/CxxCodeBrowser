@@ -12,8 +12,9 @@
 #include <clang/Frontend/FrontendAction.h>
 #include <clang/Lex/Preprocessor.h>
 #include <clang/Tooling/Tooling.h>
-#include <iostream>
 #include <llvm/ADT/StringRef.h>
+#include <iostream>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -99,9 +100,10 @@ void indexTranslationUnit(
         const std::vector<std::string> &argv,
         indexdb::IndexArchiveBuilder &archive)
 {
-    clang::FileManager *fm = new clang::FileManager(clang::FileSystemOptions());
-    IndexerAction *action = new IndexerAction(archive);
-    clang::tooling::ToolInvocation ti(argv, action, fm);
+    llvm::IntrusiveRefCntPtr<clang::FileManager> fm(
+        new clang::FileManager(clang::FileSystemOptions()));
+    std::unique_ptr<IndexerAction> action(new IndexerAction(archive));
+    clang::tooling::ToolInvocation ti(argv, action.release(), fm.get());
     ti.run();
 }
 
