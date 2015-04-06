@@ -99,9 +99,9 @@ Opening a C/C++ project with SourceWeb is a three-step process:
 
 The JSON compilation database is a file specifying the command-line for every
 compilation of a translation unit into an object file.  It was first introduced
-by the CMake project.  Clang has a [page][3] describing the format.
+by the CMake project.  Clang has a [page][1] describing the format.
 
-[3]: http://clang.llvm.org/docs/JSONCompilationDatabase.html
+[1]: http://clang.llvm.org/docs/JSONCompilationDatabase.html
 
 Example:
 
@@ -161,10 +161,10 @@ Demo
 ----
 
 The `demo/demo.sh` script demonstrates use of the `sw-btrace`,
-`sw-clang-indexer`, and `sourceweb` commands on [bigint][4], a small C++
+`sw-clang-indexer`, and `sourceweb` commands on [bigint][2], a small C++
 library.
 
-[4]: https://mattmccutchen.net/bigint/
+[2]: https://mattmccutchen.net/bigint/
 
 
 License
