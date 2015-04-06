@@ -146,20 +146,14 @@ fi
 
 ################################################################################
 # The default mkspec for Qt4 qmake on OS X generates an Xcode project file.
-# The default for Qt5 generates a Makefile, but it uses libstdc++ and sets the
-# deployment target to 10.6.  Select an appropriate spec file unless the user
-# overrides it.
+# Qt5 seems to work.
 
 if [ "$(uname)" = "Darwin" -a "$QMAKESPEC" = "" ]; then
     if "$QMAKE" -v 2>&1 | grep '^Using Qt version 4\.' > /dev/null; then
         # enable-cxx11.pri will configure libc++ and the deployment target.
         QMAKESPEC=unsupported/macx-clang
-    else
-        # Assume qmake is from Qt5, which has a spec selecting Clang and
-        # libc++, which is needed for C++11 support.
-        QMAKESPEC=macx-clang-libc++
+        echo "The default OS X qmake spec is not suitable.  Setting it to $QMAKESPEC."
     fi
-    echo "The default OS X qmake spec is not suitable.  Setting it to $QMAKESPEC."
 fi
 
 if [ -n "$QMAKESPEC" ]; then
@@ -206,5 +200,5 @@ if [ $? -ne 0 ]; then
 fi
 
 echo ""
-echo "SUCCESS: Run make [-j JOBS] and [sudo] make install to build."
+echo "SUCCESS: Run make [-j JOBS], then [sudo] make install to build."
 echo ""
