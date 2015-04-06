@@ -269,7 +269,7 @@ bool ASTIndexer::VisitDeclRefExpr(clang::DeclRefExpr *e)
 
 bool ASTIndexer::VisitCXXConstructExpr(clang::CXXConstructExpr *e)
 {
-    if (e->getParenRange().isValid()) {
+    if (e->getParenOrBraceRange().isValid()) {
         // XXX: This code is a kludge.  Recording calls to constructors is
         // troublesome because there isn't an obvious location to associate the
         // call with.  Consider:
@@ -288,7 +288,7 @@ bool ASTIndexer::VisitCXXConstructExpr(clang::CXXConstructExpr *e)
         // it.  The fix may have implications for the navigator GUI.
         RecordDeclRefExpr(
                     e->getConstructor(),
-                    e->getParenRange().getEnd(),
+                    e->getParenOrBraceRange().getEnd(),
                     e,
                     CF_Called);
     }
@@ -581,24 +581,27 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
 
 bool ASTIndexer::VisitTypeLoc(clang::TypeLoc tl)
 {
-    if (llvm::isa<clang::TagTypeLoc>(tl)) {
-        clang::TagTypeLoc &ttl = *llvm::cast<clang::TagTypeLoc>(&tl);
+    if (!tl.getAs<clang::TagTypeLoc>().isNull()) {
+        const clang::TagTypeLoc &ttl = tl.castAs<clang::TagTypeLoc>();
         RecordDeclRef(ttl.getDecl(),
                       tl.getBeginLoc(),
                       m_typeContext);
-    } else if (llvm::isa<clang::TypedefTypeLoc>(tl)) {
-        clang::TypedefTypeLoc &ttl = *llvm::cast<clang::TypedefTypeLoc>(&tl);
+    } else if (!tl.getAs<clang::TypedefTypeLoc>().isNull()) {
+        const clang::TypedefTypeLoc &ttl = tl.castAs<clang::TypedefTypeLoc>();
         RecordDeclRef(ttl.getTypedefNameDecl(),
                       tl.getBeginLoc(),
                       m_typeContext);
-    } else if (llvm::isa<clang::TemplateTypeParmTypeLoc>(tl)) {
-        clang::TemplateTypeParmTypeLoc &ttptl = *llvm::cast<clang::TemplateTypeParmTypeLoc>(&tl);
+    } else if (!tl.getAs<clang::TemplateTypeParmTypeLoc>().isNull()) {
+        const clang::TemplateTypeParmTypeLoc &ttptl =
+           tl.castAs<clang::TemplateTypeParmTypeLoc>();
         RecordDeclRef(ttptl.getDecl(),
                       tl.getBeginLoc(),
                       m_typeContext);
-    } else if (llvm::isa<clang::TemplateSpecializationTypeLoc>(tl)) {
-        clang::TemplateSpecializationTypeLoc &tstl = *llvm::cast<clang::TemplateSpecializationTypeLoc>(&tl);
-        const clang::TemplateSpecializationType &tst = *tstl.getTypePtr()->getAs<clang::TemplateSpecializationType>();
+    } else if (!tl.getAs<clang::TemplateSpecializationTypeLoc>().isNull()) {
+        const clang::TemplateSpecializationTypeLoc &tstl =
+           tl.castAs<clang::TemplateSpecializationTypeLoc>();
+        const clang::TemplateSpecializationType &tst =
+           *tstl.getTypePtr()->getAs<clang::TemplateSpecializationType>();
         if (tst.getAsCXXRecordDecl()) {
             RecordDeclRef(tst.getAsCXXRecordDecl(),
                           tl.getBeginLoc(),

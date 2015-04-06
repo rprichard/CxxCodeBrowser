@@ -99,9 +99,9 @@ void indexTranslationUnit(
         const std::vector<std::string> &argv,
         indexdb::IndexArchiveBuilder &archive)
 {
-    llvm::OwningPtr<clang::FileManager> fm(new clang::FileManager(clang::FileSystemOptions()));
-    llvm::OwningPtr<IndexerAction> action(new IndexerAction(archive));
-    clang::tooling::ToolInvocation ti(argv, action.take(), fm.get());
+    clang::FileManager *fm = new clang::FileManager(clang::FileSystemOptions());
+    IndexerAction *action = new IndexerAction(archive);
+    clang::tooling::ToolInvocation ti(argv, action, fm);
     ti.run();
 }
 

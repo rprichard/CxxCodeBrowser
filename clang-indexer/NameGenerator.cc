@@ -197,7 +197,7 @@ void NameGenerator::VisitTagDecl(clang::TagDecl *decl)
 
 void NameGenerator::VisitVarDecl(clang::VarDecl *decl)
 {
-    if (!decl->isExternC() && decl->getLinkage() != clang::ExternalLinkage)
+    if (!decl->isExternC() && !decl->hasExternalStorage())
         m_needFilePrefix = true;
     VisitDeclContext(decl->getDeclContext());
 
@@ -228,7 +228,7 @@ void NameGenerator::outputFunctionIdentifier(clang::DeclarationName name)
         }
     }
 
-    name.printName(m_out);
+    m_out << name.getAsString();
 }
 
 void NameGenerator::VisitFunctionDecl(clang::FunctionDecl *decl)
@@ -250,7 +250,8 @@ void NameGenerator::VisitFunctionDecl(clang::FunctionDecl *decl)
         decl = decl->getTemplateInstantiationPattern();
 
     // TODO: Review correctness for C code.
-    if (!isExternC && decl->getLinkage() != clang::ExternalLinkage)
+    if (!isExternC && !decl->isInExternCContext()
+          && !decl->isInExternCXXContext())
         m_needFilePrefix = true;
 
     VisitDeclContext(decl->getDeclContext());
