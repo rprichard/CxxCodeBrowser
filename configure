@@ -92,21 +92,6 @@ QMAKE_FLAGS=""
 
 
 ################################################################################
-# On Linux, build the project using the same Clang compiler used to index code.
-# Many current Linux distributions lack a C++11 toolchain, so reusing the
-# indexing compiler is convenient.
-
-if [ "$(uname)" = "Linux" ]; then
-    # Ideally, we would also change the spec file to unsupported/linux-clang
-    # on Linux, but that spec file does not exist in Qt 4.6, which many current
-    # distributions still use.
-    QMAKE_FLAGS="$QMAKE_FLAGS QMAKE_CC=$CLANG_DIR/bin/clang"
-    QMAKE_FLAGS="$QMAKE_FLAGS QMAKE_CXX=$CLANG_DIR/bin/clang++"
-    QMAKE_FLAGS="$QMAKE_FLAGS QMAKE_LINK=$CLANG_DIR/bin/clang++"
-fi
-
-
-################################################################################
 # The default mkspec for Qt4 qmake on OS X generates an Xcode project file.
 # The default for Qt5 generates a Makefile, but it uses libstdc++ and sets the
 # deployment target to 10.6.  Select an appropriate spec file unless the user

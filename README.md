@@ -21,37 +21,31 @@ the build instructions to satisfy these dependencies.
 
 Install prerequisite packages:
 
-| Distribution         | Packages
-| -------------------- | -------------------------
-| Debian 6.0           | make g++ libqt4-dev
-| Ubuntu 10.04 and up  | make g++ libqt4-dev
-| Fedora               | make gcc-c++ qt-devel
-| CentOS 6.0           | make gcc-c++ qt-devel
-| OpenSUSE 11.4 and up | make gcc-c++ libqt4-devel
+Debian-based:
 
-Download the [clang-redist packages][1] containing Clang 3.2 and gcc-libs 4.6
-and extract them into a single directory of your choosing using the
-`--strip-components=1` tar option.  The gcc-libs package contains
-`libstdc++.so.6`, so you probably do not want to install it into any directory
-in the default library search path (e.g. `/usr/local`).  It can be omitted if
-you already have libstdc++ from gcc 4.6 or newer.
+    sudo apt-get install make g++ libqt4-dev
+
+Fedora/CentOS:
+
+    sudo yum install make gcc-c++ qt-devel
+
+Download the [clang-redist package][1] containing Clang 3.2 and extract it into
+a single directory of your choice.
 
 [1]: http://rprichard.github.com/clang-redist
 
     ARCH=x86     (or ARCH=x86_64)
     SRC=https://s3.amazonaws.com/rprichard-released-software/clang-redist/release-1
-    mkdir $HOME/sourceweb-clang-3.2-1
-    cd $HOME/sourceweb-clang-3.2-1
     wget $SRC/clang-3.2-1-$ARCH-linux.tar.bz2
-    wget $SRC/gcc-libs-4.6.3-1-$ARCH-linux.tar.bz2
-    tar --strip-components=1 -xf clang-3.2-1-$ARCH-linux.tar.bz2
-    tar --strip-components=1 -xf gcc-libs-4.6.3-1-$ARCH-linux.tar.bz2
+    tar -xf clang-3.2-1-$ARCH-linux.tar.bz2
 
 Build the software:
 
-    ./configure --with-clang-dir $HOME/sourceweb-clang-3.2-1
+    mkdir build
+    cd build
+    ../configure --with-clang-dir $HOME/clang-3.2-1-$ARCH-linux
     make -j4
-    make install
+    sudo make install
 
 
 ### Building on OS X
