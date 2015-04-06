@@ -1,4 +1,5 @@
 #!/bin/sh
+set -u
 
 CLANG_VER=3.5
 SRCDIR=$(cd "$(dirname "$0")" && pwd)
@@ -21,14 +22,22 @@ Dependency options:
   --with-qmake=QMAKE [optional]
                           Configure the qmake binary to use.  By default,
                           the configure script searches the PATH for qmake.
+  --with-qmake-spec=QMAKESPEC [optional]
+                          Forcibly set the -spec passed to qmake.
 EOF
 }
 
+
+CLANG_DIR=
+PREFIX=
 QMAKE=
+QMAKESPEC=
+QMAKE_FLAGS=
+
 while [ $# -gt 0 ]; do
     ARG=$1
     case $ARG in
-        --prefix|--with-clang-dir|--with-qmake)
+        --prefix|--with-clang-dir|--with-qmake|--with-qmake-spec)
             shift
             ARG=$ARG=$1
     esac
@@ -36,33 +45,79 @@ while [ $# -gt 0 ]; do
         --prefix=*) PREFIX=${ARG#*=}; shift;;
         --with-clang-dir=*) CLANG_DIR=${ARG#*=}; shift;;
         --with-qmake=*) QMAKE=${ARG#*=}; shift;;
+        --with-qmake-spec=*) QMAKESPEC=${ARG#*=}; shift;;
         -h|--help) usage; exit 0;;
         *) echo "$0: error: Unrecognized argument $ARG"; exit 1;;
     esac
 done
 
+require_absolute_path() {
+    local PATH_NAME=$1
+    local PATH_VALUE=$2
+    if [ "${PATH_VALUE#/}" = "$PATH_VALUE" ]; then
+        echo "$0: error: $PATH_NAME path must be absolute."
+        exit 1
+    fi
+}
+
 PREFIX=${PREFIX:-/usr/local}
+require_absolute_path --prefix "$PREFIX"
+
+
+################################################################################
+# Find a Clang library installation.
+
+find_clang() {
+    local CANDIDATE=$1
+    echo " - trying $CANDIDATE..."
+    if [ ! -d "$CANDIDATE" ]; then
+        echo " - failed $CANDIDATE... does not exist"
+        return
+    fi
+    for ITEM in \
+            include/clang/AST/ASTContext.h \
+            lib/libclangTooling.a \
+            lib/libLLVMCore.a \
+    ; do
+        ITEM_PATH=$CANDIDATE/$ITEM
+        if [ ! -f "$ITEM_PATH" ]; then
+            echo " - failed $CANDIDATE... $ITEM_PATH does NOT exist"
+            return
+        fi
+        echo " - trying $CANDIDATE... $ITEM_PATH exists"
+    done
+    echo " -  found $CANDIDATE"
+    CLANG_DIR=$CANDIDATE
+}
+
+if [ "$CLANG_DIR" = "" -a "$(uname)" = "Linux" ]; then
+    echo "Searching for Clang $CLANG_VER..."
+    find_clang /usr/lib/llvm-$CLANG_VER
+fi
 
 if [ "$CLANG_DIR" = "" ]; then
-    echo "$0: error: A Clang $CLANG_VER directory must be specified using --with-clang-dir."
+    if [ "$(uname)" = "Linux" ]; then
+        echo "$0: error: Could not find Clang $CLANG_VER.  Either install it or specify"
+        echo "--with-clang-dir.  Installation options:"
+        echo " - Debian/Ubuntu: sudo apt-get install libclang-${CLANG_VER}-dev"
+        echo " - Prebuilt binaries are available at llvm.org for some systems."
+        echo " - Compile LLVM from source."
+    else
+        echo "$0: error: A Clang $CLANG_VER directory must be specified using --with-clang-dir."
+    fi
     exit 1
 fi
-if [ "${CLANG_DIR#/}" = "$CLANG_DIR" ]; then
-    echo "$0: error: --with-clang-dir path must be absolute."
-    exit 1
-fi
-if [ "${PREFIX#/}" = "$PREFIX" ]; then
-    echo "$0: error: --prefix path must be absolute."
-    exit 1
-fi
-if [ -n "$QMAKE" -a \( ! -f "$QMAKE" -o ! -x "$QMAKE" \) ]; then
-    echo "$0: error: $QMAKE does not exist or is not an executable file."
-    exit 1
-fi
+
+require_absolute_path --with-clang-dir "$CLANG_DIR"
 
 
 ################################################################################
 # Find qmake.
+
+if [ -n "$QMAKE" -a \( ! -f "$QMAKE" -o ! -x "$QMAKE" \) ]; then
+    echo "$0: error: $QMAKE does not exist or is not an executable file."
+    exit 1
+fi
 
 if [ -z "$QMAKE" ]; then
     echo "Looking for qmake..."
@@ -88,25 +143,27 @@ else
     echo "Using configured qmake... $QMAKE"
 fi
 
-QMAKE_FLAGS=""
-
 
 ################################################################################
 # The default mkspec for Qt4 qmake on OS X generates an Xcode project file.
 # The default for Qt5 generates a Makefile, but it uses libstdc++ and sets the
 # deployment target to 10.6.  Select an appropriate spec file unless the user
-# overrides it using QMAKESPEC.
+# overrides it.
 
 if [ "$(uname)" = "Darwin" -a "$QMAKESPEC" = "" ]; then
-    echo "The default qmake spec is not suitable.  Overriding it."
     if "$QMAKE" -v 2>&1 | grep '^Using Qt version 4\.' > /dev/null; then
         # enable-cxx11.pri will configure libc++ and the deployment target.
-        QMAKE_FLAGS="$QMAKE_FLAGS -spec unsupported/macx-clang"
+        QMAKESPEC=unsupported/macx-clang
     else
         # Assume qmake is from Qt5, which has a spec selecting Clang and
         # libc++, which is needed for C++11 support.
-        QMAKE_FLAGS="$QMAKE_FLAGS -spec macx-clang-libc++"
+        QMAKESPEC=macx-clang-libc++
     fi
+    echo "The default OS X qmake spec is not suitable.  Setting it to $QMAKESPEC."
+fi
+
+if [ -n "$QMAKESPEC" ]; then
+    QMAKE_FLAGS="$QMAKE_FLAGS -spec $QMAKESPEC"
 fi
 
 
@@ -147,3 +204,7 @@ if [ $? -ne 0 ]; then
     echo qmake failed
     exit 1
 fi
+
+echo ""
+echo "SUCCESS: Run make [-j JOBS] and [sudo] make install to build."
+echo ""
