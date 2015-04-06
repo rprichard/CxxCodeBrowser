@@ -51,12 +51,16 @@ private:
     virtual void Ifdef(clang::SourceLocation loc,
                        const clang::Token &macroNameToken,
                        const clang::MacroDirective *md) override
-    { Defined(macroNameToken, md, clang::SourceRange(loc, loc)); }
+    {
+        Defined(macroNameToken, md, clang::SourceRange(loc, loc));
+    }
 
     virtual void Ifndef(clang::SourceLocation loc,
                         const clang::Token &macroNameToken,
                         const clang::MacroDirective *md) override
-    { Defined(macroNameToken, md, clang::SourceRange(loc, loc)); }
+    {
+        Defined(macroNameToken, md, clang::SourceRange(loc, loc));
+    }
 
     void recordReference(const clang::Token &macroNameToken, RefType refType);
 
