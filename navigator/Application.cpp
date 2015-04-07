@@ -75,8 +75,8 @@ void Application::finishStartup()
         }
     }
 
-    if (arguments().length() > 2 || seen_help) {
-        QString message = QString("Usage: %0 [index_file]").arg(arguments()[0]);
+    if (arguments().length() != 2 || seen_help) {
+        QString message = QString("Usage: %0 index_file").arg(arguments()[0]);
         QMessageBox::information(nullptr, "SourceWeb", message);
         exit();
         return;
