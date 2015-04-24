@@ -24,7 +24,7 @@ Install prerequisite packages:
 Debian-based:
 
     sudo apt-get install make g++ libqt4-dev zlib1g-dev libncurses5-dev \
-                         libclang-3.5-dev
+                         libclang-3.5-dev llvm-3.5-dev
 
 Fedora/CentOS:
 

@@ -99,7 +99,7 @@ if [ "$CLANG_DIR" = "" ]; then
     if [ "$(uname)" = "Linux" ]; then
         echo "$0: error: Could not find Clang $CLANG_VER.  Either install it or specify"
         echo "--with-clang-dir.  Installation options:"
-        echo " - Debian/Ubuntu: sudo apt-get install libclang-${CLANG_VER}-dev"
+        echo " - Debian/Ubuntu: sudo apt-get install libclang-${CLANG_VER}-dev llvm-${CLANG_VER}-dev"
         echo " - Prebuilt binaries are available at llvm.org for some systems."
         echo " - Compile LLVM from source."
     else
