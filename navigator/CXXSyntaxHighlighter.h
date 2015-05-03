@@ -2,6 +2,7 @@
 #define NAV_CXXSYNTAXHIGHLIGHTER_H
 
 #include <QString>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -22,7 +23,9 @@ enum Kind : unsigned char {
     KindMax // one larger than the largest valid kind
 };
 
-std::vector<Kind> highlight(const std::string &content);
+typedef std::unique_ptr<Kind[]> HighlightVector;
+
+HighlightVector highlight(const std::string &content);
 
 } // namespace CXXSyntaxHighlighter
 } // namespace Nav

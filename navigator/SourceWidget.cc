@@ -537,8 +537,9 @@ void SourceWidgetView::setFile(File *file)
         auto syntaxColoringKind = CXXSyntaxHighlighter::highlight(content);
 
         // Color characters according to the lexed character kind.
-        m_syntaxColoring.resize(content.size());
-        for (size_t i = 0; i < syntaxColoringKind.size(); ++i) {
+        m_syntaxColoring = std::unique_ptr<SourceWidgetTextPalette::Color[]>(
+                    new SourceWidgetTextPalette::Color[content.size()]);
+        for (size_t i = 0; i < content.size(); ++i) {
             m_syntaxColoring[i] =
                     m_textPalette.colorForSyntaxKind(syntaxColoringKind[i]);
         }

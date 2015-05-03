@@ -32,13 +32,11 @@ static inline bool isAlnum(char ch)
     return ui - '0' < 10 || ui - 'a' < 26 || ui - 'A' < 26;
 }
 
-std::vector<Kind> highlight(const std::string &content)
+HighlightVector highlight(const std::string &content)
 {
-    std::vector<Kind> result;
-    result.resize(content.size());
-
+    auto result = HighlightVector(new Kind[content.size()]);
     const char *p = content.c_str();
-    Kind *k = result.data();
+    Kind *k = result.get();
     char quoteChar;
     Kind *preprocStart;
     char text[32];
@@ -217,7 +215,7 @@ TEXT:
 
 END:
     assert(p == content.c_str() + content.size());
-    assert(k == result.data() + result.size());
+    assert(k == result.get() + content.size());
 
     return result;
 }

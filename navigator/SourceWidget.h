@@ -302,7 +302,7 @@ private:
     QMargins m_margins;
     Project &m_project;
     File *m_file;
-    std::vector<SourceWidgetTextPalette::Color> m_syntaxColoring;
+    std::unique_ptr<SourceWidgetTextPalette::Color[]> m_syntaxColoring;
     int m_maxLineLength;
     QPoint m_tripleClickPoint;
     QTime m_tripleClickTime;
