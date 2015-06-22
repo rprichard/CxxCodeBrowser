@@ -90,9 +90,16 @@ find_clang() {
     CLANG_DIR=$CANDIDATE
 }
 
-if [ "$CLANG_DIR" = "" -a "$(uname)" = "Linux" ]; then
+if [ "$CLANG_DIR" = "" ]; then
+    if [ -f "/etc/arch-release" ]; then
+        # ArchLinux has a different layout for clang
+        TMP_CLANG_DIR=/usr
+    elif [ "$(uname)" = "Linux" ]; then
+        TMP_CLANG_DIR=/usr/lib/llvm-$CLANG_VER
+    fi
+
     echo "Searching for Clang $CLANG_VER..."
-    find_clang /usr/lib/llvm-$CLANG_VER
+    find_clang $TMP_CLANG_DIR
 fi
 
 if [ "$CLANG_DIR" = "" ]; then
