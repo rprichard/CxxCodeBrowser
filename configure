@@ -1,7 +1,7 @@
 #!/bin/sh
 set -u
 
-CLANG_VER=3.5
+CLANG_VER=3.6
 SRCDIR=$(cd "$(dirname "$0")" && pwd)
 
 usage() {

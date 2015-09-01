@@ -74,17 +74,19 @@ private:
         return *m_context;
     }
 
-    virtual clang::ASTConsumer *CreateASTConsumer(
+    virtual std::unique_ptr<clang::ASTConsumer> CreateASTConsumer(
             clang::CompilerInstance &ci,
             llvm::StringRef inFile) {
-        return new IndexerASTConsumer(getContext(ci));
+        return std::unique_ptr<clang::ASTConsumer>(
+            new IndexerASTConsumer(getContext(ci)));
     }
 
     virtual bool BeginSourceFileAction(clang::CompilerInstance &ci,
                                        llvm::StringRef filename) {
         ci.getDiagnostics().setClient(new clang::IgnoringDiagConsumer);
         ci.getPreprocessor().addPPCallbacks(
-                    new IndexerPPCallbacks(getContext(ci)));
+            std::unique_ptr<clang::PPCallbacks>(
+                new IndexerPPCallbacks(getContext(ci))));
         return true;
     }
 

@@ -3,7 +3,7 @@
 # Clang installation.
 #
 
-REQUIRED_CLANG_VERSION = 3.5
+REQUIRED_CLANG_VERSION = 3.6
 
 equals(CLANG_DIR, "") {
     warning("The CLANG_DIR qmake variable is unset.")
