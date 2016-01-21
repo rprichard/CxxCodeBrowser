@@ -11,9 +11,9 @@ SourceWeb currently runs on Linux and OS X.
 
 ### Dependencies
 
-SourceWeb is written in C++11.  The indexer links against Clang 3.6's C++ API.
+SourceWeb is written in C++11.  The indexer links against Clang's C++ API.
 Clang's C++ APIs are not compatible between releases, so this version of
-SourceWeb requires exactly Clang 3.6.  The GUI uses Qt 4.6 or later.  Follow
+SourceWeb requires exactly Clang 3.7.  The GUI uses Qt 4.6 or later.  Follow
 the build instructions to satisfy these dependencies.
 
 
@@ -24,16 +24,16 @@ Install prerequisite packages:
 Debian-based:
 
     sudo apt-get install make g++ libqt4-dev zlib1g-dev libncurses5-dev \
-                         libclang-3.6-dev llvm-3.6-dev
+                         libclang-3.7-dev llvm-3.7-dev
 
 Fedora/CentOS:
 
     sudo yum install make gcc-c++ qt-devel zlib-devel ncurses-devel
 
-If your distribution doesn't have a Clang 3.6 package, you can try looking
-for a prebuilt binary package on llvm.org.  If there isn't one, you will have
-to compile from source.  You will also need to pass --with-clang-dir to
-SourceWeb's `configure` script.
+If your distribution doesn't have a Clang package (of the right version), you
+can try looking for a prebuilt binary package on llvm.org.  If there isn't one,
+you will have to compile from source.  You will also need to pass
+`--with-clang-dir` to SourceWeb's `configure` script.
 
 Build the software:
 
