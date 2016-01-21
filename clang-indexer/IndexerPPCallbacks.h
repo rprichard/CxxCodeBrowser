@@ -38,26 +38,26 @@ private:
     getIncludeFilenameLoc(clang::CharSourceRange filenameRange);
 
     virtual void MacroExpands(const clang::Token &macroNameToken,
-                              const clang::MacroDirective *md,
+                              const clang::MacroDefinition &md,
                               clang::SourceRange range,
                               const clang::MacroArgs *args) override;
     virtual void MacroDefined(const clang::Token &macroNameToken,
                               const clang::MacroDirective *md) override;
     virtual void MacroUndefined(const clang::Token &macroNameTok,
-                                const clang::MacroDirective *md) override;
+                                const clang::MacroDefinition &md) override;
     virtual void Defined(const clang::Token &macroNameToken,
-                         const clang::MacroDirective *md,
+                         const clang::MacroDefinition &md,
                          clang::SourceRange range) override;
     virtual void Ifdef(clang::SourceLocation loc,
                        const clang::Token &macroNameToken,
-                       const clang::MacroDirective *md) override
+                       const clang::MacroDefinition &md) override
     {
         Defined(macroNameToken, md, clang::SourceRange(loc, loc));
     }
 
     virtual void Ifndef(clang::SourceLocation loc,
                         const clang::Token &macroNameToken,
-                        const clang::MacroDirective *md) override
+                        const clang::MacroDefinition &md) override
     {
         Defined(macroNameToken, md, clang::SourceRange(loc, loc));
     }

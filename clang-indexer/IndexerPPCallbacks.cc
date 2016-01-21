@@ -86,7 +86,7 @@ IndexerPPCallbacks::getIncludeFilenameLoc(
 
 void IndexerPPCallbacks::MacroExpands(
         const clang::Token &macroNameToken,
-        const clang::MacroDirective *md,
+        const clang::MacroDefinition &md,
         clang::SourceRange range,
         const clang::MacroArgs *args)
 {
@@ -95,21 +95,21 @@ void IndexerPPCallbacks::MacroExpands(
 
 void IndexerPPCallbacks::MacroDefined(
         const clang::Token &macroNameToken,
-        const clang::MacroDirective* md)
+        const clang::MacroDirective *md)
 {
     recordReference(macroNameToken, RT_Definition);
 }
 
 void IndexerPPCallbacks::MacroUndefined(
         const clang::Token &macroNameToken,
-        const clang::MacroDirective *md)
+        const clang::MacroDefinition &md)
 {
     recordReference(macroNameToken, RT_Undefinition);
 }
 
 void IndexerPPCallbacks::Defined(
         const clang::Token &macroNameToken,
-        const clang::MacroDirective *md,
+        const clang::MacroDefinition &md,
         clang::SourceRange range)
 {
     recordReference(macroNameToken, RT_DefinedTest);
