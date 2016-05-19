@@ -45,7 +45,6 @@ private:
 
     // Misc routines
     bool shouldVisitTemplateInstantiations() const { return true; }
-    bool shouldUseDataRecursionFor(clang::Stmt *s) const;
 
     // Dispatcher routines
     bool TraverseStmt(clang::Stmt *stmt);

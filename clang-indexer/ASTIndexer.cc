@@ -37,22 +37,6 @@ ASTIndexer::ASTIndexer(IndexerContext &indexerContext) :
 {
 }
 
-bool ASTIndexer::shouldUseDataRecursionFor(clang::Stmt *s) const
-{
-    if (s == NULL || !base::shouldUseDataRecursionFor(s))
-        return false;
-    if (clang::UnaryOperator *e = llvm::dyn_cast<clang::UnaryOperator>(s)) {
-        return e->getOpcode() >= clang::UO_Plus &&
-                e->getOpcode() <= clang::UO_Imag;
-    }
-    if (clang::BinaryOperator *e = llvm::dyn_cast<clang::BinaryOperator>(s)) {
-        return e->getOpcode() >= clang::BO_Mul &&
-                e->getOpcode() <= clang::BO_LOr;
-    }
-    return false;
-}
-
-
 ///////////////////////////////////////////////////////////////////////////////
 // Dispatcher routines
 
