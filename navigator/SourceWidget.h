@@ -278,6 +278,7 @@ private:
             const QRegion &paintRegion,
             RegexMatchList::iterator &findMatch);
 
+    bool handleBackForwardMouseEvent(QMouseEvent *event);
     void mousePressEvent(QMouseEvent *event);
     void mouseDoubleClickEvent(QMouseEvent *event);
     void navMouseSingleDownEvent(QMouseEvent *event, QPoint virtualPos);

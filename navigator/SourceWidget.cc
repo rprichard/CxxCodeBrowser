@@ -957,8 +957,23 @@ FileRange SourceWidgetView::findWordAtLocation(FileLocation loc)
                      FileLocation(loc.line, col2));
 }
 
+bool SourceWidgetView::handleBackForwardMouseEvent(QMouseEvent *event)
+{
+    if (event->button() == Qt::XButton1) {
+        emit goBack();
+        return true;
+    } else if (event->button() == Qt::XButton2) {
+        emit goForward();
+        return true;
+    }
+    return false;
+}
+
 void SourceWidgetView::mousePressEvent(QMouseEvent *event)
 {
+    if (handleBackForwardMouseEvent(event)) {
+        return;
+    }
     const QPoint virtualPos = event->pos() + m_viewportOrigin;
     if (m_tripleClickTime.elapsed() < QApplication::doubleClickInterval() &&
             (virtualPos - m_tripleClickPoint).manhattanLength() <
@@ -973,6 +988,9 @@ void SourceWidgetView::mousePressEvent(QMouseEvent *event)
 
 void SourceWidgetView::mouseDoubleClickEvent(QMouseEvent *event)
 {
+    if (handleBackForwardMouseEvent(event)) {
+        return;
+    }
     const QPoint virtualPos = event->pos() + m_viewportOrigin;
     m_tripleClickTime.start();
     m_tripleClickPoint = virtualPos;
