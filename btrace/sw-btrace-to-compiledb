@@ -76,10 +76,21 @@ def endsWithOneOf(text, extensions):
     return False
 
 
+kSafeArgument = re.compile(r"^[^*?\[\]'\"\\$;&()|^<>\s!#~`]+$")
+
 def joinCommandLine(argv):
     # TODO: Actually get this right -- quotes,spaces,escapes,newlines
     # TODO: Review what Clang's libtooling and CMake do, especially on Windows.
-    return " ".join(argv)
+    if os.name == "posix":
+        # For unsafe arguments, escape them simply:
+        #  - wrap the argument in single-quotes
+        #  - escape a single-quote by exiting the quoted string, outputing \',
+        #    then reentering the single-quoted string.
+        # The result is compatible with Bourne-shell, and Clang's libTooling
+        # should also handle it correctly.
+        return " ".join([arg if kSafeArgument.match(arg) else ("'" + arg.replace("'", "'\\''") + "'") for arg in argv])
+    else:
+        return " ".join(argv)
 
 
 def isChildOfCompilerDriver(command):
