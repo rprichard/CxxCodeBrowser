@@ -4,7 +4,6 @@ number of dependencies with various licenses:
  * LLVM+Clang: BSD
  * Qt: LGPLv2.1, GPLv3, or commercial
  * third_party/libMurmurHash3: public domain disclaimer
- * third_party/libjsoncpp: public domain disclaimer or MIT
  * third_party/libre2: BSD
  * third_party/libsha2: BSD
  * third_party/libsnappy: BSD

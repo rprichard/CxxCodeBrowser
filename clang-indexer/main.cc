@@ -26,7 +26,7 @@
 #include <direct.h>
 #endif
 
-#include <json/json.h>
+#include <clang/Tooling/CompilationDatabase.h>
 
 #include "../libindexdb/IndexArchiveBuilder.h"
 #include "../libindexdb/IndexArchiveReader.h"
@@ -45,27 +45,6 @@ namespace indexer {
 // which are at ../lib/clang/<VERSION>/include from the bin directory.
 const char kDriverPath[] = XSTRINGIFY(INDEXER_CLANG_DIR) "/bin/clang";
 
-static std::vector<std::string> splitCommandLine(const std::string &commandLine)
-{
-    // Just split it by spaces for now.
-    // TODO: Get this actually right -- e.g. quotes, escapes, tabs, newlines
-    // TODO: On Windows, do we follow the weird Windows command-line
-    // convention?  Note that there are two known users of this format:  CMake
-    // generates it with -DCMAKE_EXPORT_COMPILE_COMMANDS and Clang's libtooling
-    // can consume it.  Both should be audited.
-    std::vector<std::string> result;
-    size_t start = 0;
-    while (start < commandLine.size()) {
-        size_t next = commandLine.find(' ', start);
-        if (next == std::string::npos)
-            next = commandLine.size();
-        if (next > start)
-            result.push_back(commandLine.substr(start, next - start));
-        start = next + 1;
-    }
-    return result;
-}
-
 struct SourceFileInfo {
     std::string sourceFilePath;
     std::string workingDirectory;
@@ -73,24 +52,38 @@ struct SourceFileInfo {
     std::vector<std::string> clangArgv;
 };
 
-static void readSourcesJson(
-        const Json::Value &json,
-        std::vector<SourceFileInfo> &output)
+static std::vector<SourceFileInfo> readSourcesJson()
 {
-    output.clear();
+    std::vector<SourceFileInfo> ret;
+    std::string errmsg;
 
-    for (Json::ValueIterator it = json.begin(), itEnd = json.end();
-            it != itEnd; ++it) {
-        Json::Value &sourceJson = *it;
+    const auto compdb =
+        clang::tooling::CompilationDatabase::loadFromDirectory(".", errmsg);
+    if (!compdb) {
+        std::cerr << "error loading compile_commands.json: "
+                  << errmsg << std::endl;
+        exit(1);
+    }
+
+    for (const auto &command : compdb->getAllCompileCommands()) {
+        // At the time of writing, at least, the libTooling CompilationDatabase
+        // doesn't seem to do any interpretation of the Directory and Filename
+        // values, whereas it *does* do something resembling Bourne-shell
+        // interpration of the CommandLine field when it splits it into
+        // arguments.  It's not *really* Bourne-shell, because e.g. it converts
+        // `"\a"` into `a`, whereas Bourne-shell would convert it to `\a`.
+        // It seems to handle single-quote correctly, by NOT interpreting a
+        // contained backslash as an escape character (e.g. `'\a\' '\a\'` turns
+        // into two `\a\` arguments.)
+
         SourceFileInfo sfi;
-        QDir workingDirectory(QString::fromStdString(
-                                  sourceJson["directory"].asString()));
+        QDir workingDirectory(QString::fromStdString(command.Directory));
         sfi.workingDirectory = workingDirectory.absolutePath().toStdString();
         sfi.sourceFilePath =
                 QFileInfo(workingDirectory,
                     QString::fromStdString(
-                        sourceJson["file"].asString())).absoluteFilePath().toStdString();
-        sfi.clangArgv = splitCommandLine(sourceJson["command"].asString());
+                        command.Filename)).absoluteFilePath().toStdString();
+        sfi.clangArgv = command.CommandLine;
 
         // Replace the first argument with the known Clang driver.
         if (sfi.clangArgv.size() >= 1) {
@@ -137,19 +130,10 @@ static void readSourcesJson(
             sfi.indexFilePath = fileInfo.absoluteFilePath().toStdString();
         }
 
-        output.push_back(sfi);
+        ret.push_back(sfi);
     }
-}
 
-static void readSourcesJson(
-        const std::string &filename,
-        std::vector<SourceFileInfo> &output)
-{
-    std::ifstream f(filename.c_str());
-    Json::Reader r;
-    Json::Value rootJson;
-    r.parse(f, rootJson);
-    readSourcesJson(rootJson, output);
+    return ret;
 }
 
 static time_t getCachedPathModTime(
@@ -304,8 +288,7 @@ void stripPCHIncludes(std::vector<SourceFileInfo> &sourceFiles)
 
 static int indexProject(const std::string &argv0, bool incremental)
 {
-    std::vector<SourceFileInfo> sourceFiles;
-    readSourcesJson(std::string("compile_commands.json"), sourceFiles);
+    std::vector<SourceFileInfo> sourceFiles = readSourcesJson();
 
     DaemonPool daemonPool;
     std::unique_ptr<indexdb::Index> mergedIndex(new indexdb::Index);
