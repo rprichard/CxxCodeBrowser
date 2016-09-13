@@ -58,7 +58,7 @@ win32 {
     QMAKE_LFLAGS -= -std=c++0x
     QMAKE_LFLAGS += -std=gnu++0x
 }
-QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-uninitialized
+QMAKE_CXXFLAGS_WARN_ON += -Wno-unused-parameter -Wno-uninitialized -Wno-comment
 QMAKE_CXXFLAGS += -Wno-reserved-user-defined-literal
 
 include(../link-clang.pri)

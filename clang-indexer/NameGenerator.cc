@@ -235,8 +235,6 @@ void NameGenerator::VisitFunctionDecl(clang::FunctionDecl *decl)
 {
     clang::PrintingPolicy policy = decl->getASTContext().getPrintingPolicy();
     policy.SuppressTagKeyword = true;
-    auto policyCtorDtor = clang::PrintingPolicy(clang::LangOptions());
-    policyCtorDtor.SuppressTagKeyword = true;
     bool isExternC = false;
 
     // When a function is only marked extern "C" in a header file but not in
