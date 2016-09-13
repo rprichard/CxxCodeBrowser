@@ -30,7 +30,7 @@ CLANG_LIBS = \
     clangFrontend clangSerialization clangDriver \
     clangTooling clangParse clangSema clangAnalysis \
     clangEdit clangAST clangLex clangBasic \
-    LLVMMC LLVMMCParser LLVMObject LLVMAsmParser LLVMCore LLVMSupport \
+    LLVMMC LLVMMCParser LLVMObject LLVMAsmParser LLVMCore LLVMProfileData LLVMSupport \
     LLVMOption LLVMBitWriter LLVMBitReader
 for(CLANG_LIB, CLANG_LIBS) {
     checkClangRequire($${CLANG_DIR}/lib/lib$${CLANG_LIB}.a)
