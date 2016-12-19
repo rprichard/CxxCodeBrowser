@@ -68,4 +68,5 @@ include(../../enable-cxx11.pri)
 QMAKE_CXXFLAGS_WARN_ON += \
     -Wno-sign-compare \
     -Wno-unused-parameter \
+    -Wno-unused-local-typedefs \
     -Wno-missing-field-initializers
