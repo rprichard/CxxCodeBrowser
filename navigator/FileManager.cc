@@ -6,13 +6,21 @@
 #include <QString>
 #include <QStringList>
 #include <cassert>
-
+#include <QDebug>
 #include "File.h"
 #include "Folder.h"
+#include <QStorageInfo>
 
-// XXX: Windows support
+//TODO resolve different root paths on windows
+#if defined(SOURCEWEB_UNIX)
 #define ROOT_PATH "/"
 #define PATH_SEP '/'
+#elif defined(_WIN32)
+#define ROOT_PATH "C:\\"
+#define PATH_SEP '\\'
+#endif
+// XXX: Windows support
+
 
 namespace Nav {
 
@@ -23,6 +31,9 @@ FileManager::FileManager(
         const QString &projectRootPath,
         const QStringList &indexPaths)
 {
+
+    //normalize project root path
+    QString normalizedProjectRootPath = QDir::toNativeSeparators(projectRootPath);
     m_categoryProject = new Folder(NULL, "", "Project");
     m_categoryOutside = new Folder(NULL, "", "External");
     m_categorySpecial = new Folder(NULL, "", "Special");
@@ -32,16 +43,27 @@ FileManager::FileManager(
 
     m_dirProject = new Folder(
                 m_categoryProject,
-                QDir(projectRootPath).canonicalPath(),
-                QDir(projectRootPath).dirName());
+                QDir::toNativeSeparators(QDir(normalizedProjectRootPath).canonicalPath()),
+                QDir(normalizedProjectRootPath).dirName());
     m_allItems.append(m_dirProject);
     m_categoryProject->appendFolder(m_dirProject);
-    m_dirFilesystem = new Folder(
-                m_categoryOutside,
-                ROOT_PATH,  // XXX: Won't work on Windows
-                ROOT_PATH); // XXX: Won't work on Windows
-    m_allItems.append(m_dirFilesystem);
-    m_categoryOutside->appendFolder(m_dirFilesystem);
+    //goes through each mounted drive on system, and adds its name to winRootPaths list, and creates Nav::Folder
+    //which is appended to m_categoryOutside, and then pointer is added to m_dirFilesystemRoots list
+    foreach (const QStorageInfo &storage, QStorageInfo::mountedVolumes()) {
+            if (storage.isValid() && storage.isReady()) {
+                if (!storage.isReadOnly()) {
+                    m_winRootPaths << QDir::toNativeSeparators(storage.displayName());
+
+                    m_dirFilesystem = new Folder(
+                                m_categoryOutside,
+                                storage.displayName().mid(0,storage.displayName().length()-1),  // XXX: Won't work on Windows
+                                storage.displayName()); // XXX: Won't work on Windows
+                    m_allItems.append(m_dirFilesystem);
+                    m_categoryOutside->appendFolder(m_dirFilesystem);
+                    m_dirFilesystemRoots.append(m_dirFilesystem);
+                }
+            }
+        }
 
     foreach (const QString &path, indexPaths) {
         file(path);
@@ -68,16 +90,35 @@ FileManager::~FileManager()
     qDeleteAll(m_allItems);
 }
 
+//support for windows paths added into this function
+//This is a quick workaround, its far from perfect, but it does the decent job
 File &FileManager::file(const QString &path)
 {
-    if (path.startsWith("/")) {
-        QString projectPrefix = m_dirProject->path() + PATH_SEP;
-        if (path.startsWith(projectPrefix)) {
-            return file(m_dirProject, path.mid(projectPrefix.size()));
+    Nav::Folder *currentFolder; //pointer to folder file belongs
+    QString currentPath; //path to current file
+    bool specialFlag = false; //becomes true if current file belongs to special category
+    QString normalizedPath = QDir::toNativeSeparators(path);
+    int iterator = 0; //iterator for filesystemRoots pointer list
+    foreach (QString rootPath, m_winRootPaths) {
+        if (normalizedPath.startsWith("/") || normalizedPath.startsWith(rootPath) ) {
+            QString projectPrefix = QDir::toNativeSeparators(m_dirProject->path() + PATH_SEP);
+            if (normalizedPath.startsWith(projectPrefix)) {
+                currentFolder = m_dirProject;
+                currentPath = normalizedPath.mid(projectPrefix.size());
+                specialFlag = false;
+                break;
+            } else {
+                currentFolder = m_dirFilesystemRoots.at(iterator);
+                currentPath = normalizedPath.mid(QString(rootPath).length());
+                specialFlag = false;
+                break;
+            }
         } else {
-            return file(m_dirFilesystem, path.mid(1));
+            specialFlag = true;
         }
-    } else {
+        iterator++;
+    }
+    if (specialFlag){
         if (m_specialFiles.contains(path))
             return *m_specialFiles[path];
         File *result = new File(m_categorySpecial, path);
@@ -86,6 +127,8 @@ File &FileManager::file(const QString &path)
         m_categorySpecial->appendFile(result);
         return *result;
     }
+    else
+        return file(currentFolder, currentPath);
 }
 
 File &FileManager::file(Folder *folder, const QString &relativePath)

@@ -632,7 +632,8 @@ void SourceWidgetView::paintLine(
     const int hovEndOff = m_hoverHighlightRange.end.toOffset(*m_file);
     const QBrush matchBrush(Qt::yellow);
     const QBrush selectedMatchBrush(QColor(255, 140, 0));
-    const QBrush hoverBrush(QColor(200, 200, 200));
+    const QBrush hoverBrush(QColor(255, 140, 0));
+    const QBrush selectionReferenceBrush(QColor(255, 140, 0));
     const int rightEdge = paintRegion.boundingRect().right() + 1;
 
     // Fill the line's background.
@@ -650,7 +651,6 @@ void SourceWidgetView::paintLine(
 
             const int charFileIndex = lay.charFileIndex();
             const QBrush *fillBrush = NULL;
-
             // Find match background.
             for (; findMatch < m_findMatches.end(); ++findMatch) {
                 if (findMatch->first > charFileIndex)
@@ -669,7 +669,7 @@ void SourceWidgetView::paintLine(
             if (charFileIndex >= hovStartOff && charFileIndex < hovEndOff)
                 fillBrush = &hoverBrush;
             if (charFileIndex >= selStartOff && charFileIndex < selEndOff)
-                fillBrush = &palette().highlight();
+                fillBrush = &selectionReferenceBrush;
 
             if (fillBrush != NULL) {
                 painter.fillRect(charBox.translated(-m_viewportOrigin),

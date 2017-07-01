@@ -13,7 +13,9 @@ namespace indexer {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Daemon
-
+/**
+ * @brief Constructor of Daemon class
+ */
 Daemon::Daemon()
 {
     std::string program =
@@ -22,13 +24,23 @@ Daemon::Daemon()
     args.push_back("--daemon");
     m_process = new Process(program, args);
 }
-
+/**
+ * @brief Destructor of Daemon class
+ */
 Daemon::~Daemon()
 {
     fprintf(m_process->stdoutFile(), "\n");
     delete m_process;
 }
 
+/**
+ * @brief Function sends cmd arguments to child process by writing to stdin file child reads
+ * and then expects output from child process in stdout file,
+ * after reciving "DONE 0" from child, function destroys child process and exits
+ * @param workingDirectory
+ * @param args
+ * @return
+ */
 int Daemon::run(
         const std::string &workingDirectory,
         const std::vector<std::string> &args)
@@ -61,16 +73,25 @@ int Daemon::run(
 ///////////////////////////////////////////////////////////////////////////////
 // DaemonPool
 
+/**
+ * @brief DaemonPool::DaemonPool constructor
+ */
 DaemonPool::DaemonPool()
 {
 }
+/**
+ * @brief DaemonPool::~DaemonPool destructor
+ */
 
 DaemonPool::~DaemonPool()
 {
     for (Daemon *daemon : m_daemons)
         delete daemon;
 }
-
+/**
+ * @brief If daemon list is empty create new daemon, else return last daemon inside list
+ * @return
+ */
 Daemon *DaemonPool::get()
 {
     LockGuard<Mutex> lock(m_mutex);
@@ -82,7 +103,10 @@ Daemon *DaemonPool::get()
         return new Daemon();
     }
 }
-
+/**
+ * @brief Removes last daemon from list
+ * @param daemon
+ */
 void DaemonPool::release(Daemon *daemon)
 {
     LockGuard<Mutex> lock(m_mutex);

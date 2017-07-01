@@ -16,6 +16,10 @@
 #if defined(_WIN32)
 #include <fcntl.h>
 #include <io.h>
+#include <windows.h>
+#include <tchar.h>
+#include <stdio.h>
+#include <strsafe.h>
 #ifndef NOMINMAX
 #define NOMINMAX 1
 #endif
@@ -168,29 +172,53 @@ Process::Process(
     // seems to.  CreateProcess seems to decide that the standard handles must
     // be inherited no matter what.
     BOOL success;
-    std::string cmdLine = makeCommandLine(programPath, args);
+    std::string cmdLine = makeCommandLine(programPath, args); 
+
+
+//child process handles
+    HANDLE hStdinRead = NULL;
+    HANDLE hStdinWrite = NULL;
+    HANDLE hStdoutRead = NULL;
+    HANDLE hStdoutWrite = NULL;
+
+//  set the inheritHandle flag so pipe handles are inherited
+    SECURITY_ATTRIBUTES saAttr;
+    saAttr.nLength = sizeof(SECURITY_ATTRIBUTES);
+    saAttr.bInheritHandle = TRUE;
+    saAttr.lpSecurityDescriptor = NULL;
+
+    //create pipe for the child process STDOUT
+    success =  CreatePipe(&hStdoutRead, &hStdoutWrite, &saAttr, 0);
+    assert(success);
+    // Ensure the read handle to the pipe for STDOUT is not inherited.
+    success = SetHandleInformation(hStdoutRead, HANDLE_FLAG_INHERIT, 0);
+    assert(success);
+
+    //create pipe for the child process STDIN
+    success =  CreatePipe(&hStdinRead, &hStdinWrite, &saAttr, 0);
+    assert(success);
+    // Ensure the write handle to the pipe for STDIN is not inherited.
+    success = SetHandleInformation(hStdinWrite, HANDLE_FLAG_INHERIT, 0);
+          assert(success);
+
+//  create child process
     STARTUPINFOA sui;
     PROCESS_INFORMATION pi;
+
     memset(&sui, 0, sizeof(sui));
     memset(&pi, 0, sizeof(pi));
-    sui.dwFlags = STARTF_USESTDHANDLES;
-    HANDLE hStdinRead;
-    HANDLE hStdinWrite;
-    HANDLE hStdoutRead;
-    HANDLE hStdoutWrite;
-    success = CreatePipe(&hStdinRead, &hStdinWrite, NULL, 0);
-    assert(success);
-    success = CreatePipe(&hStdoutRead, &hStdoutWrite, NULL, 0);
-    assert(success);
+
     sui.cb = sizeof(sui);
     sui.hStdInput = hStdinRead;
     sui.hStdOutput = hStdoutWrite;
-    sui.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+    sui.hStdError = hStdoutWrite;
+    sui.dwFlags |= STARTF_USESTDHANDLES;
+
     BOOL ret = CreateProcessA(
                 programPath.c_str(),
                 &cmdLine[0],
                 NULL, NULL,
-                /*bInheritHandles=*/FALSE,
+                /*bInheritHandles=*/TRUE,
                 /*dwCreationFlags=*/0,
                 /*lpEnvironment=*/NULL,
                 /*lpCurrentDirectory=*/NULL,
@@ -199,13 +227,13 @@ Process::Process(
         fprintf(stderr, "sw-clang-indexer: Error starting daemon process\n");
         exit(1);
     }
+
     m_p->hproc = pi.hProcess;
     CloseHandle(pi.hThread);
     CloseHandle(hStdinRead);
     CloseHandle(hStdoutWrite);
-    // Calling close() on these file descriptors will call CloseHandle().
-    // (i.e. Ownership of the HANDLE is transferred.  See the _open_osfhandle
-    // MSDN page.)
+
+    //open files for stdin and stdout
     int stdinFd = _open_osfhandle(reinterpret_cast<intptr_t>(hStdinWrite),
                                   _O_TEXT | _O_RDWR);
     int stdoutFd = _open_osfhandle(reinterpret_cast<intptr_t>(hStdoutRead),

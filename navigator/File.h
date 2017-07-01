@@ -3,6 +3,7 @@
 
 #include <QList>
 #include <QString>
+#include <QDir>
 #include <cassert>
 #include <string>
 #include <utility>
@@ -61,7 +62,6 @@ public:
 
 private:
     void loadFile();
-
     void ensureLoaded() {
         if (!m_loaded)
             loadFile();
