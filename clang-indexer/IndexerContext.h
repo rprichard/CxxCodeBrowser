@@ -70,6 +70,7 @@ enum SymbolType : int {
     ST_Struct,
     ST_Typedef,
     ST_Union,
+    ST_Interface,
     ST_Max
 };
 

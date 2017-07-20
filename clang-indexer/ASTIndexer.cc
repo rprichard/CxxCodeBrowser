@@ -519,10 +519,11 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
             // declarations.
             SymbolType symbolType = ST_Max;
             switch (td->getTagKind()) {
-            case clang::TTK_Struct: symbolType = ST_Struct; break;
-            case clang::TTK_Union:  symbolType = ST_Union; break;
-            case clang::TTK_Class:  symbolType = ST_Class; break;
-            case clang::TTK_Enum:   symbolType = ST_Enum; break;
+            case clang::TTK_Struct:    symbolType = ST_Struct; break;
+            case clang::TTK_Interface: symbolType = ST_Interface; break;
+            case clang::TTK_Union:     symbolType = ST_Union; break;
+            case clang::TTK_Class:     symbolType = ST_Class; break;
+            case clang::TTK_Enum:      symbolType = ST_Enum; break;
             default: assert(false);
             }
             RecordDeclRef(nd, loc, refType, symbolType);
