@@ -55,7 +55,8 @@ static const char *symbolTypeNames[] = {
     "Path",
     "Struct",
     "Typedef",
-    "Union"
+    "Union",
+    "Interface"
 };
 
 static_assert(sizeof(symbolTypeNames) / sizeof(symbolTypeNames[0]) == ST_Max,
