@@ -44,7 +44,6 @@ Project::Project(const QString &path)
     m_fileManager = new FileManager(
                 QFileInfo(path).absolutePath(),
                 queryAllPaths());
-
     // Start this query in the background.
     m_globalSymbolDefinitions =
             QtConcurrent::run(this, &Project::queryGlobalSymbolDefinitions);

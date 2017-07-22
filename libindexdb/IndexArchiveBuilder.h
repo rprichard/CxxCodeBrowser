@@ -15,7 +15,7 @@ public:
     void insert(const std::string &entryName, Index *index);
     Index *lookup(const std::string &entryName);
     void finalize();
-    void write(const std::string &path, bool compressed=false);
+    void write(const std::string &path, bool compressed=true);
 
 private:
     std::map<std::string, Index*> m_indices;

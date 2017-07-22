@@ -24,3 +24,4 @@ linux-*|freebsd-*|darwin-*|macx-* {
 }
 
 include(./check-clang.pri)
+

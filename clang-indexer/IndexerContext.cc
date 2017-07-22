@@ -159,7 +159,7 @@ IndexerFileContext &IndexerContext::fileContext(clang::FileID fileID)
         const clang::FileEntry *pFE =
                 m_sourceManager.getFileEntryForID(fileID);
         if (pFE != NULL) {
-            char *filename = portableRealPath(pFE->getName());
+            char *filename = portableRealPath(pFE->getName().data());
             if (filename != NULL) {
                 pathSymbolName += filename;
                 free(filename);

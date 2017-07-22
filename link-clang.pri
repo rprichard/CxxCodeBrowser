@@ -20,4 +20,4 @@ for(CLANG_LIB, CLANG_LIBS) {
 
 linux-*: LIBS += -ldl
 unix: LIBS += -lz -lncurses
-win32: LIBS += -lpsapi -limagehlp -lpthread
+win32: LIBS += -lpsapi -limagehlp -lpthread -luuid -lole32 -lversion

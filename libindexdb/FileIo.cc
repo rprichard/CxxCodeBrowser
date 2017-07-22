@@ -68,7 +68,7 @@ Writer::Writer(const std::string &path) : m_sha256(NULL), m_compressed(false)
     int fd = EINTR_LOOP(open(pathPtr, flags, 0666));
     m_fp = fdopen(fd, "w");
 #else
-    m_fp = fopen(pathPtr, "w");
+    m_fp = fopen(pathPtr, "wb");
 #endif
     assert(m_fp != NULL);
     m_writeOffset = 0;
@@ -351,6 +351,9 @@ void MappedReader::seek(uint64_t offset)
 
 char *MappedReader::readDataInternal(size_t size)
 {
+    //rekao bi da je slucajna vrednost koju procita, pa se pogubi sa ofsetom
+//    , nemoguce da dobije da je size=2573,
+    //TODO proveri mapiranje fajla
     size_t newOffset = m_offset + size;
     assert(newOffset >= m_offset && newOffset <= m_viewSize);
     size_t origOffset = m_offset;
@@ -379,7 +382,7 @@ UnmappedReader::UnmappedReader(const std::string &path)
     int fd = EINTR_LOOP(open(pathPtr, O_RDONLY | O_CLOEXEC));
     m_fp = fdopen(fd, "r");
 #else
-    m_fp = fopen(pathPtr, "r");
+    m_fp = fopen(pathPtr, "rb");
 #endif
     assert(m_fp != NULL);
     Seek64(m_fp, 0, SEEK_END);

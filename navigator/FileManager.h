@@ -6,6 +6,7 @@
 #include <QMap>
 #include <QString>
 #include <QStringList>
+#include <QList>
 
 namespace Nav {
 
@@ -34,7 +35,8 @@ private:
     // The actual project and outside root folder.
     Folder *m_dirProject;
     Folder *m_dirFilesystem;
-
+    QList<Folder*> m_dirFilesystemRoots; //stores pointers to created dirFileSystem folders
+    QStringList m_winRootPaths; //stores names of root folders
     QMap<QString, File*> m_specialFiles;
     QList<FolderItem*> m_allItems;
 };

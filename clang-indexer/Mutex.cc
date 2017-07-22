@@ -1,9 +1,14 @@
 #include "Mutex.h"
 
 #include <cassert>
-
+/**
+ * @class Mutex
+ * @brief Does mutex locking of process on a shared resource, using criticalSection objects
+ */
 namespace indexer {
-
+/**
+ * @brief Mutex::Mutex constructor
+ */
 Mutex::Mutex()
 {
 #if INDEXER_MUTEX_USE_PTHREADS
@@ -13,7 +18,9 @@ Mutex::Mutex()
     InitializeCriticalSection(&mutex);
 #endif
 }
-
+/**
+ * @brief Mutex::~Mutex destructor
+ */
 Mutex::~Mutex()
 {
 #if INDEXER_MUTEX_USE_PTHREADS
@@ -23,7 +30,9 @@ Mutex::~Mutex()
     DeleteCriticalSection(&mutex);
 #endif
 }
-
+/**
+ * @brief Locks the shared object
+ */
 void Mutex::lock()
 {
 #if INDEXER_MUTEX_USE_PTHREADS
@@ -37,7 +46,9 @@ void Mutex::lock()
 #error "Not implemented"
 #endif
 }
-
+/**
+ * @brief Unlocks the shared object
+ */
 void Mutex::unlock()
 {
 #if INDEXER_MUTEX_USE_PTHREADS

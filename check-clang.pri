@@ -3,15 +3,15 @@
 # Clang installation.
 #
 
-REQUIRED_CLANG_VERSION = 3.8
+REQUIRED_CLANG_VERSION = 5.0.0
 
 equals(CLANG_DIR, "") {
-    warning("The CLANG_DIR qmake variable is unset.")
-    warning("Add CLANG_DIR=<path-to-clang-root> to the qmake command-line.")
-    warning("The provided path should point to a" $$REQUIRED_CLANG_VERSION \
-            "Clang installation.")
-    warning("(In the QtCreator IDE, add the setting in the Projects mode.)")
-    error("check-clang.pri: CLANG_DIR is unset.  Aborting.")
+#    warning("The CLANG_DIR qmake variable is unset.")
+#    warning("Add CLANG_DIR=<path-to-clang-root> to the qmake command-line.")
+#    warning("The provided path should point to a" $$REQUIRED_CLANG_VERSION \
+#            "Clang installation.")
+#    warning("(In the QtCreator IDE, add the setting in the Projects mode.)")
+#    error("check-clang.pri: CLANG_DIR is unset.  Aborting.")
 }
 
 defineTest(checkClangRequire) {
@@ -31,7 +31,7 @@ CLANG_LIBS = \
     clangTooling clangParse clangSema clangAnalysis \
     clangEdit clangAST clangLex clangBasic \
     LLVMMC LLVMMCParser LLVMObject LLVMAsmParser LLVMCore LLVMProfileData LLVMSupport \
-    LLVMOption LLVMBitWriter LLVMBitReader
+    LLVMOption LLVMBitWriter LLVMBitReader LLVMDemangle
 for(CLANG_LIB, CLANG_LIBS) {
     checkClangRequire($${CLANG_DIR}/lib/lib$${CLANG_LIB}.a)
 }

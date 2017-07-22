@@ -43,7 +43,7 @@ void IndexerPPCallbacks::InclusionDirective(
     auto it = m_includePathMap.find(file);
     if (it == m_includePathMap.end()) {
         std::string symbol = "@";
-        char *path = portableRealPath(file->getName());
+        char *path = portableRealPath(file->getName().data());
         if (path != NULL) {
             symbol += path;
             free(path);

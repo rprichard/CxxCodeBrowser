@@ -8,6 +8,7 @@
 #include <QtConcurrentRun>
 #include <QtCore>
 #include <QtDebug>
+#include <QDebug>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
@@ -35,15 +36,24 @@
 #include "IndexBuilder.h"
 #include "TUIndexer.h"
 #include "Util.h"
+#include <QString>
+#include <QDir>
 
 namespace indexer {
 
 #define STRINGIFY(x) #x
 #define XSTRINGIFY(x) STRINGIFY(x)
 
+
 // The Clang driver uses this driver path to locate its built-in include files
 // which are at ../lib/clang/<VERSION>/include from the bin directory.
-const char kDriverPath[] = XSTRINGIFY(INDEXER_CLANG_DIR) "/bin/clang";
+//QString tempDriverPath = QString(QUOTE(INDEXER_CLANG_DIR));
+
+const char kDriverPath[] = "D:\\llvm\\mingwLLVMLibraries\\bin\\clang.exe";
+
+/**
+ * @brief The SourceFileInfo struct used for storing info about source file being indexed
+ */
 
 struct SourceFileInfo {
     std::string sourceFilePath;
@@ -51,7 +61,28 @@ struct SourceFileInfo {
     std::string indexFilePath;
     std::vector<std::string> clangArgv;
 };
+/**
+ * @brief "Normalize" path found in command line to use native OS path separators
+ * @param cmdLine, returned from clang compilation database,
+ * @return std::vector<std::string>
+ */
 
+static std::vector<std::string> normalizeCommandLinePaths(std::vector<std::string> cmdLine){
+    QString tempVar;
+    std::vector<std::string> returnVector;
+    foreach(std::string command, cmdLine){
+        tempVar = QString::fromStdString(command);
+//        tempVar = QDir::toNativeSeparators(tempVar);
+//        returnVector.push_back(tempVar.toStdString());
+        returnVector.push_back(QDir::toNativeSeparators(tempVar).toStdString());
+    }
+    return returnVector;
+}
+/**
+ * @brief Reads compile_commands.json file from working directory, and for each entry
+ * inside json it populates sourceFileInfo struct
+ * @return
+ */
 static std::vector<SourceFileInfo> readSourcesJson()
 {
     std::vector<SourceFileInfo> ret;
@@ -64,6 +95,10 @@ static std::vector<SourceFileInfo> readSourcesJson()
                   << errmsg << std::endl;
         exit(1);
     }
+//there is a bug in clang, CompilationDatabase->getAllCompileCommands()
+    //that can't escape backslashes, it should work with \\ which is generated inside
+    //compile_commands.json, but it only removes backslashes
+//    (workaround is to use forward slash / set manualy, or write some function that automates the process)
 
     for (const auto &command : compdb->getAllCompileCommands()) {
         // At the time of writing, at least, the libTooling CompilationDatabase
@@ -78,22 +113,22 @@ static std::vector<SourceFileInfo> readSourcesJson()
 
         SourceFileInfo sfi;
         QDir workingDirectory(QString::fromStdString(command.Directory));
-        sfi.workingDirectory = workingDirectory.absolutePath().toStdString();
+        sfi.workingDirectory = QDir::toNativeSeparators(workingDirectory.absolutePath()).toStdString();
         sfi.sourceFilePath =
-                QFileInfo(workingDirectory,
+                QDir::toNativeSeparators(QFileInfo(workingDirectory,
                     QString::fromStdString(
-                        command.Filename)).absoluteFilePath().toStdString();
-        sfi.clangArgv = command.CommandLine;
+                        command.Filename)).absoluteFilePath()).toStdString();
+        sfi.clangArgv = normalizeCommandLinePaths(command.CommandLine);
 
         // Replace the first argument with the known Clang driver.
         if (sfi.clangArgv.size() >= 1) {
             // TODO: What if the argument is actually Clang, such as
             // /usr/bin/clang?  Actually, can we get away with just using the
             // compiler in the JSON file?
-            bool isCXX = stringEndsWith(sfi.clangArgv[0], "++");
+            bool isCXX = stringEndsWith(sfi.clangArgv[0], "++.exe");
             sfi.clangArgv[0] = kDriverPath;
             if (isCXX)
-                sfi.clangArgv[0] += "++";
+                sfi.clangArgv[0] += "++.exe";
         }
 
         // Scan the argv looking for an -o argument specifying the output
@@ -106,8 +141,8 @@ static std::vector<SourceFileInfo> readSourcesJson()
                 QFileInfo objFile(
                             workingDirectory,
                             QString::fromStdString(sfi.clangArgv[i + 1]));
-                std::string filePath =
-                        objFile.absoluteFilePath().toStdString();
+                std::string filePath = QDir::toNativeSeparators(
+                        objFile.absoluteFilePath()).toStdString();
                 filePath.erase(filePath.begin() + filePath.rfind('.'),
                                filePath.end());
                 filePath += ".idx";
@@ -136,6 +171,12 @@ static std::vector<SourceFileInfo> readSourcesJson()
     return ret;
 }
 
+/**
+ * @brief getCachedPathModTime
+ * @param fileTimeCache
+ * @param path
+ * @return
+ */
 static time_t getCachedPathModTime(
         std::unordered_map<std::string, time_t> &fileTimeCache,
         const std::string &path)
@@ -150,8 +191,16 @@ static time_t getCachedPathModTime(
     }
 }
 
+
+
 // TODO: We need to save the (workingDirectory, clang-args) in the index file
 // somehow, so that if they change, we don't reuse the index.
+/**
+ * @brief canReuseExistingIndexFile
+ * @param fileTimeCache
+ * @param sfi
+ * @return
+ */
 static bool canReuseExistingIndexFile(
         std::unordered_map<std::string, time_t> &fileTimeCache,
         const SourceFileInfo &sfi)
@@ -172,7 +221,12 @@ static bool canReuseExistingIndexFile(
     }
     return true;
 }
-
+/**
+ * @brief indexProjectFile
+ * @param daemonPool
+ * @param sfi
+ * @return
+ */
 static std::string indexProjectFile(
         DaemonPool *daemonPool,
         SourceFileInfo *sfi)
@@ -196,7 +250,7 @@ static std::string indexProjectFile(
     Daemon *daemon = daemonPool->get();
     std::vector<std::string> args;
     args.push_back("--index-file");
-    args.push_back(sfi->indexFilePath);
+    args.push_back(QDir::toNativeSeparators(QString::fromStdString(sfi->indexFilePath)).toStdString());
     args.push_back("--");
     args.insert(args.end(), sfi->clangArgv.begin(), sfi->clangArgv.end());
     daemon->run(sfi->workingDirectory, args);
@@ -285,7 +339,12 @@ void stripPCHIncludes(std::vector<SourceFileInfo> &sourceFiles)
         sfi.clangArgv = std::move(newClangArgv);
     }
 }
-
+/**
+ * @brief indexProject, indexes whole project, and creates index file inside working directory
+ * @param argv0
+ * @param incremental
+ * @return
+ */
 static int indexProject(const std::string &argv0, bool incremental)
 {
     std::vector<SourceFileInfo> sourceFiles = readSourcesJson();
@@ -351,7 +410,12 @@ static int indexProject(const std::string &argv0, bool incremental)
 
     return 0;
 }
-
+/**
+ * @brief indexFile, indexes separate project files (single translation units)
+ * @param outputFile
+ * @param clangArgv
+ * @return
+ */
 static int indexFile(
         const std::string &outputFile,
         const std::vector<std::string> &clangArgv)
@@ -362,7 +426,11 @@ static int indexFile(
     archive.write(outputFile, /*compressed=*/true);
     return 0;
 }
-
+/**
+ * @brief Main driver function, resolves cmd line arguments passed to main and invokes apropriate jobs
+ * @param argv
+ * @return
+ */
 static int runCommand(const std::vector<std::string> &argv)
 {
     const char *const kUsageTextPattern =
@@ -431,8 +499,20 @@ static int runCommand(const std::vector<std::string> &argv)
 //
 static int runDaemon(const char *argv0)
 {
+//    //just a check
+//    HANDLE hStdin, hStdout;
+//       hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+//       hStdin = GetStdHandle(STD_INPUT_HANDLE);
+//       if (
+//           (hStdout == INVALID_HANDLE_VALUE) ||
+//           (hStdin == INVALID_HANDLE_VALUE)
+//          )
+//          ExitProcess(1);
+
     while (true) {
+
         std::string cwd = readLine(stdin);
+        qDebug() << cwd.c_str();
         if (cwd.empty())
             return 0;
         std::vector<std::string> commandArgv;
@@ -462,7 +542,12 @@ static int runDaemon(const char *argv0)
 }
 
 } // namespace indexer
-
+/**
+ * @brief main
+ * @param argc
+ * @param argv
+ * @return
+ */
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
