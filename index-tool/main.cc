@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <sstream>
 #include <iostream>
 
 #include "../libindexdb/FileIo.h"
@@ -31,6 +32,21 @@ static void dump(const indexdb::Index &index)
     }
 }
 
+static std::string escapeQuotes(const std::string& str) {
+    std::stringstream stream;
+    for (auto c : str) {
+        switch(c) {
+        case '"':
+            stream << "\\\"";
+            break;
+        default:
+            stream << c;
+            break;
+        }
+    }
+    return stream.str();
+}
+
 static void dumpJson(const indexdb::Index &index)
 {
     std::cout << "{" << std::endl;
@@ -43,7 +59,7 @@ static void dumpJson(const indexdb::Index &index)
         const indexdb::StringTable *table = index.stringTable(name);
         for (size_t stringIndex = 0, stringCount = table->size();
                 stringIndex < stringCount; ++stringIndex) {
-            std::cout << "    \"" << table->item(stringIndex) << "\"";
+            std::cout << "    \"" << escapeQuotes(table->item(stringIndex)) << "\"";
             if (stringIndex + 1 < stringCount)
                 std::cout << ',';
             std::cout << std::endl;
@@ -92,7 +108,7 @@ static void dumpJson(const indexdb::Index &index)
                             columnStringTables[columnIndex];
                     if (stringTable != NULL) {
                         std::cout << '"'
-                                  << stringTable->item(tableRow[columnIndex])
+                                  << escapeQuotes(stringTable->item(tableRow[columnIndex]))
                                   << '"';
                     } else {
                         std::cout << tableRow[columnIndex];
