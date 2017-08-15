@@ -99,9 +99,9 @@ QFont Application::defaultFont()
     return configurableFont(
                 "default",
             #if defined(__APPLE__)
-                "", 11,
+                "", 12,
             #elif defined(__linux__) || defined(__FreeBSD__)
-                "", 9,
+                "", 12,
             #else
                 "", 0,
             #endif
@@ -113,11 +113,11 @@ QFont Application::sourceFont()
     return configurableFont(
                 "source",
             #if defined(__APPLE__)
-                "Menlo", 10,
+                "Menlo", 12,
             #elif defined(__linux__) || defined(__FreeBSD__)
-                "Monospace", 8,
+                "Monospace", 12,
             #elif defined(_WIN32)
-                "Lucida Console", 8,
+                "Lucida Console", 12,
             #else
                 "", 0,
             #endif
