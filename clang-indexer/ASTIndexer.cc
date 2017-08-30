@@ -437,6 +437,7 @@ bool ASTIndexer::VisitDecl(clang::Decl *d)
 {
     if (clang::NamedDecl *nd = llvm::dyn_cast<clang::NamedDecl>(d)) {
         clang::SourceLocation loc = nd->getLocation();
+        loc = m_indexerContext.sourceManager().getFileLoc(loc);
         if (clang::FunctionDecl *fd = llvm::dyn_cast<clang::FunctionDecl>(d)) {
             if (fd->getTemplateInstantiationPattern() != NULL) {
                 // When Clang instantiates a function template, it seems to
