@@ -1,7 +1,7 @@
 #!/bin/sh
 set -u
 
-CLANG_VER=4.0
+CLANG_VER=6.0
 SRCDIR=$(cd "$(dirname "$0")" && pwd)
 
 usage() {
@@ -76,7 +76,7 @@ find_clang() {
     fi
     for ITEM in \
             include/clang/AST/ASTContext.h \
-            lib/libclangTooling.a \
+            lib/libclangTooling.so \
             lib/libLLVMCore.a \
     ; do
         ITEM_PATH=$CANDIDATE/$ITEM

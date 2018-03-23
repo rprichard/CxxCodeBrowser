@@ -44,7 +44,7 @@ private:
     virtual void MacroDefined(const clang::Token &macroNameToken,
                               const clang::MacroDirective *md) override;
     virtual void MacroUndefined(const clang::Token &macroNameTok,
-                                const clang::MacroDefinition &md) override;
+                                const clang::MacroDefinition &md);
     virtual void Defined(const clang::Token &macroNameToken,
                          const clang::MacroDefinition &md,
                          clang::SourceRange range) override;
