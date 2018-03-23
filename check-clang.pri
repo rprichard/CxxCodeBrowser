@@ -3,7 +3,7 @@
 # Clang installation.
 #
 
-REQUIRED_CLANG_VERSION = 5.0
+REQUIRED_CLANG_VERSION = 6.0
 
 equals(CLANG_DIR, "") {
     warning("The CLANG_DIR qmake variable is unset.")
@@ -29,9 +29,7 @@ checkClangRequire($${CLANG_DIR}/include/clang/AST/ASTContext.h)
 CLANG_LIBS = \
     clangFrontend clangSerialization clangDriver \
     clangTooling clangParse clangSema clangAnalysis \
-    clangEdit clangAST clangLex clangBasic \
-    LLVMMC LLVMMCParser LLVMObject LLVMAsmParser LLVMCore LLVMProfileData LLVMSupport \
-    LLVMOption LLVMBitWriter LLVMBitReader LLVMDemangle LLVMBinaryFormat
+    clangEdit clangAST clangLex clangBasic LLVM-6.0
 for(CLANG_LIB, CLANG_LIBS) {
-    checkClangRequire($${CLANG_DIR}/lib/lib$${CLANG_LIB}.a)
+    checkClangRequire($${CLANG_DIR}/lib/lib$${CLANG_LIB}.so)
 }
