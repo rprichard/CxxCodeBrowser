@@ -13,7 +13,7 @@ SourceWeb currently runs on Linux and OS X.
 
 SourceWeb is written in C++11.  The indexer links against Clang's C++ API.
 Clang's C++ APIs are not compatible between releases, so this version of
-SourceWeb requires exactly Clang 3.8.  The GUI uses Qt 4.6 or later.  Follow
+SourceWeb requires exactly Clang 4.0.  The GUI uses Qt 4.6 or later.  Follow
 the build instructions to satisfy these dependencies.
 
 

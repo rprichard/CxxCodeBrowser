@@ -109,7 +109,8 @@ void NameGenerator::VisitDeclContext(clang::DeclContext *context)
             const clang::FileEntry *fileEntry =
                     sourceManager.getFileEntryForID(fileID);
             if (fileEntry != NULL) {
-                m_out << const_basename(fileEntry->getName());
+                llvm::StringRef fname = fileEntry->getName();
+                m_out << const_basename(fname.data());
                 if (m_needOffsetPrefix)
                     m_out << '@' << sourceManager.getFileOffset(sloc);
                 m_out << '/';
