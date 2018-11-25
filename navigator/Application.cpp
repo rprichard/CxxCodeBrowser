@@ -101,7 +101,7 @@ QFont Application::defaultFont()
             #if defined(__APPLE__)
                 "", 12,
             #elif defined(__linux__) || defined(__FreeBSD__)
-                "", 12,
+                "", 16,
             #else
                 "", 0,
             #endif
@@ -115,7 +115,7 @@ QFont Application::sourceFont()
             #if defined(__APPLE__)
                 "Menlo", 12,
             #elif defined(__linux__) || defined(__FreeBSD__)
-                "Monospace", 12,
+                "Monospace", 16,
             #elif defined(_WIN32)
                 "Lucida Console", 12,
             #else
