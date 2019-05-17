@@ -3,7 +3,7 @@
 # Clang installation.
 #
 
-REQUIRED_CLANG_VERSION = 4.0
+REQUIRED_CLANG_VERSION = 8.0
 
 equals(CLANG_DIR, "") {
     warning("The CLANG_DIR qmake variable is unset.")
@@ -30,8 +30,11 @@ CLANG_LIBS = \
     clangFrontend clangSerialization clangDriver \
     clangTooling clangParse clangSema clangAnalysis \
     clangEdit clangAST clangLex clangBasic \
-    LLVMMC LLVMMCParser LLVMObject LLVMAsmParser LLVMCore LLVMProfileData LLVMSupport \
-    LLVMOption LLVMBitWriter LLVMBitReader LLVMDemangle
+    LLVMMCParser LLVMObject LLVMAsmParser LLVMCore LLVMProfileData \
+    LLVMDebugInfoDWARF \
+    LLVMOption LLVMBitWriter LLVMBitReader LLVMMC LLVMMCA \
+    LLVMBinaryFormat LLVMSupport LLVMDemangle
+
 for(CLANG_LIB, CLANG_LIBS) {
     checkClangRequire($${CLANG_DIR}/lib/lib$${CLANG_LIB}.a)
 }
