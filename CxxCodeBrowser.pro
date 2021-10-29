@@ -18,8 +18,8 @@ linux-*|freebsd-*|darwin-*|macx-* {
     SUBDIRS += btrace
     btrace_script.path = $$BIN_DIR
     btrace_script.files += \
-        btrace/sw-btrace \
-        btrace/sw-btrace-to-compiledb
+        btrace/ccb-btrace \
+        btrace/ccb-btrace-to-compiledb
     INSTALLS += btrace_script
 }
 

@@ -17,7 +17,7 @@
 #include <cstring>
 #include <memory>
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -44,7 +44,7 @@ namespace indexdb {
 
 static size_t mapGranularity()
 {
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     return sysconf(_SC_PAGESIZE);
 #elif defined(_WIN32)
     SYSTEM_INFO systemInfo;
@@ -63,7 +63,7 @@ static size_t mapGranularity()
 Writer::Writer(const std::string &path) : m_sha256(NULL), m_compressed(false)
 {
     const char *pathPtr = path.c_str();
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     const int flags = O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC;
     int fd = EINTR_LOOP(open(pathPtr, flags, 0666));
     m_fp = fdopen(fd, "w");
@@ -288,7 +288,7 @@ MappedReader::MappedReader(const std::string &path, size_t offset, size_t size)
     const size_t alignOffset = offset & (mapGranularity() - 1);
     const uint64_t mapOffset = offset - alignOffset;
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     int fd = EINTR_LOOP(open(path.c_str(), O_RDONLY | O_CLOEXEC));
     assert(fd != -1);
     const uint64_t fileSize = LSeek64(fd, 0, SEEK_END);
@@ -308,7 +308,7 @@ MappedReader::MappedReader(const std::string &path, size_t offset, size_t size)
     m_viewSize = std::min<size_t>(size, fileSize - offset);
     m_mapBufferSize = m_viewSize + alignOffset;
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     m_mapBuffer = static_cast<char*>(
                 mmap(NULL, m_mapBufferSize, PROT_READ,
                      MAP_PRIVATE, fd, mapOffset));
@@ -334,7 +334,7 @@ MappedReader::MappedReader(const std::string &path, size_t offset, size_t size)
 
 MappedReader::~MappedReader()
 {
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     munmap(m_mapBuffer, m_mapBufferSize);
 #elif defined(_WIN32)
     UnmapViewOfFile(m_mapBuffer);
@@ -375,7 +375,7 @@ void MappedReader::readData(void *output, size_t size)
 UnmappedReader::UnmappedReader(const std::string &path)
 {
     const char *pathPtr = path.c_str();
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     int fd = EINTR_LOOP(open(pathPtr, O_RDONLY | O_CLOEXEC));
     m_fp = fdopen(fd, "r");
 #else

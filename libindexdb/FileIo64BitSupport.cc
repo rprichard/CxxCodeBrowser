@@ -8,7 +8,7 @@
 #define _FILE_OFFSET_BITS 64
 #endif
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #include <unistd.h>
 #elif defined(_WIN32)
 #include <io.h>
@@ -23,7 +23,7 @@ namespace indexdb {
 // whence is one of SEEK_{CUR,END,SET}, just as with fseek.
 int Seek64(FILE *fp, uint64_t offset, int whence)
 {
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     return fseeko(fp, offset, whence);
 #elif defined(_WIN32) && _MSC_VER >= 1400
     return _fseeki64(fp, offset, whence);
@@ -35,7 +35,7 @@ int Seek64(FILE *fp, uint64_t offset, int whence)
 
 uint64_t Tell64(FILE *fp)
 {
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     return ftello(fp);
 #elif defined(_WIN32) && _MSC_VER >= 1400
     return _ftelli64(fp);
@@ -47,7 +47,7 @@ uint64_t Tell64(FILE *fp)
 
 uint64_t LSeek64(int fd, uint64_t offset, int whence)
 {
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     return lseek(fd, offset, whence);
 #elif defined(_WIN32)
     return _lseeki64(fd, offset, whence);

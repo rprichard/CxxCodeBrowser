@@ -8,7 +8,7 @@ usage() {
     cat <<EOF
 Usage: $0 [options]
 
-Configures SourceWeb and runs qmake to generate makefiles.
+Configures CxxCodeBrowser and runs qmake to generate makefiles.
 
 Installation directories:
   --prefix=PREFIX         Base path for build/install.  Default: /usr/local
@@ -199,7 +199,7 @@ run_qmake()
     "$@"
 }
 
-run_qmake "$QMAKE" -r "$SRCDIR/sourceweb.pro" $QMAKE_FLAGS \
+run_qmake "$QMAKE" -r "$SRCDIR/CxxCodeBrowser.pro" $QMAKE_FLAGS \
     PREFIX="$PREFIX" CLANG_DIR="$CLANG_DIR"
 if [ $? -ne 0 ]; then
     echo qmake failed

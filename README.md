@@ -1,19 +1,19 @@
-SourceWeb
-=========
+CxxCodeBrowser
+==============
 
-SourceWeb is a source code indexer and code navigation tool for C/C++ code.
+CxxCodeBrowser is a source code indexer and code navigation tool for C/C++ code.
 
 Installation
 ------------
 
-SourceWeb currently runs on Linux and OS X.
+CxxCodeBrowser currently runs on Linux and OS X.
 
 
 ### Dependencies
 
-SourceWeb is written in C++11.  The indexer links against Clang's C++ API.
+CxxCodeBrowser is written in C++11.  The indexer links against Clang's C++ API.
 Clang's C++ APIs are not compatible between releases, so this version of
-SourceWeb requires exactly Clang 4.0.  The GUI uses Qt 4.6 or later.  Follow
+CxxCodeBrowser requires exactly Clang 4.0.  The GUI uses Qt 4.6 or later.  Follow
 the build instructions to satisfy these dependencies.
 
 
@@ -33,7 +33,7 @@ Fedora/CentOS:
 If your distribution doesn't have a Clang package (of the right version), you
 can try looking for a prebuilt binary package on llvm.org.  If there isn't one,
 you will have to compile from source.  You will also need to pass
-`--with-clang-dir` to SourceWeb's `configure` script.
+`--with-clang-dir` to CxxCodeBrowser's `configure` script.
 
 Build the software:
 
@@ -46,7 +46,7 @@ Build the software:
 
 ### Building on OS X
 
-SourceWeb is tested with OS X 10.10, but is likely to work with some older
+CxxCodeBrowser is tested with OS X 10.10, but is likely to work with some older
 versions.  It will not work with OS X 10.6, because OS X 10.6 lacks libc++,
 necessary for C++11.  Satisfy the prerequisites:
 
@@ -62,7 +62,7 @@ necessary for C++11.  Satisfy the prerequisites:
    do this is to download the
    [official prebuilt binaries](http://llvm.org/releases/download.html).
 
-Configure and build SourceWeb:
+Configure and build CxxCodeBrowser:
 
     mkdir build
     cd build
@@ -75,9 +75,9 @@ Configure and build SourceWeb:
 ### Configuration notes
 
 The Clang directory (e.g. `$HOME/clang+llvm-3.X.Y-x86_64-linux-gnu`) is
-embedded into the SourceWeb build output, so it must not be moved later.
+embedded into the CxxCodeBrowser build output, so it must not be moved later.
 
-The `configure` script is a wrapper around qmake, which is SourceWeb's build
+The `configure` script is a wrapper around qmake, which is CxxCodeBrowser's build
 tool.  The `configure` script supports out-of-tree builds (like qmake) and
 allows configuring the install path at configure-time via --prefix (unlike
 qmake).
@@ -86,13 +86,13 @@ qmake).
 Usage
 -----
 
-Opening a C/C++ project with SourceWeb is a three-step process:
+Opening a C/C++ project with CxxCodeBrowser is a three-step process:
 
 1. Create a JSON compilation database (i.e. `compile_commands.json`).
 
-2. Run the `sw-clang-indexer` on the database to generate an `index` file.
+2. Run the `ccb-clang-indexer` on the database to generate an `index` file.
 
-3. Open the `index` file in the `sourceweb` GUI program.
+3. Open the `index` file in the `CxxCodeBrowser` GUI program.
 
 
 ### JSON compilation database
@@ -126,12 +126,12 @@ can be used to create a `compile_commands.json` file.  btrace is a tool that
 captures a trace of all executed commands using an `LD_PRELOAD` library, then
 converts the execution trace into a `compile_commands.json` file.
 
-To use the tool, first collect a trace by prepending `sw-btrace` to the
-command that builds the software (e.g. `make`).  `sw-btrace` will load
-`libsw-btrace.so` into each subprocess, and when this library is loaded, it
+To use the tool, first collect a trace by prepending `ccb-btrace` to the
+command that builds the software (e.g. `make`).  `ccb-btrace` will load
+`libccb-btrace.so` into each subprocess, and when this library is loaded, it
 will log that subprocess' command-line (and other details) to a `btrace.log`
-file in the working directory of the root `sw-btrace` process.  Once all
-commands are logged, run `sw-btrace-to-compiledb` to create a
+file in the working directory of the root `ccb-btrace` process.  Once all
+commands are logged, run `ccb-btrace-to-compiledb` to create a
 `compile_commands.json` file from the `btrace.log` file.  This script may need
 some customization (e.g. to recognize unusual compiler executable names).
 
@@ -144,7 +144,7 @@ usefulness.
 
 ### Indexing step
 
-Run `sw-clang-indexer --index-project` to index the source code.  It will look
+Run `ccb-clang-indexer --index-project` to index the source code.  It will look
 for a `compile_commands.json` file in the working directory and write an `index`
 file to the working directory.  This step takes approximately as long as
 compiling the code.
@@ -152,16 +152,16 @@ compiling the code.
 
 ### Starting the GUI
 
-Run `sourceweb` passing it the path to an `index` file.  On OS X, run the
-`Contents/MacOS/sourceweb` binary; opening the `sourceweb.app` bundle does not
-work.
+Run `CxxCodeBrowser` passing it the path to an `index` file.  On OS X, run the
+`Contents/MacOS/CxxCodeBrowser` binary; opening the `CxxCodeBrowser.app` bundle
+does not work.
 
 
 Demo
 ----
 
-The `demo/demo.sh` script demonstrates use of the `sw-btrace`,
-`sw-clang-indexer`, and `sourceweb` commands on [bigint][2], a small C++
+The `demo/demo.sh` script demonstrates use of the `ccb-btrace`,
+`ccb-clang-indexer`, and `CxxCodeBrowser` commands on [bigint][2], a small C++
 library.
 
 [2]: https://mattmccutchen.net/bigint/

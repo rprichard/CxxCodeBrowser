@@ -45,7 +45,7 @@ namespace Nav {
 
 Application::Application(int &argc, char **argv) :
     QApplication(argc, argv),
-    m_settings(/*organization=*/"SourceWeb")
+    m_settings(/*organization=*/"CxxCodeBrowser")
 {
     // Work around Qt bugginess.  With Qt 5.4 on OS X 10.10.2, dialog boxes
     // opened in main() have a frozen UI for several seconds, and the menu bar
@@ -77,14 +77,14 @@ void Application::finishStartup()
 
     if (arguments().length() != 2 || seen_help) {
         QString message = QString("Usage: %0 index_file").arg(arguments()[0]);
-        QMessageBox::information(nullptr, "SourceWeb", message);
+        QMessageBox::information(nullptr, "CxxCodeBrowser", message);
         exit();
         return;
     }
 
     if (!QFileInfo(path).isFile()) {
         QString message = QString("Index file `%0` does not exist.").arg(path);
-        QMessageBox::critical(nullptr, "SourceWeb", message);
+        QMessageBox::critical(nullptr, "CxxCodeBrowser", message);
         exit(1);
         return;
     }

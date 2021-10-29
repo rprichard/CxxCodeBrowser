@@ -3,7 +3,7 @@
 
 #include "../shared_headers/host.h"
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #define INDEXER_MUTEX_USE_PTHREADS 1
 #elif defined(_WIN32)
 // MinGW32 also does not provide C++11 threading.  (MinGW-w64 might, though.)

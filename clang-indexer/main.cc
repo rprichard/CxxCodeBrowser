@@ -20,7 +20,7 @@
 #include <unordered_set>
 #include <vector>
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #include <unistd.h>
 #elif defined(_WIN32)
 #include <direct.h>

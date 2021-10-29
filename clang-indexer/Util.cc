@@ -7,7 +7,7 @@
 #include <cstring>
 #include <iostream>
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -50,7 +50,7 @@ char *portableRealPath(const char *path)
         errno = EINVAL;
         return NULL;
     }
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     return realpath(path, NULL);
 #elif defined(_WIN32)
     return _fullpath(NULL, path, 0);
@@ -61,7 +61,7 @@ char *portableRealPath(const char *path)
 
 time_t getPathModTime(const std::string &path)
 {
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     // TODO: What about symlinks?  It seems that the perfect behavior is to use
     // the non-symlink modtime for the index file itself, but for input files,
     // to use the highest modtime among all the symlinks and the non-symlink.

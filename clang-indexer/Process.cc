@@ -6,7 +6,7 @@
 #include <cstdlib>
 #include <cstring>
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #include <fcntl.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -27,7 +27,7 @@
 
 namespace indexer {
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 struct ProcessPrivate {
     pid_t pid;
     bool reaped;
@@ -46,7 +46,7 @@ struct ProcessPrivate {
 // non-inheritable/O_CLOEXEC (or after closing it).
 Mutex Process::m_creationMutex;
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 static inline void writeError(const char *str)
 {
     size_t __attribute__((unused)) dummy;  // Silence compiler warning.
@@ -112,7 +112,7 @@ Process::Process(
     : m_p(new ProcessPrivate)
 {
     memset(m_p, 0, sizeof(*m_p));
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     int pipes[4];
     m_creationMutex.lock();
     int ret;
@@ -150,7 +150,7 @@ Process::Process(
         close(pipes[1]);
         close(pipes[2]);
         execv(programPathPtr, argvPtr);
-        writeError("sw-clang-indexer: Failed to exec ");
+        writeError("ccb-clang-indexer: Failed to exec ");
         writeError(programPathPtr);
         writeError("\n");
         _Exit(1);
@@ -196,7 +196,7 @@ Process::Process(
                 /*lpCurrentDirectory=*/NULL,
                 &sui, &pi);
     if (!ret) {
-        fprintf(stderr, "sw-clang-indexer: Error starting daemon process\n");
+        fprintf(stderr, "ccb-clang-indexer: Error starting daemon process\n");
         exit(1);
     }
     m_p->hproc = pi.hProcess;
@@ -233,7 +233,7 @@ int Process::wait()
 {
     closeStdin();
     closeStdout();
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
     if (!m_p->reaped) {
         m_p->status = -1;
         pid_t ret = EINTR_LOOP(waitpid(m_p->pid, &m_p->status, 0));

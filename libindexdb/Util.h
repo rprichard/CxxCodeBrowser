@@ -10,7 +10,7 @@
 
 #include "Endian.h"
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #define EINTR_LOOP(expr)                        \
     ({                                          \
         decltype(expr) ret;                     \

@@ -3,7 +3,7 @@ include(../config.pri)
 QT -= core gui
 CONFIG += dll
 
-TARGET = sw-btrace
+TARGET = ccb-btrace
 TEMPLATE = lib
 
 SOURCES += btrace.c

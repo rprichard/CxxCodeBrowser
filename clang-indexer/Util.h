@@ -11,7 +11,7 @@ namespace indexer {
 
 const time_t kInvalidTime = static_cast<time_t>(-1);
 
-#if defined(SOURCEWEB_UNIX)
+#if defined(CXXCODEBROWSER_UNIX)
 #define EINTR_LOOP(expr)                        \
     ({                                          \
         decltype(expr) ret;                     \

@@ -2,7 +2,7 @@ include(../config.pri)
 
 QT -= core gui
 
-TARGET = sw-index-tool
+TARGET = ccb-index-tool
 TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle
